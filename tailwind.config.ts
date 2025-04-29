@@ -1,14 +1,11 @@
-import Config from "tailwindcss"
-
-const config: Config = {
+module.exports = {
+    darkMode: 'class',
     content: [
-        "./index.html",
-        "./src/**/*.{ts,tsx}"
+        './index.html',
+        './src/**/*.{js,ts,jsx,tsx}',
     ],
     theme: {
         extend: {},
     },
     plugins: [],
 }
-
-export default config

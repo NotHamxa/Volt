@@ -1,4 +1,4 @@
-import { app, BrowserWindow, globalShortcut, ipcMain } from "electron";
+import { app, BrowserWindow, globalShortcut, ipcMain, shell } from "electron";
 import Store from "electron-store";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -17,6 +17,20 @@ ipcMain.on('set-store', (event, { key, value }) => {
 ipcMain.handle('get-store', (event, key) => {
     return store.get(key);
 });
+ipcMain.on('open-external', (event, url) => {
+    shell.openExternal(url);
+});
+ipcMain.on('set-window-height', (event, targetHeight) => {
+    if (!mainWindow || typeof targetHeight !== 'number') return;
+
+    const [width, currentHeight] = mainWindow.getSize();
+
+    if (targetHeight !== currentHeight) {
+        mainWindow.setResizable(true);
+        mainWindow.setSize(width, targetHeight);
+        mainWindow.setResizable(false);
+    }
+});
 
 const createWindow = () => {
     if (mainWindow) {
@@ -29,14 +43,14 @@ const createWindow = () => {
         height: 100,
         transparent: true,
         frame: false,
+        resizable:false,
         alwaysOnTop: true,
-        resizable: true,
         skipTaskbar: true,
-        maxHeight: 300,
         backgroundMaterial: 'none',
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
+            preload: path.join(__dirname, "preload.js"),
         },
         titleBarStyle: "hidden",
         titleBarOverlay: false,
@@ -88,7 +102,6 @@ app.whenReady().then(() => {
             }
         } else {
             lastFocusedWindow = BrowserWindow.getFocusedWindow();
-            console.log(lastFocusedWindow);
             mainWindow.show();
             mainWindow.focus();
         }

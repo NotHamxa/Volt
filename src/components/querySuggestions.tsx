@@ -78,11 +78,19 @@ export function QueryComponent({ path, highlighted = false, type }: QueryCompone
                 </button>
             </ContextMenuTrigger>
             <ContextMenuContent>
-                <ContextMenuItem>Open</ContextMenuItem>
-                <ContextMenuItem>Open file location</ContextMenuItem>
+                <ContextMenuItem onClick={() => {
+                        window.electron.openPath(path);
+                    }}
+                >
+                    Open</ContextMenuItem>
+                <ContextMenuItem onClick={()=>{
+                    window.electron.openInExplorer(path);
+                }}>
+                    Open file location</ContextMenuItem>
                 <ContextMenuItem onClick={async ()=>{
                     await navigator.clipboard.writeText(path);
-                }}>Copy path</ContextMenuItem>
+                }}>
+                    Copy path</ContextMenuItem>
             </ContextMenuContent>
         </ContextMenu>
     );

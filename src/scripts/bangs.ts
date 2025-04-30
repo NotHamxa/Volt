@@ -1,4 +1,5 @@
 import bangs from "@/data/bangs.json";
+import {BangData} from "@/interfaces/bang.ts";
 
 async function handleBangs(bang:string){
     const shortcut = bang.split(" ")[0].replace("!","");
@@ -17,4 +18,14 @@ async function handleBangs(bang:string){
     window.electron.openExternal(url)
 }
 
-export {handleBangs};
+async function getBangData(bang: string): Promise<BangData | null> {
+    const shortcut = bang.split(" ")[0].replace("!", "");
+    const bangData = bangs.find((bang) => bang.t === shortcut);
+    if (!bangData)
+        return null
+
+    return bangData as BangData;
+}
+
+
+export {handleBangs,getBangData};

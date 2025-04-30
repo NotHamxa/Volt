@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld("electron", {
     onWindowBlurred: (callback) => ipcRenderer.on('window-blurred', callback),
     getFileIcon: (filePath) => ipcRenderer.invoke('get-file-icon', filePath),
     openPath:(path) => ipcRenderer.send('open-path', path),
+    openInExplorer:(path)=>ipcRenderer.send('open-in-explorer', path),
 });
 contextBridge.exposeInMainWorld('electronStore', {
     set: (key, value) => ipcRenderer.send('set-store', { key, value }),

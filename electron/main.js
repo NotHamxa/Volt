@@ -107,6 +107,12 @@ ipcMain.on('open-path', async (_, filePath) => {
         console.error(`Failed to open path: ${filePath}`, error);
     }
 });
+ipcMain.on('open-in-explorer', async (event, path) => {
+    try {
+        shell.showItemInFolder(path);
+    } catch (error) {
+    }
+});
 const createWindow = () => {
     if (mainWindow) {
         mainWindow.loadURL("http://localhost:5173");
@@ -115,7 +121,7 @@ const createWindow = () => {
 
     mainWindow = new BrowserWindow({
         width: 600,
-        height: 100,
+        height: 125,
         transparent: true,
         frame: false,
         resizable: false,

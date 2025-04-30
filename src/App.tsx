@@ -3,6 +3,7 @@ import {Input} from "@/components/ui/input.tsx";
 import {getQueryData} from "@/scripts/query.ts";
 import {handleBangs} from "@/scripts/bangs.ts";
 import QuerySuggestions from "@/components/querySuggestions.tsx";
+import BangSuggestions from "@/components/bangSuggestions.tsx";
 function App() {
     const [query, setQuery] = useState('');
     const [usingBangs,setUsingBangs] = useState(false);
@@ -10,7 +11,7 @@ function App() {
     const [apps,setApps] = useState<string[]>([]);
     const [folders,setFolders] = useState<string[]>([]);
     const [files,setFiles] = useState<string[]>([]);
-    const [currentHeight, setCurrentHeight] = useState<number>(100);
+    const [currentHeight, setCurrentHeight] = useState<number>(125);
     useEffect(() => {
         document.documentElement.classList.add("dark");
 
@@ -51,8 +52,8 @@ function App() {
             setCurrentHeight(500);
         }
         else{
-            window.electron.setWindowHeight(100)
-            setCurrentHeight(100);
+            window.electron.setWindowHeight(125)
+            setCurrentHeight(125);
         }
     }, [usingBangs,bestMatch]);
     async function handleInputEnter() {
@@ -90,6 +91,7 @@ function App() {
                     />
                 </>
                 :null}
+            {usingBangs?<BangSuggestions bang={query}/>:null}
         </div>
     );
 }

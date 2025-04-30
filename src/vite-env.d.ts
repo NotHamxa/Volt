@@ -12,6 +12,7 @@ declare global {
             onWindowBlurred: (callback: () => void) => void;
             getFileIcon: (filePath: string) => Promise<string>;
             openPath: (path: string) => void;
+            openInExplorer:(path: string) => void;
         };
         electronStore: {
             set: (key: string, value: any) => void;

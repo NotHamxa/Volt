@@ -1,34 +1,53 @@
 import {CSSProperties, useEffect, useState} from 'react';
 import {Input} from "@/components/ui/input.tsx";
-import bangs from "./data/bangs.json"
+import {getQueryData} from "@/scripts/query.ts";
+import {handleBangs} from "@/scripts/bangs.ts";
+import QuerySuggestions from "@/components/querySuggestions.tsx";
 function App() {
     const [query, setQuery] = useState('');
+    const [usingBangs,setUsingBangs] = useState(false);
+    const [bestMatch, setBestMatch] = useState('');
+    const [apps,setApps] = useState<string[]>([]);
+    const [folders,setFolders] = useState<string[]>([]);
+    const [files,setFiles] = useState<string[]>([]);
     useEffect(() => {
         document.documentElement.classList.add("dark");
+
+        const handleBlur = () => {
+            setQuery("");
+            setUsingBangs(false);
+            setBestMatch("");
+            console.log("reset");
+        };
+        window.electron.onWindowBlurred(handleBlur);
+
+        return () => {
+        };
     }, []);
 
-    function handleSearchQuery() {
-        const trimmedQuery = query.trim();
-
-        if (trimmedQuery === "") return;
-
-        if (trimmedQuery.startsWith("!")) {
-            const shortcut = trimmedQuery.split(" ")[0].replace("!","");
-
-            const bangData = bangs.find((bang) => bang.t === shortcut);
-            const searchTerm = trimmedQuery.slice(shortcut.length+1).trim();
-            let url = ""
-            if (bangData) {
-                url = bangData.u.replace("{{{s}}}", encodeURIComponent(searchTerm));
-            } else {
-                const bangData = bangs.find((bang) => bang.t === "g");
-                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                // @ts-expect-error
-                url = bangData.u.replace("{{{s}}}", encodeURIComponent(searchTerm));
+    useEffect(()=>{
+        const getData = async ()=>{
+            if (query===""){
+                setBestMatch("")
+                setUsingBangs(false);
+                return;
             }
-            window.electron.openExternal(url)
+            if (query.startsWith("!")){
+                setUsingBangs(true);
+                return;
+            }
+            const queryData = await getQueryData({query,setBestMatch})
+            setApps(queryData.apps)
+            setFolders(queryData.folders)
+            setFiles(queryData.files)
         }
+        getData()
+    },[query])
 
+    async function handleInputEnter() {
+        if (usingBangs){
+            handleBangs(query)
+        }
         setQuery("");
     }
 
@@ -41,12 +60,22 @@ function App() {
                 style={styles.input}
                 onKeyDown={(e) => {
                     if (e.key === 'Enter') {
-                        handleSearchQuery();
+                        handleInputEnter();
                     }
                 }}
                 autoFocus={true}
             />
 
+            {(!usingBangs && bestMatch)?
+                <>
+                <QuerySuggestions
+                    bestMatch={bestMatch}
+                    apps={apps}
+                    files={files}
+                    folders={folders}
+                    />
+                </>
+                :null}
         </div>
     );
 }

@@ -28170,13 +28170,13 @@
     "u": "http://www.denstoredanske.dk/Special:Opslag?q={{{s}}}"
   },
   {
-    "c": "News",
-    "d": "www.standaard.be",
+    "c": "Direct Search",
+    "d": "www.google.com",
     "r": 7,
-    "s": "De Standaard",
-    "sc": "Newspaper (intl)",
+    "s": "Direct Search",
+    "sc": "",
     "t": "ds",
-    "u": "http://www.standaard.be/zoeken?keyword={{{s}}} "
+    "u": "https://{{{s}}}"
   },
   {
     "c": "Research",
@@ -44197,13 +44197,13 @@
     "u": "http://gpsies.de/?q={{{s}}}"
   },
   {
-    "c": "Online Services",
-    "d": "www.google.pt",
+    "c": "Chat GPT",
+    "d": "www.chatgpt.com",
     "r": 223,
-    "s": "Google PT",
-    "sc": "Google",
+    "s": "Chat GPT",
+    "sc": "Open AI",
     "t": "gpt",
-    "u": "https://www.google.pt/search?q={{{s}}}"
+    "u": "https://chat.openai.com/?q={{{s}}}"
   },
   {
     "c": "News",

@@ -1,7 +1,5 @@
-const {ipcMain} = require('electron');
-
-const fg = require('fast-glob');
-const fs = require('fs');
+import fg from 'fast-glob';
+import fs from 'fs';
 
 const appPaths = [
     'C:/ProgramData/Microsoft/Windows/Start Menu/Programs',
@@ -18,7 +16,9 @@ async function searchApps(query) {
         });
         results.push(...matches);
     }
+    console.log(results);
     return results;
+
 }
 
 async function searchFilesAndFolders(baseDir, query) {
@@ -38,18 +38,12 @@ async function searchFilesAndFolders(baseDir, query) {
             if (stat.isFile()) files.push(fullPath);
             else if (stat.isDirectory()) folders.push(fullPath);
         } catch (err) {
-            // Ignore inaccessible paths
+
         }
     }
-
+    console.log({files,folders})
     return { files, folders };
 }
-ipcMain.handle('search-files', async (_, dir, pattern) => {
-    return await searchFilesAndFolders(dir, pattern);
-});
 
-ipcMain.handle('search-apps', async (_, pattern) => {
-    return await searchApps(pattern);
-});
 
 module.exports = {searchApps,searchFilesAndFolders}

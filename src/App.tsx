@@ -10,6 +10,7 @@ function App() {
     const [apps,setApps] = useState<string[]>([]);
     const [folders,setFolders] = useState<string[]>([]);
     const [files,setFiles] = useState<string[]>([]);
+    const [currentHeight, setCurrentHeight] = useState<number>(100);
     useEffect(() => {
         document.documentElement.classList.add("dark");
 
@@ -44,15 +45,28 @@ function App() {
         getData()
     },[query])
 
+    useEffect(() => {
+        if (!usingBangs && bestMatch){
+            window.electron.setWindowHeight(500)
+            setCurrentHeight(500);
+        }
+        else{
+            window.electron.setWindowHeight(100)
+            setCurrentHeight(100);
+        }
+    }, [usingBangs,bestMatch]);
     async function handleInputEnter() {
+        if (query==="")
+            return;
         if (usingBangs){
             handleBangs(query)
+            setQuery("");
         }
-        setQuery("");
     }
 
     return (
-        <div style={styles.mainContainer}>
+        <div style={{...styles.mainContainer,
+                    ...{height:`${currentHeight}px`}}}>
             <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}

@@ -1,27 +1,33 @@
-import { app, BrowserWindow, globalShortcut, ipcMain, shell } from "electron";
+import {app, BrowserWindow, globalShortcut, ipcMain, shell} from "electron";
 import Store from "electron-store";
 import path from "path";
-import { fileURLToPath } from "url";
+import {fileURLToPath} from "url";
 import fg from "fast-glob";
 import fs from "fs";
 import os from "os";
+import {exec} from 'child_process';
+import {promisify} from 'util';
+import {execSync} from "child_process";
+
+
+const execAsync = promisify(exec);
 const store = new Store();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 let mainWindow = null;
 let lastFocusedWindow = null;
+let appCache = [];
 
-async function searchApps(query) {
+async function loadApps() {
     const startMenuPaths = [
         path.join(os.homedir(), "AppData/Roaming/Microsoft/Windows/Start Menu/Programs"),
         "C:/ProgramData/Microsoft/Windows/Start Menu/Programs",
         "C:/Users/Public/Desktop"
     ];
     const results = [];
-    function collectShortcuts(dir) {
+    async function collectShortcuts(dir) {
         if (!fs.existsSync(dir)) return;
-
         const items = fs.readdirSync(dir);
         for (const item of items) {
             const fullPath = path.join(dir, item);
@@ -29,19 +35,74 @@ async function searchApps(query) {
             if (stat.isDirectory()) {
                 collectShortcuts(fullPath);
             } else if (fullPath.toLowerCase().endsWith(".lnk")) {
-                results.push(fullPath);
+                const appName = path.basename(fullPath, ".lnk");
+                results.push({
+                    name: appName,
+                    source: "StartMenu",
+                    appID: "",
+                    path: fullPath
+                });
             }
         }
     }
-    for (const dir of startMenuPaths) {
-        collectShortcuts(dir);
+    function collectUWPApps() {
+        return new Promise((resolve, reject) => {
+            exec('powershell -Command "Get-StartApps | ConvertTo-Json"', (error, stdout, stderr) => {
+                if (error) {
+                    console.error("Error executing PowerShell:", error);
+                    return reject(error);
+                }
+                if (stderr) {
+                    console.error("PowerShell stderr:", stderr);
+                    // This might just be warnings — don't reject unless necessary
+                }
+                try {
+                    const uwpApps = JSON.parse(stdout);
+                    const appList = Array.isArray(uwpApps) ? uwpApps : [uwpApps];
+                    appList.forEach(app => {
+                        results.push({
+                            name: app.Name,
+                            source: "UWP",
+                            appID: app.AppID,
+                            path: ""
+                        });
+                    });
+                    resolve();
+                } catch (parseError) {
+                    console.error("Failed to parse JSON from PowerShell:", parseError);
+                    reject(parseError);
+                }
+            });
+        });
     }
-    return results.filter(filePath =>
-        path.basename(filePath).toLowerCase().includes(query.toLowerCase())
-    );
+    for (const dir of startMenuPaths) {
+        await collectShortcuts(dir);
+    }
+    console.log(results.length);
+    await collectUWPApps();
+    console.log(results.length);
+    console.log(Array.from(new Map(results.map(item => [item.name, item])).values()).length);
+    return Array.from(new Map(results.map(item => [item.name, item])).values());
+}
+
+loadApps()
+    .then(apps => {
+        appCache = apps;
+    })
+    .catch((err) => {
+        console.log(`Error: ${err.message}`);
+        appCache = [];
+    });
+
+
+async function searchApps(query) {
+    if (!appCache || !Array.isArray(appCache)) return [];
+    console.log(appCache.length);
+    const lowerQuery = query.toLowerCase();
+    console.log("sdsad",appCache.filter(app => app.name.toLowerCase().includes(lowerQuery)))
+    return appCache.filter(app => app.name.toLowerCase().includes(lowerQuery));
 }
 async function searchFilesAndFolders(baseDir, query) {
-    console.log(query);
     const matches = await fg([`**/*${query}*`], {
         cwd: baseDir,
         absolute: true,
@@ -49,36 +110,33 @@ async function searchFilesAndFolders(baseDir, query) {
         suppressErrors: true
     });
 
-    const files = [];
-    const folders = [];
+    const results = [];
 
     for (const fullPath of matches) {
         try {
             const stat = fs.statSync(fullPath);
-            if (stat.isFile()) files.push(fullPath);
-            else if (stat.isDirectory()) folders.push(fullPath);
+            const name = path.basename(fullPath);
+            if (stat.isFile()) {
+                results.push({ name, type: 'file', path: fullPath });
+            } else if (stat.isDirectory()) {
+                results.push({ name, type: 'dir', path: fullPath });
+            }
         } catch (err) {}
     }
-    return { files, folders };
+    return results;
 }
-ipcMain.handle('get-file-icon', async (event, filePath) => {
-    try {
-        const icon = await app.getFileIcon(filePath, { size: 'normal' });
-        return icon.toDataURL();
-    } catch (error) {
-        console.error('Error retrieving file icon:', error);
-        return null;
-    }
-});
 ipcMain.on('set-store', (event, { key, value }) => {
     store.set(key, value);
 });
+
 ipcMain.handle('get-store', (event, key) => {
     return store.get(key);
 });
+
 ipcMain.on('open-external', (event, url) => {
     shell.openExternal(url);
 });
+
 ipcMain.on('set-window-height', (event, targetHeight) => {
     if (!mainWindow || typeof targetHeight !== 'number') return;
 
@@ -90,15 +148,18 @@ ipcMain.on('set-window-height', (event, targetHeight) => {
         mainWindow.setResizable(false);
     }
 });
+
 ipcMain.handle('search-files', async (_, dir, pattern) => {
     return await searchFilesAndFolders(dir, pattern);
 });
+
 ipcMain.handle('search-apps', async (_, pattern) => {
     return await searchApps(pattern);
 });
+
 ipcMain.on('open-path', async (_, filePath) => {
     try {
-        await shell.openPath(filePath)
+        await shell.openPath(filePath);
         if (mainWindow?.isVisible()) {
             mainWindow.webContents.send('window-blurred');
             mainWindow.hide();
@@ -107,12 +168,41 @@ ipcMain.on('open-path', async (_, filePath) => {
         console.error(`Failed to open path: ${filePath}`, error);
     }
 });
+ipcMain.handle('launch-app', async (event, app) => {
+    if (!app) return false;
+    try {
+        if (app.path) {
+            exec(`start "" "${app.path}"`, (err) => {
+                if (err) {
+                    console.error(`Error launching app from path: ${err}`);
+                    return false;
+                }
+            });
+        } else if (app.source === "UWP" && app.appId) {
+            const command = `start shell:AppsFolder\\${app.appId}`;
+            exec(command, (err) => {
+                if (err) {
+                    console.error(`Error launching UWP app: ${err}`);
+                    return false;
+                }
+            });
+        } else {
+            console.warn("App object is missing launch information.");
+            return false;
+        }
+        return true;
+    } catch (error) {
+        console.error("Unexpected error launching app:", error);
+        return false;
+    }
+});
+
 ipcMain.on('open-in-explorer', async (event, path) => {
     try {
         shell.showItemInFolder(path);
-    } catch (error) {
-    }
+    } catch (error) {}
 });
+
 const createWindow = () => {
     if (mainWindow) {
         mainWindow.loadURL("http://localhost:5173");
@@ -120,8 +210,8 @@ const createWindow = () => {
     }
 
     mainWindow = new BrowserWindow({
-        width: 600,
-        height: 125,
+        width: 800,
+        height: 500,
         transparent: true,
         frame: false,
         resizable: false,
@@ -163,15 +253,16 @@ const createWindow = () => {
 
 app.whenReady().then(() => {
     createWindow();
-    globalShortcut.register("Esc",()=>{
-        if (mainWindow.isVisible()){
+    globalShortcut.register("Esc", () => {
+        if (mainWindow.isVisible()) {
             mainWindow.hide();
             mainWindow.webContents.send('window-blurred');
             if (lastFocusedWindow) {
                 lastFocusedWindow.focus();
             }
         }
-    })
+    });
+
     globalShortcut.register('Alt+S', () => {
         if (!mainWindow) return;
 

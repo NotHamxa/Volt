@@ -6,12 +6,16 @@ export default function BangSuggestions({ bang }: { bang: string }) {
     const [bangData, setBangData] = useState<BangData | null>(null);
     const [searchTerm, setSearchTerm] = useState<string>("");
 
+    
     useEffect(() => {
         const checkBang = async () => {
             const bangData = await getBangData(bang);
             setBangData(bangData);
             if (bangData) {
                 setSearchTerm(bang.slice(bangData.t.length + 1).trim());
+                if (bangData.t==="g"){
+
+                }
             } else {
                 setSearchTerm("");
             }

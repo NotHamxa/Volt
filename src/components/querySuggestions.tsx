@@ -1,56 +1,42 @@
 import { Label } from "@/components/ui/label.tsx";
-import { getNameFromPath } from "@/scripts/query.ts";
 import { CSSProperties, useEffect, useState } from "react";
-import {Folder,File} from "lucide-react";
+import {Folder, File, AppWindow} from "lucide-react";
 import {ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger} from "@/components/ui/context-menu.tsx";
+import {SearchQueryT} from "@/interfaces/searchQuery.ts";
 
 interface IQuerySuggestions {
-    bestMatch: string;
-    apps: string[];
-    files: string[];
-    folders: string[];
+    bestMatch: SearchQueryT;
+    apps: SearchQueryT[];
+    files: SearchQueryT[];
+    folders: SearchQueryT[];
 }
 
-interface QueryComponentProps {
-    path: string;
-    onClick?: (path: string) => void;
+type QueryComponentProps = {
+    item: SearchQueryT;
     highlighted?: boolean;
-    type:string
-}
+};
 
-export function QueryComponent({ path, highlighted = false, type }: QueryComponentProps) {
-    const fileName = getNameFromPath(path);
-    const [iconB64, setIconB64] = useState<string | null>(null);
+export function QueryComponent({ item, highlighted = false }: QueryComponentProps) {
+    const { name, type, path } = item;
+
     const [hovered, setHovered] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
 
-    useEffect(() => {
-        const fetchIcon = async () => {
-            if (fileName.endsWith(".exe") || fileName.endsWith(".lnk")) {
-                const icon = await window.electron.getFileIcon(path);
-                setIconB64(icon);
-            }
-        };
-        fetchIcon();
-    }, [fileName, path]);
-
     const isHighlighted = hovered || highlighted || isFocused;
 
-    const handleFocus = () => {
-        setIsFocused(true);
-    };
-
-    const handleBlur = () => {
-        setIsFocused(false);
-    };
+    const handleFocus = () => setIsFocused(true);
+    const handleBlur = () => setIsFocused(false);
 
     return (
         <ContextMenu>
             <ContextMenuTrigger>
                 <button
                     onClick={() => {
-                        console.log("clicked", path);
-                        window.electron.openPath(path);
+                        if (type === "app") {
+                            window.electron.openApp(item);
+                        } else if (path) {
+                            window.electron.openPath(path);
+                        }
                     }}
                     onMouseEnter={() => setHovered(true)}
                     onMouseLeave={() => setHovered(false)}
@@ -58,7 +44,6 @@ export function QueryComponent({ path, highlighted = false, type }: QueryCompone
                     onBlur={handleBlur}
                     tabIndex={0}
                     style={{
-                        ...styles.componentContainer,
                         cursor: "pointer",
                         display: "flex",
                         alignItems: "center",
@@ -71,30 +56,41 @@ export function QueryComponent({ path, highlighted = false, type }: QueryCompone
                         outline: isFocused ? "2px solid #3faffa" : "none",
                     }}
                 >
-                    {iconB64 ? <img src={iconB64} style={{ width: 24, height: 24 }} /> : null}
-                    {type === "folder" ?<Folder size={24} />:null}
-                    {type === "file" ?<File size={24} />:null}
-                    <Label>{fileName}</Label>
+                    {type === "app" && <AppWindow size={24} />}
+                    {type === "folder" && <Folder size={24} />}
+                    {type === "file" && <File size={24} />}
+                    <Label>{name}</Label>
                 </button>
             </ContextMenuTrigger>
             <ContextMenuContent>
                 <ContextMenuItem onClick={() => {
+                    if (type === "app") {
+                        window.electron.openApp(item)
+                    } else if (path) {
                         window.electron.openPath(path);
-                    }}
-                >
-                    Open</ContextMenuItem>
-                <ContextMenuItem onClick={()=>{
-                    window.electron.openInExplorer(path);
+                    }
                 }}>
-                    Open file location</ContextMenuItem>
-                <ContextMenuItem onClick={async ()=>{
-                    await navigator.clipboard.writeText(path);
-                }}>
-                    Copy path</ContextMenuItem>
+                    Open
+                </ContextMenuItem>
+                {path && (
+                    <ContextMenuItem onClick={() => {
+                        window.electron.openInExplorer(path);
+                    }}>
+                        Open file location
+                    </ContextMenuItem>
+                )}
+                {path && (
+                    <ContextMenuItem onClick={async () => {
+                        await navigator.clipboard.writeText(path);
+                    }}>
+                        Copy path
+                    </ContextMenuItem>
+                )}
             </ContextMenuContent>
         </ContextMenu>
     );
 }
+
 
 export default function QuerySuggestions({ bestMatch, apps, files, folders }: IQuerySuggestions) {
     const [focusedIndex, setFocusedIndex] = useState<number>(0);
@@ -103,21 +99,25 @@ export default function QuerySuggestions({ bestMatch, apps, files, folders }: IQ
     const limitedFiles = files.slice(0, 3);
     const limitedFolders = folders.slice(0, 3);
 
-    const allResults = [
-        { path: bestMatch, type: "bestMatch" },
-        ...limitedApps.map(app => ({ path: app, type: "app" })),
-        ...limitedFiles.map(file => ({ path: file, type: "file" })),
-        ...limitedFolders.map(folder => ({ path: folder, type: "folder" })),
+    const allResults: SearchQueryT[] = [
+        ...(bestMatch ? [bestMatch] : []),
+        ...limitedApps,
+        ...limitedFiles,
+        ...limitedFolders,
     ];
 
     const handleKeyDown = (e: KeyboardEvent) => {
         if (e.key === "ArrowDown" && focusedIndex < allResults.length - 1) {
-            setFocusedIndex(focusedIndex + 1);
+            setFocusedIndex(prev => prev + 1);
         } else if (e.key === "ArrowUp" && focusedIndex > 0) {
-            setFocusedIndex(focusedIndex - 1);
-        }
-        if (e.key === "Enter" && allResults[focusedIndex]) {
-            window.electron.openPath(allResults[focusedIndex].path);
+            setFocusedIndex(prev => prev - 1);
+        } else if (e.key === "Enter" && allResults[focusedIndex]) {
+            const item = allResults[focusedIndex];
+            if (item.type === "app") {
+                window.electron.openApp(item);
+            } else if (item.path) {
+                window.electron.openPath(item.path);
+            }
         }
     };
 
@@ -126,7 +126,7 @@ export default function QuerySuggestions({ bestMatch, apps, files, folders }: IQ
         return () => {
             window.removeEventListener("keydown", handleKeyDown);
         };
-    }, [focusedIndex, allResults.length]);
+    }, [focusedIndex, allResults]);
 
     return (
         <div style={styles.mainContainer}>
@@ -134,49 +134,50 @@ export default function QuerySuggestions({ bestMatch, apps, files, folders }: IQ
                 <div>No results found</div>
             ) : (
                 <>
-                    {bestMatch !== "" && (
+                    {bestMatch && (
                         <>
                             <div style={styles.label}>Best Match</div>
-                            <QueryComponent path={bestMatch} highlighted={focusedIndex === 0}
-                                            type={"app"}
-                            />
+                            <QueryComponent item={bestMatch} highlighted={focusedIndex === 0} />
                         </>
                     )}
+
                     {limitedApps.length > 0 && (
                         <>
                             <div style={styles.label}>Applications</div>
                             {limitedApps.map((app, index) => (
                                 <QueryComponent
-                                    key={app}
-                                    path={app}
-                                    highlighted={focusedIndex === index + 1}
-                                    type={"app"}
+                                    key={app.name}
+                                    item={app}
+                                    highlighted={focusedIndex === index + (bestMatch ? 1 : 0)}
                                 />
                             ))}
                         </>
                     )}
+
                     {limitedFiles.length > 0 && (
                         <>
                             <div style={styles.label}>Files</div>
                             {limitedFiles.map((file, index) => (
                                 <QueryComponent
-                                    key={file}
-                                    path={file}
-                                    highlighted={focusedIndex === limitedApps.length + index + 1}
-                                    type={"file"}
+                                    key={file.name}
+                                    item={file}
+                                    highlighted={focusedIndex === index + (bestMatch ? 1 : 0) + limitedApps.length}
                                 />
                             ))}
                         </>
                     )}
+
                     {limitedFolders.length > 0 && (
                         <>
                             <div style={styles.label}>Folders</div>
                             {limitedFolders.map((folder, index) => (
                                 <QueryComponent
-                                    key={folder}
-                                    path={folder}
-                                    highlighted={focusedIndex === limitedApps.length + limitedFiles.length + index + 1}
-                                    type={"folder"}
+                                    key={folder.name}
+                                    item={folder}
+                                    highlighted={
+                                        focusedIndex ===
+                                        index + (bestMatch ? 1 : 0) + limitedApps.length + limitedFiles.length
+                                    }
                                 />
                             ))}
                         </>

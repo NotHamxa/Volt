@@ -1,4 +1,6 @@
 /// <reference types="vite/client" />
+import {SearchQueryT} from "@/interfaces/searchQuery.ts";
+
 export {};
 
 declare global {
@@ -7,11 +9,11 @@ declare global {
             invoke: (channel: string, data?: any) => Promise<any>;
             setWindowHeight:(height: number) => void;
             openExternal:(url: string) => void;
-            searchApps: (query: string) => Promise<string[]>;
-            searchFilesAndFolders: (baseDir: string, query: string) => Promise<{ files: string[]; folders: string[] }>;
+            searchApps: (query: string) => Promise<SearchQueryT[]>;
+            searchFilesAndFolders: (baseDir: string, query: string) => Promise<SearchQueryT[]>;
             onWindowBlurred: (callback: () => void) => void;
-            getFileIcon: (filePath: string) => Promise<string>;
             openPath: (path: string) => void;
+            openApp: (app: SearchQueryT) => boolean;
             openInExplorer:(path: string) => void;
         };
         electronStore: {

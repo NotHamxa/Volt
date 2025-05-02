@@ -10,18 +10,15 @@ interface QueryData {
 async function getQueryData({ query, setBestMatch }: QueryData) {
     const apps: SearchQueryT[] = await window.electron.searchApps(query);
     const downloadFileFolders = await window.electron.searchFilesAndFolders("C:\\Users\\Hamxa\\Downloads", query);
-
+    console.log(apps)
     const downloadFiles = downloadFileFolders.filter(item => item.type === "file");
     const downloadFolders = downloadFileFolders.filter(item => item.type === "folder");
-
-    let bestMatchFrom = "";
 
     if (apps.length > 0) {
         const best = apps.find(app => {
             return app.name.toLowerCase().startsWith(query.toLowerCase());
         });
         if (best) {
-            bestMatchFrom = "app";
             setBestMatch(best);
         } else {
             setBestMatch(null);
@@ -31,7 +28,6 @@ async function getQueryData({ query, setBestMatch }: QueryData) {
             return folder.name.toLowerCase().startsWith(query.toLowerCase());
         });
         if (best) {
-            bestMatchFrom = "folder";
             setBestMatch(best);
         } else {
             setBestMatch(null);
@@ -41,7 +37,6 @@ async function getQueryData({ query, setBestMatch }: QueryData) {
             return file.name.toLowerCase().startsWith(query.toLowerCase());
         });
         if (best) {
-            bestMatchFrom = "file";
             setBestMatch(best);
         } else {
             setBestMatch(null);
@@ -54,7 +49,6 @@ async function getQueryData({ query, setBestMatch }: QueryData) {
         apps:apps,
         folders: downloadFolders,
         files: downloadFiles,
-        bestMatchFrom:bestMatchFrom,
     };
 }
 function getNameFromPath(path: string): string {

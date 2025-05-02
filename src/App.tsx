@@ -82,7 +82,7 @@ function App() {
                 />
             </div>
 
-            {!usingBangs && bestMatch ? (
+            {!usingBangs && query ? (
                 <QuerySuggestions
                     bestMatch={bestMatch}
                     apps={apps}

@@ -19,6 +19,8 @@ let mainWindow = null;
 let lastFocusedWindow = null;
 let appCache = [];
 
+
+
 async function loadApps() {
     const startMenuPaths = [
         path.join(os.homedir(), "AppData/Roaming/Microsoft/Windows/Start Menu/Programs"),
@@ -83,7 +85,17 @@ async function loadApps() {
     console.log(results.length);
     await collectUWPApps();
     console.log(results.length);
-    return Array.from(new Map(results.map(item => [item.name, item])).values());
+    const deduped = new Map();
+
+    for (const app of results) {
+        const existing = deduped.get(app.name);
+
+        if (!existing || (!existing.path && app.path)) {
+            deduped.set(app.name, app);
+        }
+    }
+
+    return Array.from(deduped.values());
 }
 
 loadApps()
@@ -97,30 +109,36 @@ loadApps()
 
 async function searchApps(query) {
     if (!appCache || !Array.isArray(appCache)) return [];
-    console.log(appCache.length);
-    const lowerQuery = query.toLowerCase();
+    const lowerQuery = query.toLowerCase().trim();
+    appCache.forEach((app) => {
+
+    })
     return appCache.filter(app => app.name.toLowerCase().includes(lowerQuery));
 }
 async function searchFilesAndFolders(baseDir, query) {
-    const matches = await fg([`**/*${query}*`], {
+    const matches = await fg([`**/*`], {
         cwd: baseDir,
         absolute: true,
         onlyFiles: false,
         suppressErrors: true
     });
 
+    const lowerQuery = query.toLowerCase();
     const results = [];
 
     for (const fullPath of matches) {
         try {
             const stat = fs.statSync(fullPath);
             const name = path.basename(fullPath);
-            if (stat.isFile()) {
-                results.push({ name, type: 'file', path: fullPath });
-            } else if (stat.isDirectory()) {
-                results.push({ name, type: 'dir', path: fullPath });
+            if (name.toLowerCase().includes(lowerQuery)) {
+                results.push({
+                    name,
+                    type: stat.isFile() ? 'file' :'folder',
+                    path: fullPath
+                });
             }
-        } catch (err) {}
+        } catch (err) {
+        }
     }
     return results;
 }
@@ -265,7 +283,7 @@ app.whenReady().then(() => {
         }
     });
 
-    globalShortcut.register('Alt+S', () => {
+    globalShortcut.register('Ctrl+Space', () => {
         if (!mainWindow) return;
 
         if (mainWindow.isVisible()) {

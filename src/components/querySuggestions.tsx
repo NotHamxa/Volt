@@ -5,7 +5,7 @@ import {ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger} fr
 import {SearchQueryT} from "@/interfaces/searchQuery.ts";
 
 interface IQuerySuggestions {
-    bestMatch: SearchQueryT;
+    bestMatch: SearchQueryT | null;
     apps: SearchQueryT[];
     files: SearchQueryT[];
     folders: SearchQueryT[];
@@ -32,8 +32,7 @@ export function QueryComponent({ item, highlighted = false }: QueryComponentProp
                 <button
                     onClick={async () => {
                         if (type === "app") {
-                            const opened = await window.electron.openApp(item);
-                            console.log(opened);
+                            await window.electron.openApp(item);
                         } else if (path) {
                             window.electron.openPath(path);
                         }
@@ -95,10 +94,9 @@ export function QueryComponent({ item, highlighted = false }: QueryComponentProp
 
 export default function QuerySuggestions({ bestMatch, apps, files, folders }: IQuerySuggestions) {
     const [focusedIndex, setFocusedIndex] = useState<number>(0);
-
-    const limitedApps = apps.slice(0, 3);
-    const limitedFiles = files.slice(0, 3);
-    const limitedFolders = folders.slice(0, 3);
+    const limitedApps = apps.length > 3 ? apps.slice(0, 3) : apps;
+    const limitedFiles = files.length > 3 ? files.slice(0, 3) : files;
+    const limitedFolders = folders.length > 3 ? folders.slice(0, 3) : folders;
 
     const allResults: SearchQueryT[] = [
         ...(bestMatch ? [bestMatch] : []),

@@ -39,8 +39,9 @@ async function loadApps() {
                 results.push({
                     name: appName,
                     source: "StartMenu",
-                    appID: "",
-                    path: fullPath
+                    appId: "",
+                    path: fullPath,
+                    type:"app"
                 });
             }
         }
@@ -63,8 +64,9 @@ async function loadApps() {
                         results.push({
                             name: app.Name,
                             source: "UWP",
-                            appID: app.AppID,
-                            path: ""
+                            appId: app.AppID,
+                            path: "",
+                            type:"app"
                         });
                     });
                     resolve();
@@ -81,7 +83,6 @@ async function loadApps() {
     console.log(results.length);
     await collectUWPApps();
     console.log(results.length);
-    console.log(Array.from(new Map(results.map(item => [item.name, item])).values()).length);
     return Array.from(new Map(results.map(item => [item.name, item])).values());
 }
 
@@ -90,7 +91,6 @@ loadApps()
         appCache = apps;
     })
     .catch((err) => {
-        console.log(`Error: ${err.message}`);
         appCache = [];
     });
 
@@ -99,7 +99,6 @@ async function searchApps(query) {
     if (!appCache || !Array.isArray(appCache)) return [];
     console.log(appCache.length);
     const lowerQuery = query.toLowerCase();
-    console.log("sdsad",appCache.filter(app => app.name.toLowerCase().includes(lowerQuery)))
     return appCache.filter(app => app.name.toLowerCase().includes(lowerQuery));
 }
 async function searchFilesAndFolders(baseDir, query) {
@@ -169,7 +168,10 @@ ipcMain.on('open-path', async (_, filePath) => {
     }
 });
 ipcMain.handle('launch-app', async (event, app) => {
-    if (!app) return false;
+    if (!app){
+        return false
+    }
+    console.log(app)
     try {
         if (app.path) {
             exec(`start "" "${app.path}"`, (err) => {

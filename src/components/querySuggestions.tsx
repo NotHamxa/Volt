@@ -26,14 +26,14 @@ export function QueryComponent({ item, highlighted = false }: QueryComponentProp
 
     const handleFocus = () => setIsFocused(true);
     const handleBlur = () => setIsFocused(false);
-
     return (
         <ContextMenu>
             <ContextMenuTrigger>
                 <button
-                    onClick={() => {
+                    onClick={async () => {
                         if (type === "app") {
-                            window.electron.openApp(item);
+                            const opened = await window.electron.openApp(item);
+                            console.log(opened);
                         } else if (path) {
                             window.electron.openPath(path);
                         }
@@ -63,9 +63,10 @@ export function QueryComponent({ item, highlighted = false }: QueryComponentProp
                 </button>
             </ContextMenuTrigger>
             <ContextMenuContent>
-                <ContextMenuItem onClick={() => {
+                <ContextMenuItem onClick={async () => {
                     if (type === "app") {
-                        window.electron.openApp(item)
+                        await window.electron.openApp(item);
+
                     } else if (path) {
                         window.electron.openPath(path);
                     }
@@ -106,7 +107,7 @@ export default function QuerySuggestions({ bestMatch, apps, files, folders }: IQ
         ...limitedFolders,
     ];
 
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = async (e: KeyboardEvent) => {
         if (e.key === "ArrowDown" && focusedIndex < allResults.length - 1) {
             setFocusedIndex(prev => prev + 1);
         } else if (e.key === "ArrowUp" && focusedIndex > 0) {
@@ -114,7 +115,7 @@ export default function QuerySuggestions({ bestMatch, apps, files, folders }: IQ
         } else if (e.key === "Enter" && allResults[focusedIndex]) {
             const item = allResults[focusedIndex];
             if (item.type === "app") {
-                window.electron.openApp(item);
+                await window.electron.openApp(item);
             } else if (item.path) {
                 window.electron.openPath(item.path);
             }

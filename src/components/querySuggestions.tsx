@@ -3,6 +3,7 @@ import { CSSProperties, useEffect, useState } from "react";
 import {Folder, File, AppWindow} from "lucide-react";
 import {ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger} from "@/components/ui/context-menu.tsx";
 import {SearchQueryT} from "@/interfaces/searchQuery.ts";
+import {ScrollArea} from "@/components/ui/scroll-area.tsx";
 
 interface IQuerySuggestions {
     bestMatch: SearchQueryT | null;
@@ -128,7 +129,7 @@ export default function QuerySuggestions({ bestMatch, apps, files, folders }: IQ
     }, [focusedIndex, allResults]);
 
     return (
-        <div style={styles.mainContainer}>
+        <ScrollArea style={styles.mainContainer}>
             {allResults.length === 0 ? (
                 <div>No results found</div>
             ) : (
@@ -183,14 +184,14 @@ export default function QuerySuggestions({ bestMatch, apps, files, folders }: IQ
                     )}
                 </>
             )}
-        </div>
+        </ScrollArea>
     );
 }
 
 const styles: { [key: string]: CSSProperties } = {
     mainContainer: {
         width: "100%",
-        height: "100%",
+        height: "420px",
         padding: "0 16px",
         boxSizing: "border-box",
     },

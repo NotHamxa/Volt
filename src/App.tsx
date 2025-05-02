@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input.tsx";
 import { getQueryData } from "@/scripts/query.ts";
 import {getBangData, handleBangs} from "@/scripts/bangs.ts";
 import QuerySuggestions from "@/components/querySuggestions.tsx";
-import {ChevronRight, Search} from "lucide-react";
+import {ChevronRight, Search, SlidersHorizontal} from "lucide-react";
 import {BangData} from "@/interfaces/bang.ts";
 import {Button} from "@/components/ui/button.tsx";
 import {SearchQueryT} from "@/interfaces/searchQuery.ts";
@@ -80,6 +80,7 @@ function App() {
                     }}
                     autoFocus
                 />
+                {!usingBangs && query ? <SlidersHorizontal size={24} style={{marginRight: "10px"}}/>:null}
             </div>
 
             {!usingBangs && query ? (

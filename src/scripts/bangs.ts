@@ -19,11 +19,11 @@ async function handleBangs(bang:string){
 }
 
 async function getBangData(bang: string): Promise<BangData | null> {
+
     const shortcut = bang.split(" ")[0].replace("!", "");
     const bangData = bangs.find((bang) => bang.t === shortcut);
     if (!bangData)
         return null
-
     return bangData as BangData;
 }
 

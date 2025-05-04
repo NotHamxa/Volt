@@ -16,7 +16,6 @@ interface IBangSuggestions {
 
 export default function BangSuggestions({ bang, setQuery, selfQueryChanged }: IBangSuggestions) {
     const [bangData, setBangData] = useState<BangData | null>(null);
-    const [searchTerm, setSearchTerm] = useState<string>("");
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [focusedIndex, setFocusedIndex] = useState<number>(0);
     const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -27,8 +26,7 @@ export default function BangSuggestions({ bang, setQuery, selfQueryChanged }: IB
                 onMouseEnter={onMouseEnter}
                 onMouseLeave={onMouseLeave}
                 onClick={async ()=>{
-                    const bangString = "!"+bangData?.t+" "+suggestion
-                    await handleBangs(bangString);
+                    await handleOpen(suggestion)
                 }}
                 style={{
                     padding: "8px",
@@ -38,13 +36,17 @@ export default function BangSuggestions({ bang, setQuery, selfQueryChanged }: IB
                     cursor: "pointer",
                     userSelect: "none",
                     transition: "background 0.15s ease-in-out",
+                    justifyContent:"space-between",
+                    width: "100%",
+                    margin:"0px 10px",
+                    display: "flex",
                 }}
             >
                 <label>{suggestion}</label>
+                {/*<label>{bangData?.s?bangData.s:""}</label>*/}
             </div>
         );
     }
-
     useEffect(() => {
         const checkBang = async () => {
             if (selfQueryChanged)
@@ -52,14 +54,22 @@ export default function BangSuggestions({ bang, setQuery, selfQueryChanged }: IB
             const bangData = await getBangData(bang);
             setBangData(bangData);
             if (bangData) {
-                const search = bang.slice(bangData.t.length + 1).trim();
-                if (search !== "") {
-                    setSearchTerm(search);
-                    setSuggestions([searchTerm,...await window.electron.getGoogleSuggestions(search)]);
+                const searchTerm = bang.slice(bangData.t.length + 1).trim();
+                if (searchTerm !== "") {
+                    setSuggestions([searchTerm])
+                    let googleSuggestions = await window.electron.getGoogleSuggestions(searchTerm)
+                    if (googleSuggestions.length>0){
+                        googleSuggestions = googleSuggestions.length>10?googleSuggestions.slice(0,10):googleSuggestions;
+                        setSuggestions([searchTerm,...googleSuggestions]);
+                    }
+
                     setFocusedIndex(0);
                 }
+                else{
+                    setSuggestions([])
+                }
             } else {
-                setSearchTerm("");
+
                 setSuggestions([]);
             }
         };
@@ -67,7 +77,7 @@ export default function BangSuggestions({ bang, setQuery, selfQueryChanged }: IB
     }, [bang]);
 
     useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
+        const handleKeyDown = async (e: KeyboardEvent) => {
             let newIndex = focusedIndex;
             let arrowUsed = false;
             if (e.key === 'ArrowDown') {
@@ -77,7 +87,8 @@ export default function BangSuggestions({ bang, setQuery, selfQueryChanged }: IB
                 newIndex = (focusedIndex - 1 + suggestions.length) % suggestions.length;
                 arrowUsed = true;
             } else if (e.key === 'Enter' && focusedIndex !== -1) {
-
+                const suggestion = suggestions[newIndex] ? " " + suggestions[newIndex] : ""
+                await handleOpen(suggestion);
                 return;
             }
 
@@ -86,7 +97,6 @@ export default function BangSuggestions({ bang, setQuery, selfQueryChanged }: IB
             if (currentSuggestion && arrowUsed)
             {
                 setQuery("!"+bangData?.t+" "+currentSuggestion);
-                console.log("set query")
             }
 
         };
@@ -95,7 +105,18 @@ export default function BangSuggestions({ bang, setQuery, selfQueryChanged }: IB
             window.removeEventListener("keydown", handleKeyDown);
         };
     }, [focusedIndex, suggestions]);
+    async function handleOpen(suggestion:string){
+        const bData = await getBangData(bang);
+        if (bData) {
+            const bangString:string = "!" + bData?.t + " "+suggestion;
+            await handleBangs(bangString);
+        }
+        else{
+            const bangString:string = "!g"+" "+suggestion;
+            await handleBangs(bangString);
+        }
 
+    }
     return (
         <div style={styles.mainContainer}>
             {suggestions.map((suggestion, index) => (

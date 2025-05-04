@@ -50,7 +50,7 @@ export function QueryComponent({ item, highlighted = false }: QueryComponentProp
                         gap: "8px",
                         padding: "8px",
                         borderRadius: "8px",
-                        background: isHighlighted ? "#b0b0b0" : "transparent",
+                        background: isHighlighted ? "rgba(255, 255, 255, 0.1)" : "transparent",
                         userSelect: "none",
                         transition: "background 0.15s ease-in-out",
                         outline: isFocused ? "2px solid #3faffa" : "none",

@@ -1,14 +1,12 @@
-import {app, BrowserWindow, globalShortcut, ipcMain, shell} from "electron";
+import { app, BrowserWindow, globalShortcut, ipcMain, shell } from "electron";
 import Store from "electron-store";
 import path from "path";
-import {fileURLToPath} from "url";
+import { fileURLToPath } from "url";
 import fg from "fast-glob";
 import fs from "fs";
 import os from "os";
-import {exec} from 'child_process';
-import {promisify} from 'util';
-import {execSync} from "child_process";
-
+import { exec } from "child_process";
+import { promisify } from "util";
 
 const execAsync = promisify(exec);
 const store = new Store();
@@ -18,7 +16,6 @@ const __dirname = path.dirname(__filename);
 let mainWindow = null;
 let lastFocusedWindow = null;
 let appCache = [];
-
 
 
 async function loadApps() {
@@ -43,7 +40,7 @@ async function loadApps() {
                     source: "StartMenu",
                     appId: "",
                     path: fullPath,
-                    type:"app"
+                    type: "app"
                 });
             }
         }
@@ -51,14 +48,7 @@ async function loadApps() {
     function collectUWPApps() {
         return new Promise((resolve, reject) => {
             exec('powershell -Command "Get-StartApps | ConvertTo-Json"', (error, stdout, stderr) => {
-                if (error) {
-                    console.error("Error executing PowerShell:", error);
-                    return reject(error);
-                }
-                if (stderr) {
-                    console.error("PowerShell stderr:", stderr);
-                    // This might just be warnings — don't reject unless necessary
-                }
+                if (error) return reject(error);
                 try {
                     const uwpApps = JSON.parse(stdout);
                     const appList = Array.isArray(uwpApps) ? uwpApps : [uwpApps];
@@ -68,12 +58,11 @@ async function loadApps() {
                             source: "UWP",
                             appId: app.AppID,
                             path: "",
-                            type:"app"
+                            type: "app"
                         });
                     });
                     resolve();
                 } catch (parseError) {
-                    console.error("Failed to parse JSON from PowerShell:", parseError);
                     reject(parseError);
                 }
             });
@@ -82,19 +71,14 @@ async function loadApps() {
     for (const dir of startMenuPaths) {
         await collectShortcuts(dir);
     }
-    console.log(results.length);
     await collectUWPApps();
-    console.log(results.length);
     const deduped = new Map();
-
     for (const app of results) {
         const existing = deduped.get(app.name);
-
         if (!existing || (!existing.path && app.path)) {
             deduped.set(app.name, app);
         }
     }
-
     return Array.from(deduped.values());
 }
 
@@ -102,19 +86,16 @@ loadApps()
     .then(apps => {
         appCache = apps;
     })
-    .catch((err) => {
+    .catch(() => {
         appCache = [];
     });
-
 
 async function searchApps(query) {
     if (!appCache || !Array.isArray(appCache)) return [];
     const lowerQuery = query.toLowerCase().trim();
-    appCache.forEach((app) => {
-
-    })
     return appCache.filter(app => app.name.toLowerCase().includes(lowerQuery));
 }
+
 async function searchFilesAndFolders(baseDir, query) {
     const matches = await fg([`**/*`], {
         cwd: baseDir,
@@ -122,10 +103,8 @@ async function searchFilesAndFolders(baseDir, query) {
         onlyFiles: false,
         suppressErrors: true
     });
-
     const lowerQuery = query.toLowerCase();
     const results = [];
-
     for (const fullPath of matches) {
         try {
             const stat = fs.statSync(fullPath);
@@ -133,15 +112,29 @@ async function searchFilesAndFolders(baseDir, query) {
             if (name.toLowerCase().includes(lowerQuery)) {
                 results.push({
                     name,
-                    type: stat.isFile() ? 'file' :'folder',
+                    type: stat.isFile() ? 'file' : 'folder',
                     path: fullPath
                 });
             }
-        } catch (err) {
-        }
+        } catch {}
     }
     return results;
 }
+
+ipcMain.handle('get-google-suggestions', async (event, query) => {
+    try {
+        const response = await fetch(
+            `https://suggestqueries.google.com/complete/search?client=firefox&q=${encodeURIComponent(query)}`
+        );
+        const data = await response.json();
+        return data[1];
+    } catch (error) {
+        console.error("Error fetching Google suggestions:", error);
+        return [];
+    }
+});
+
+
 ipcMain.on('set-store', (event, { key, value }) => {
     store.set(key, value);
 });
@@ -156,9 +149,7 @@ ipcMain.on('open-external', (event, url) => {
 
 ipcMain.on('set-window-height', (event, targetHeight) => {
     if (!mainWindow || typeof targetHeight !== 'number') return;
-
     const [width, currentHeight] = mainWindow.getSize();
-
     if (targetHeight !== currentHeight) {
         mainWindow.setResizable(true);
         mainWindow.setSize(width, targetHeight);
@@ -181,38 +172,26 @@ ipcMain.on('open-path', async (_, filePath) => {
             mainWindow.webContents.send('window-blurred');
             mainWindow.hide();
         }
-    } catch (error) {
-        console.error(`Failed to open path: ${filePath}`, error);
-    }
+    } catch {}
 });
+
 ipcMain.handle('launch-app', async (event, app) => {
-    if (!app){
-        return false
-    }
-    console.log(app)
+    if (!app) return false;
     try {
         if (app.path) {
             exec(`start "" "${app.path}"`, (err) => {
-                if (err) {
-                    console.error(`Error launching app from path: ${err}`);
-                    return false;
-                }
+                if (err) return false;
             });
         } else if (app.source === "UWP" && app.appId) {
             const command = `start shell:AppsFolder\\${app.appId}`;
             exec(command, (err) => {
-                if (err) {
-                    console.error(`Error launching UWP app: ${err}`);
-                    return false;
-                }
+                if (err) return false;
             });
         } else {
-            console.warn("App object is missing launch information.");
             return false;
         }
         return true;
-    } catch (error) {
-        console.error("Unexpected error launching app:", error);
+    } catch {
         return false;
     }
 });
@@ -220,7 +199,7 @@ ipcMain.handle('launch-app', async (event, app) => {
 ipcMain.on('open-in-explorer', async (event, path) => {
     try {
         shell.showItemInFolder(path);
-    } catch (error) {}
+    } catch {}
 });
 
 const createWindow = () => {
@@ -273,6 +252,7 @@ const createWindow = () => {
 
 app.whenReady().then(() => {
     createWindow();
+
     globalShortcut.register("Esc", () => {
         if (mainWindow.isVisible()) {
             mainWindow.hide();
@@ -296,8 +276,12 @@ app.whenReady().then(() => {
             lastFocusedWindow = BrowserWindow.getFocusedWindow();
             mainWindow.show();
             mainWindow.focus();
+
+            if (process.env.NODE_ENV !== "development") {
+                mainWindow.webContents.reloadIgnoringCache();
+            }
         }
-    });
+    })
 
     app.on("activate", () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();

@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld("electron", {
     openPath:(path) => ipcRenderer.send('open-path', path),
     openApp:(app) => ipcRenderer.invoke('launch-app', app),
     openInExplorer:(path)=>ipcRenderer.send('open-in-explorer', path),
+    getGoogleSuggestions:(query)=>ipcRenderer.invoke('get-google-suggestions',query),
 });
 contextBridge.exposeInMainWorld('electronStore', {
     set: (key, value) => ipcRenderer.send('set-store', { key, value }),

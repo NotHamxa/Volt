@@ -15,6 +15,7 @@ declare global {
             openPath: (path: string) => void;
             openApp: (app: SearchQueryT) => Promise<boolean>;
             openInExplorer:(path: string) => void;
+            getGoogleSuggestions: (query:string) => Promise<string[]>;
         };
         electronStore: {
             set: (key: string, value: any) => void;

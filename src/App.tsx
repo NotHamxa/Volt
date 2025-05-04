@@ -1,12 +1,14 @@
 import { CSSProperties, useEffect, useRef, useState } from 'react';
 import { Input } from "@/components/ui/input.tsx";
 import { getQueryData } from "@/scripts/query.ts";
-import {getBangData, handleBangs} from "@/scripts/bangs.ts";
+import {getBangData} from "@/scripts/bangs.ts";
 import QuerySuggestions from "@/components/querySuggestions.tsx";
-import {ChevronRight, Search, SlidersHorizontal} from "lucide-react";
+import {ChevronRight, Search} from "lucide-react";
 import {BangData} from "@/interfaces/bang.ts";
 import {Button} from "@/components/ui/button.tsx";
 import {SearchQueryT} from "@/interfaces/searchQuery.ts";
+import SearchQueryFilter from "@/components/searchQueryFilter.tsx";
+import BangSuggestions from "@/components/bangSuggestions.tsx";
 
 function App() {
     const [query, setQuery] = useState('');
@@ -16,18 +18,18 @@ function App() {
     const [folders, setFolders] = useState<SearchQueryT[]>([]);
     const [files, setFiles] = useState<SearchQueryT[]>([]);
     const [bangData, setBangData] = useState<BangData | null>(null);
+    const [selfQueryChanged,setSelfQueryChanged] = useState<boolean>(false);
     const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         document.documentElement.classList.add("dark");
-
         const handleBlur = () => {
             setQuery("");
             setUsingBangs(false);
             setBestMatch(null);
+            setSelfQueryChanged(false)
             inputRef.current?.focus();
         };
-
         window.electron.onWindowBlurred(handleBlur);
 
         return () => {};
@@ -53,18 +55,13 @@ function App() {
         };
         getData();
     }, [query]);
-
-
-    async function handleInputEnter() {
-        if (query === "") return;
-        if (usingBangs) {
-            handleBangs(query);
-            setQuery("");
-        }
-    }
     const faviconUrl = bangData?.d
         ? `https://www.google.com/s2/favicons?sz=24&domain_url=${encodeURIComponent(bangData.d)}`
         : null;
+    function setQueryInput(value: string) {
+        setSelfQueryChanged(true)
+        setQuery(value);
+    }
     return (
         <div style={styles.mainContainer}>
             <div style={styles.inputContainer}>
@@ -72,15 +69,20 @@ function App() {
                 <Input
                     ref={inputRef}
                     value={query}
-                    onChange={(e) => setQuery(e.target.value)}
+                    onChange={(e) => {
+                        setQuery(e.target.value);
+                        setSelfQueryChanged(false);
+                    }}
+                    onKeyDown={(e) => {
+                        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                            e.preventDefault();
+                        }
+                    }}
                     placeholder="Search for apps or Bangs"
                     style={styles.input}
-                    onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleInputEnter();
-                    }}
                     autoFocus
                 />
-                {!usingBangs && query ? <SlidersHorizontal size={24} style={{marginRight: "10px"}}/>:null}
+                {!usingBangs && query ? <SearchQueryFilter/>:null}
             </div>
 
             {!usingBangs && query ? (
@@ -92,7 +94,12 @@ function App() {
 
                 />
             ) : null}
-            {/*{usingBangs ? <BangSuggestions bang={query} /> : null}*/}
+
+            {usingBangs && query ? <BangSuggestions
+                bang={query}
+                setQuery={setQueryInput}
+                selfQueryChanged={selfQueryChanged}
+            /> : null}
             {query===""?
                 <>
                     <div style={{height: "350px"}}>

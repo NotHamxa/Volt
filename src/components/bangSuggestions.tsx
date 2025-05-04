@@ -1,43 +1,112 @@
 import { CSSProperties, useEffect, useState } from "react";
-import { getBangData } from "@/scripts/bangs.ts";
+import {getBangData, handleBangs} from "@/scripts/bangs.ts";
 import { BangData } from "@/interfaces/bang.ts";
+type BangSuggestionItemProps = {
+    suggestion: string;
+    highlighted: boolean;
+    onMouseEnter: () => void;
+    onMouseLeave: () => void;
+};
 
-export default function BangSuggestions({ bang }: { bang: string }) {
+interface IBangSuggestions {
+    bang:string,
+    setQuery: (query: string) => void,
+    selfQueryChanged:boolean
+}
+
+export default function BangSuggestions({ bang, setQuery, selfQueryChanged }: IBangSuggestions) {
     const [bangData, setBangData] = useState<BangData | null>(null);
     const [searchTerm, setSearchTerm] = useState<string>("");
+    const [suggestions, setSuggestions] = useState<string[]>([]);
+    const [focusedIndex, setFocusedIndex] = useState<number>(0);
+    const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+    function BangSuggestionItem({ suggestion, highlighted, onMouseEnter, onMouseLeave }: BangSuggestionItemProps) {
+        return (
+            <div
+                tabIndex={0}
+                onMouseEnter={onMouseEnter}
+                onMouseLeave={onMouseLeave}
+                onClick={async ()=>{
+                    const bangString = "!"+bangData?.t+" "+suggestion
+                    await handleBangs(bangString);
+                }}
+                style={{
+                    padding: "8px",
+                    borderRadius: "8px",
+                    background: highlighted ? "rgba(255, 255, 255, 0.1)" : "transparent",
+                    color: "#fff",
+                    cursor: "pointer",
+                    userSelect: "none",
+                    transition: "background 0.15s ease-in-out",
+                }}
+            >
+                <label>{suggestion}</label>
+            </div>
+        );
+    }
 
-    
     useEffect(() => {
         const checkBang = async () => {
+            if (selfQueryChanged)
+                return;
             const bangData = await getBangData(bang);
             setBangData(bangData);
             if (bangData) {
-                setSearchTerm(bang.slice(bangData.t.length + 1).trim());
-                if (bangData.t==="g"){
-
+                const search = bang.slice(bangData.t.length + 1).trim();
+                if (search !== "") {
+                    setSearchTerm(search);
+                    setSuggestions([searchTerm,...await window.electron.getGoogleSuggestions(search)]);
+                    setFocusedIndex(0);
                 }
             } else {
                 setSearchTerm("");
+                setSuggestions([]);
             }
         };
         checkBang();
     }, [bang]);
 
-    const faviconUrl = bangData?.d
-        ? `https://www.google.com/s2/favicons?sz=24&domain_url=${encodeURIComponent(bangData.d)}`
-        : null;
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            let newIndex = focusedIndex;
+            let arrowUsed = false;
+            if (e.key === 'ArrowDown') {
+                newIndex = (focusedIndex + 1) % suggestions.length;
+                arrowUsed = true;
+            } else if (e.key === 'ArrowUp') {
+                newIndex = (focusedIndex - 1 + suggestions.length) % suggestions.length;
+                arrowUsed = true;
+            } else if (e.key === 'Enter' && focusedIndex !== -1) {
+
+                return;
+            }
+
+            setFocusedIndex(newIndex);
+            const currentSuggestion = suggestions[newIndex];
+            if (currentSuggestion && arrowUsed)
+            {
+                setQuery("!"+bangData?.t+" "+currentSuggestion);
+                console.log("set query")
+            }
+
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [focusedIndex, suggestions]);
 
     return (
         <div style={styles.mainContainer}>
-            {bangData && (
-                <div style={styles.headingContainer}>
-                    <div style={styles.titleRow}>
-                        {faviconUrl && <img src={faviconUrl} style={styles.favicon} />}
-                        <h2 style={styles.heading}>{bangData.s}</h2>
-                    </div>
-                    {searchTerm && <span style={styles.searchTerm}>{searchTerm}</span>}
-                </div>
-            )}
+            {suggestions.map((suggestion, index) => (
+                <BangSuggestionItem
+                    key={index}
+                    suggestion={suggestion}
+                    highlighted={index === focusedIndex || index === hoveredIndex}
+                    onMouseEnter={() => setHoveredIndex(index)}
+                    onMouseLeave={() => setHoveredIndex(null)}
+                />
+            ))}
         </div>
     );
 }
@@ -48,30 +117,5 @@ const styles: { [key: string]: CSSProperties } = {
         height: "100%",
         padding: "0 16px",
         boxSizing: "border-box",
-    },
-    headingContainer: {
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "flex-start",
-        gap: "4px",
-    },
-    titleRow: {
-        display: "flex",
-        alignItems: "center",
-        gap: "8px",
-    },
-    favicon: {
-        width: 24,
-        height: 24,
-    },
-    heading: {
-        fontSize: "20px",
-        fontWeight: "bold",
-        margin: 0,
-        color: "#fff",
-    },
-    searchTerm: {
-        fontSize: "14px",
-        color: "#aaa",
     },
 };

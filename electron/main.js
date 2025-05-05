@@ -7,7 +7,7 @@ import fs from "fs";
 import os from "os";
 import { exec } from "child_process";
 import { promisify } from "util";
-
+import https from "https";
 const execAsync = promisify(exec);
 const store = new Store();
 const __filename = fileURLToPath(import.meta.url);
@@ -121,17 +121,36 @@ async function searchFilesAndFolders(baseDir, query) {
     return results;
 }
 
+
 ipcMain.handle('get-google-suggestions', async (event, query) => {
-    try {
-        const response = await fetch(
-            `https://suggestqueries.google.com/complete/search?client=firefox&q=${encodeURIComponent(query)}`
-        );
-        const data = await response.json();
-        return data[1];
-    } catch (error) {
-        console.error("Error fetching Google suggestions:", error);
-        return [];
-    }
+    return new Promise((resolve) => {
+        const encodedQuery = encodeURIComponent(query);
+        const url = `https://www.google.com/complete/search?q=${encodedQuery}&cp=${query.length}&client=gws-wiz-serp&xssi=t&hl=en-PK&authuser=0&dpr=1.25`;
+
+        https.get(url, (res) => {
+            let data = '';
+
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                try {
+                    const cleaned = data.replace(/^\)\]\}'\n/, '');
+                    const parsed = JSON.parse(cleaned);
+                    const suggestions = parsed[0].map(item => {
+                        const suggestion = item[0];
+                        // Remove <b> and </b> tags
+                        return suggestion.replace(/<\/?b>/g, '');
+                    });
+                    resolve(suggestions);
+                } catch (err) {
+                    console.error('Failed to parse suggestions:', err);
+                    resolve([]);
+                }
+            });
+        }).on('error', (err) => {
+            console.error('HTTP request failed:', err);
+            resolve([]);
+        });
+    });
 });
 
 

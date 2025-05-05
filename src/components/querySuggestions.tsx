@@ -4,12 +4,10 @@ import {Folder, File, AppWindow} from "lucide-react";
 import {ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger} from "@/components/ui/context-menu.tsx";
 import {SearchQueryT} from "@/interfaces/searchQuery.ts";
 import {ScrollArea} from "@/components/ui/scroll-area.tsx";
+import {getQueryData} from "@/scripts/query.ts";
 
 interface IQuerySuggestions {
-    bestMatch: SearchQueryT | null;
-    apps: SearchQueryT[];
-    files: SearchQueryT[];
-    folders: SearchQueryT[];
+    query: string;
 }
 
 type QueryComponentProps = {
@@ -93,11 +91,29 @@ export function QueryComponent({ item, highlighted = false }: QueryComponentProp
 }
 
 
-export default function QuerySuggestions({ bestMatch, apps, files, folders }: IQuerySuggestions) {
+export default function QuerySuggestions({ query }: IQuerySuggestions) {
     const [focusedIndex, setFocusedIndex] = useState<number>(0);
+    const [bestMatch, setBestMatch] = useState<SearchQueryT | null>(null);
+    const [apps, setApps] = useState<SearchQueryT[]>([]);
+    const [folders, setFolders] = useState<SearchQueryT[]>([]);
+    const [files, setFiles] = useState<SearchQueryT[]>([]);
+
     const limitedApps = apps.length > 3 ? apps.slice(0, 3) : apps;
     const limitedFiles = files.length > 3 ? files.slice(0, 3) : files;
     const limitedFolders = folders.length > 3 ? folders.slice(0, 3) : folders;
+
+    useEffect(() => {
+        const getData = async ()=>{
+            const queryData = await getQueryData({ query, setBestMatch });
+            setApps(queryData.apps);
+            setFolders(queryData.folders);
+            setFiles(queryData.files);
+
+        }
+        getData();
+
+    }, [query]);
+
 
     const allResults: SearchQueryT[] = [
         ...(bestMatch ? [bestMatch] : []),

@@ -1,13 +1,16 @@
-import { app, BrowserWindow, globalShortcut, ipcMain, shell } from "electron";
+import {app, BrowserWindow, globalShortcut, ipcMain, shell} from "electron";
 import Store from "electron-store";
 import path from "path";
-import { fileURLToPath } from "url";
+import {fileURLToPath} from "url";
 import fg from "fast-glob";
 import fs from "fs";
 import os from "os";
-import { exec } from "child_process";
-import { promisify } from "util";
+import {exec} from "child_process";
+import {promisify} from "util";
 import https from "https";
+import {getFileIconBase64} from "./utils/appLogo.js";
+
+
 const execAsync = promisify(exec);
 const store = new Store();
 const __filename = fileURLToPath(import.meta.url);
@@ -16,7 +19,26 @@ const __dirname = path.dirname(__filename);
 let mainWindow = null;
 let lastFocusedWindow = null;
 let appCache = [];
+exec('powershell -Command "Get-AppxPackage -Name Microsoft.Microsoft3DViewer | Select-Object -ExpandProperty InstallLocation"', (error, stdout, stderr) => {
+    if (error) {
+        console.error(`exec error: ${error}`);
+        return;
+    }
 
+    // Check if the install location is empty
+    const installLocation = stdout.trim();
+
+    if (!installLocation) {
+        console.error("App not found or InstallLocation is empty.");
+        return;
+    }
+
+    console.log(`Install Location: ${installLocation}`);
+
+    // Construct the path to the app's icon (it may be inside Assets or Resources folder)
+    const iconPath = `${installLocation}\\Assets\\Logo.png`;
+    console.log(`Icon Path: ${iconPath}`);
+});
 
 async function loadApps() {
     const startMenuPaths = [
@@ -136,9 +158,7 @@ ipcMain.handle('get-google-suggestions', async (event, query) => {
                     const cleaned = data.replace(/^\)\]\}'\n/, '');
                     const parsed = JSON.parse(cleaned);
                     const suggestions = parsed[0].map(item => {
-                        const suggestion = item[0];
-                        // Remove <b> and </b> tags
-                        return suggestion.replace(/<\/?b>/g, '');
+                        return item[0];
                     });
                     resolve(suggestions);
                 } catch (err) {
@@ -153,6 +173,10 @@ ipcMain.handle('get-google-suggestions', async (event, query) => {
     });
 });
 
+ipcMain.handle('get-app-logo', async (event, path) => {
+    const b64 = await getFileIconBase64(path);
+    return b64;
+});
 
 ipcMain.on('set-store', (event, { key, value }) => {
     store.set(key, value);
@@ -163,7 +187,14 @@ ipcMain.handle('get-store', (event, key) => {
 });
 
 ipcMain.on('open-external', (event, url) => {
-    shell.openExternal(url);
+    shell.openExternal(url).then(r => {
+        mainWindow.hide();
+        mainWindow.webContents.send('window-blurred');
+        if (lastFocusedWindow) {
+            lastFocusedWindow.focus();
+        }
+    });
+
 });
 
 ipcMain.on('set-window-height', (event, targetHeight) => {
@@ -194,30 +225,59 @@ ipcMain.on('open-path', async (_, filePath) => {
     } catch {}
 });
 
-ipcMain.handle('launch-app', async (event, app) => {
+ipcMain.handle('launch-app', async (event, app, admin = false) => {
     if (!app) return false;
+
     try {
         if (app.path) {
-            exec(`start "" "${app.path}"`, (err) => {
-                if (err) return false;
-            });
+            if (admin) {
+                const command = `powershell -Command "Start-Process -FilePath \\"${app.path}\\" -Verb RunAs"`;
+                exec(command, (err) => {
+                    if (err) {
+                        console.error('Admin launch failed:', err);
+                        return false;
+                    }
+                });
+            } else {
+                exec(`start "" "${app.path}"`, (err) => {
+                    if (err) {
+                        console.error('Regular launch failed:', err);
+                        return false;
+                    }
+                });
+            }
         } else if (app.source === "UWP" && app.appId) {
             const command = `start shell:AppsFolder\\${app.appId}`;
             exec(command, (err) => {
-                if (err) return false;
+                if (err) {
+                    console.error('UWP launch failed:', err);
+                    return false;
+                }
             });
         } else {
             return false;
         }
+        mainWindow.hide();
+        mainWindow.webContents.send('window-blurred');
+        if (lastFocusedWindow) {
+            lastFocusedWindow.focus();
+        }
         return true;
-    } catch {
+    } catch (err) {
+        console.error('Launch error:', err);
         return false;
     }
 });
 
+
 ipcMain.on('open-in-explorer', async (event, path) => {
     try {
         shell.showItemInFolder(path);
+        mainWindow.hide();
+        mainWindow.webContents.send('window-blurred');
+        if (lastFocusedWindow) {
+            lastFocusedWindow.focus();
+        }
     } catch {}
 });
 
@@ -269,7 +329,13 @@ const createWindow = () => {
     });
 };
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+    try {
+        appCache = await loadApps();
+    } catch (err) {
+        console.error("Failed to load apps:", err);
+        appCache = [];
+    }
     createWindow();
 
     globalShortcut.register("Esc", () => {

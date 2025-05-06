@@ -26,7 +26,7 @@ export default function BangSuggestions({ bang, setQuery, selfQueryChanged }: IB
                 onMouseEnter={onMouseEnter}
                 onMouseLeave={onMouseLeave}
                 onClick={async ()=>{
-                    await handleOpen(suggestion)
+                    await handleOpen(suggestion.replace(/<\/?b>/g, ''))
                 }}
                 style={{
                     padding: "8px",
@@ -42,7 +42,7 @@ export default function BangSuggestions({ bang, setQuery, selfQueryChanged }: IB
                     display: "flex",
                 }}
             >
-                <label>{suggestion}</label>
+                <label dangerouslySetInnerHTML={{__html: suggestion}}/>
                 {/*<label>{bangData?.s?bangData.s:""}</label>*/}
             </div>
         );
@@ -88,7 +88,7 @@ export default function BangSuggestions({ bang, setQuery, selfQueryChanged }: IB
                 arrowUsed = true;
             } else if (e.key === 'Enter' && focusedIndex !== -1) {
                 const suggestion = suggestions[newIndex] ? " " + suggestions[newIndex] : ""
-                await handleOpen(suggestion);
+                await handleOpen(suggestion.replace(/<\/?b>/g, ''));
                 return;
             }
 
@@ -96,7 +96,7 @@ export default function BangSuggestions({ bang, setQuery, selfQueryChanged }: IB
             const currentSuggestion = suggestions[newIndex];
             if (currentSuggestion && arrowUsed)
             {
-                setQuery("!"+bangData?.t+" "+currentSuggestion);
+                setQuery("!"+bangData?.t+" "+currentSuggestion.replace(/<\/?b>/g, ''));
             }
 
         };

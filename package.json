@@ -35,6 +35,7 @@
     "cross-env": "^7.0.3",
     "electron-store": "^10.0.1",
     "electronmon": "^2.0.3",
+    "extract-file-icon": "^0.3.2",
     "fast-glob": "^3.3.3",
     "file-icon": "^5.1.1",
     "file-icon-extractor": "^1.0.4",

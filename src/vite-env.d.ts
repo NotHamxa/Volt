@@ -13,9 +13,10 @@ declare global {
             searchFilesAndFolders: (baseDir: string, query: string) => Promise<SearchQueryT[]>;
             onWindowBlurred: (callback: () => void) => void;
             openPath: (path: string) => void;
-            openApp: (app: SearchQueryT) => Promise<boolean>;
+            openApp: (app: SearchQueryT,admin=false) => Promise<boolean>;
             openInExplorer:(path: string) => void;
             getGoogleSuggestions: (query:string) => Promise<string[]>;
+            getAppLogo:(path: string) => Promise<string>;
         };
         electronStore: {
             set: (key: string, value: any) => void;

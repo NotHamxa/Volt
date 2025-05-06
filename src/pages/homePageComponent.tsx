@@ -30,6 +30,7 @@ export default function HomePageComponent() {
             setApps(apps)
             const pApps = await window.electronStore.get("pinnedApps")
             setPinnedApps(pApps?JSON.parse(pApps):[]);
+            console.log("getAppData", apps);
         }
         getAppData()
     }, []);

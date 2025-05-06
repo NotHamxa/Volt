@@ -151,12 +151,15 @@ export default function AllApps({setStage, apps,pinnedApps,pinApp,unPinApp}:IAll
                                 {letter}
                             </div>
                             {group.map(app => (
-                                <App
-                                    app={app}
-                                    pinnedApps={pinnedApps}
-                                    pinApp={pinApp}
-                                    unPinApp={unPinApp}
-                                />
+                                <div key={app.name}>
+                                    <App
+                                        app={app}
+                                        pinnedApps={pinnedApps}
+                                        pinApp={pinApp}
+                                        unPinApp={unPinApp}
+                                    />
+                                </div>
+
                             ))}
                         </div>
                     ))}

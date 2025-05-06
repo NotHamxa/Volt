@@ -1,30 +1,32 @@
 import bangs from "@/data/bangs.json";
 import {BangData} from "@/interfaces/bang.ts";
 
-async function handleBangs(bang:string){
-    const shortcut = bang.split(" ")[0].replace("!","");
+async function handleBangs(query: string) {
+    const words = query.trim().split(" ");
+    const possibleBang = words[words.length - 1];
+    const shortcut = possibleBang.startsWith("!") ? possibleBang.slice(1) : null;
 
-    const bangData = bangs.find((bang) => bang.t === shortcut);
-    const searchTerm = bang.slice(shortcut.length+1).trim();
-    let url = ""
-    if (bangData) {
-        url = bangData.u.replace("{{{s}}}", encodeURIComponent(searchTerm));
-    } else {
-        const bangData = bangs.find((bang) => bang.t === "g");
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-expect-error
-        url = bangData.u.replace("{{{s}}}", encodeURIComponent(searchTerm));
+    let bangData = bangs.find((bang) => bang.t === shortcut);
+    const searchTerm = words.slice(0, -1).join(" ");
+
+    if (!bangData) {
+        bangData = bangs.find((bang) => bang.t === "g");
     }
-    window.electron.openExternal(url)
+
+    if (bangData) {
+        const url = bangData.u.replace("{{{s}}}", encodeURIComponent(searchTerm));
+        window.electron.openExternal(url);
+    }
 }
 
-async function getBangData(bang: string): Promise<BangData | null> {
 
-    const shortcut = bang.split(" ")[0].replace("!", "");
+async function getBangData(query: string): Promise<BangData | null> {
+    const words = query.trim().split(" ");
+    const possibleBang = words[words.length - 1];
+    const shortcut = possibleBang.startsWith("!") ? possibleBang.slice(1) : null;
+
     const bangData = bangs.find((bang) => bang.t === shortcut);
-    if (!bangData)
-        return null
-    return bangData as BangData;
+    return bangData as BangData ?? null;
 }
 
 

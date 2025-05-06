@@ -1,6 +1,6 @@
 import { CSSProperties, useEffect, useState } from "react";
-import {getBangData, handleBangs} from "@/scripts/bangs.ts";
-import { BangData } from "@/interfaces/bang.ts";
+import { handleBangs } from "@/scripts/bangs.ts";
+
 type BangSuggestionItemProps = {
     suggestion: string;
     highlighted: boolean;
@@ -9,70 +9,66 @@ type BangSuggestionItemProps = {
 };
 
 interface IBangSuggestions {
-    bang:string,
-    setQuery: (query: string) => void,
-    selfQueryChanged:boolean
+    bang: string;
+    setQuery: (query: string) => void;
+    selfQueryChanged: boolean;
 }
 
 export default function BangSuggestions({ bang, setQuery, selfQueryChanged }: IBangSuggestions) {
-    const [bangData, setBangData] = useState<BangData | null>(null);
-    const [suggestions, setSuggestions] = useState<string[]>([]);
+    const [suggestions, setSuggestions] = useState<string[]>(new Array(11).fill("")); // Start with 11 empty items
     const [focusedIndex, setFocusedIndex] = useState<number>(0);
     const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
     function BangSuggestionItem({ suggestion, highlighted, onMouseEnter, onMouseLeave }: BangSuggestionItemProps) {
         return (
             <div
                 tabIndex={0}
                 onMouseEnter={onMouseEnter}
                 onMouseLeave={onMouseLeave}
-                onClick={async ()=>{
-                    await handleOpen(suggestion.replace(/<\/?b>/g, ''))
+                onClick={async () => {
+                    await handleOpen(suggestion.replace(/<\/?b>/g, ''));
                 }}
                 style={{
                     padding: "8px",
                     borderRadius: "8px",
-                    background: highlighted ? "rgba(255, 255, 255, 0.1)" : "transparent",
+                    background: highlighted && suggestion!=="" ? "rgba(255, 255, 255, 0.1)" : "transparent",
                     color: "#fff",
                     cursor: "pointer",
                     userSelect: "none",
                     transition: "background 0.15s ease-in-out",
-                    justifyContent:"space-between",
+                    justifyContent: "space-between",
                     width: "100%",
-                    margin:"0px 10px",
+                    margin: "0px 10px",
                     display: "flex",
                 }}
             >
-                <label dangerouslySetInnerHTML={{__html: suggestion}}/>
-                {/*<label>{bangData?.s?bangData.s:""}</label>*/}
+                <label dangerouslySetInnerHTML={{ __html: suggestion }} />
             </div>
         );
     }
+
     useEffect(() => {
         const checkBang = async () => {
-            if (selfQueryChanged)
-                return;
-            const bangData = await getBangData(bang);
-            setBangData(bangData);
-            if (bangData) {
-                const searchTerm = bang.slice(bangData.t.length + 1).trim();
-                if (searchTerm !== "") {
-                    setSuggestions([searchTerm])
-                    let googleSuggestions = await window.electron.getGoogleSuggestions(searchTerm)
-                    if (googleSuggestions.length>0){
-                        googleSuggestions = googleSuggestions.length>10?googleSuggestions.slice(0,10):googleSuggestions;
-                        setSuggestions([searchTerm,...googleSuggestions]);
-                    }
+            if (selfQueryChanged) return;
 
-                    setFocusedIndex(0);
-                }
-                else{
-                    setSuggestions([])
-                }
-            } else {
+            const words = bang.trim().split(" ");
+            const lastWord = words[words.length - 1];
+            const hasBang = lastWord.startsWith("!");
+            const searchTerm = hasBang ? words.slice(0, -1).join(" ") : bang;
+            const newSuggestions = new Array(11).fill("");
 
-                setSuggestions([]);
+            newSuggestions[0] = searchTerm;
+
+            let googleSuggestions = await window.electron.getGoogleSuggestions(searchTerm);
+            if (googleSuggestions.length > 0) {
+                googleSuggestions = googleSuggestions.slice(0, 10);
+                newSuggestions.splice(1, googleSuggestions.length, ...googleSuggestions);
             }
+
+            setSuggestions(newSuggestions);
+            setFocusedIndex(0);
         };
+
         checkBang();
     }, [bang]);
 
@@ -80,6 +76,7 @@ export default function BangSuggestions({ bang, setQuery, selfQueryChanged }: IB
         const handleKeyDown = async (e: KeyboardEvent) => {
             let newIndex = focusedIndex;
             let arrowUsed = false;
+
             if (e.key === 'ArrowDown') {
                 newIndex = (focusedIndex + 1) % suggestions.length;
                 arrowUsed = true;
@@ -87,36 +84,33 @@ export default function BangSuggestions({ bang, setQuery, selfQueryChanged }: IB
                 newIndex = (focusedIndex - 1 + suggestions.length) % suggestions.length;
                 arrowUsed = true;
             } else if (e.key === 'Enter' && focusedIndex !== -1) {
-                const suggestion = suggestions[newIndex] ? " " + suggestions[newIndex] : ""
+                const suggestion = suggestions[newIndex] ? suggestions[newIndex] : "";
                 await handleOpen(suggestion.replace(/<\/?b>/g, ''));
                 return;
             }
 
             setFocusedIndex(newIndex);
             const currentSuggestion = suggestions[newIndex];
-            if (currentSuggestion && arrowUsed)
-            {
-                setQuery("!"+bangData?.t+" "+currentSuggestion.replace(/<\/?b>/g, ''));
-            }
 
+            if (currentSuggestion && arrowUsed) {
+                setQuery(currentSuggestion.replace(/<\/?b>/g, ''));
+            }
         };
+
         window.addEventListener("keydown", handleKeyDown);
         return () => {
             window.removeEventListener("keydown", handleKeyDown);
         };
     }, [focusedIndex, suggestions]);
-    async function handleOpen(suggestion:string){
-        const bData = await getBangData(bang);
-        if (bData) {
-            const bangString:string = "!" + bData?.t + " "+suggestion;
-            await handleBangs(bangString);
-        }
-        else{
-            const bangString:string = "!g"+" "+suggestion;
-            await handleBangs(bangString);
-        }
 
+    async function handleOpen(suggestion: string) {
+        const words = bang.trim().split(" ");
+        const lastWord = words[words.length - 1];
+        const shortcut = lastWord.startsWith("!") ? lastWord.slice(1) : "g";
+        const bangString: string = suggestion + " !" + shortcut;
+        await handleBangs(bangString);
     }
+
     return (
         <div style={styles.mainContainer}>
             {suggestions.map((suggestion, index) => (

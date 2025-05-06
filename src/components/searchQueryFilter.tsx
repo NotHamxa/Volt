@@ -37,7 +37,7 @@ function SearchQueryFilter() {
         <div style={{marginRight:"10px"}}>
             <DropdownMenu>
                 <DropdownMenuTrigger>
-                    <div className="hover:bg-white/10 p-2 rounded cursor-pointer transition-colors text-white">
+                    <div className="hover:bg-white/10 rounded cursor-pointer transition-colors text-white">
                         <SlidersHorizontal size={24}/>
                     </div>
                 </DropdownMenuTrigger>

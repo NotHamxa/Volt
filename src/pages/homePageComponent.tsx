@@ -29,9 +29,7 @@ export default function HomePageComponent() {
             const apps = await window.electron.searchApps("")
             setApps(apps)
             const pApps = await window.electronStore.get("pinnedApps")
-            setPinnedApps(pApps?JSON.parse(pApps):[]);
-            console.log("getAppData", apps);
-        }
+            setPinnedApps(pApps?JSON.parse(pApps):[]);}
         getAppData()
     }, []);
     const pinApp = async (app: SearchQueryT) => {

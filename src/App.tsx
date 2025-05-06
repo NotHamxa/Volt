@@ -53,6 +53,11 @@ function App() {
         };
         getData();
     }, [query]);
+    useEffect(()=>{
+        if (stage===1 && selfQueryChanged){
+            setSelfQueryChanged(false);
+        }
+    },[stage])
 
     function SwitchModes() {
         return (
@@ -109,7 +114,7 @@ function App() {
                     />
                 ) : null}
 
-                {query && stage===2 ? <BangSuggestions
+                {stage===2 ? <BangSuggestions
                     bang={query}
                     setQuery={setQueryInput}
                     selfQueryChanged={selfQueryChanged}

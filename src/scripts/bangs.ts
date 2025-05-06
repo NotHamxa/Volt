@@ -1,5 +1,6 @@
 import bangs from "@/data/bangs.json";
 import {BangData} from "@/interfaces/bang.ts";
+import {SearchHistoryT} from "@/interfaces/history.ts";
 
 async function handleBangs(query: string) {
     const words = query.trim().split(" ");
@@ -12,13 +13,40 @@ async function handleBangs(query: string) {
     if (!bangData) {
         bangData = bangs.find((bang) => bang.t === "g");
     }
-
     if (bangData) {
         const url = bangData.u.replace("{{{s}}}", encodeURIComponent(searchTerm));
+        const historyEntry:SearchHistoryT = {
+            searchTerm:searchTerm,
+            searchUrl:url,
+            site:bangData.s,
+        }
+        const stored = await window.electronStore.get("searchHistory")
+        console.log(stored)
+        let searchHistory: SearchHistoryT[] = stored ? JSON.parse(stored) : [];
+        const existingIndex = searchHistory.findIndex(item => JSON.stringify(item) === JSON.stringify(historyEntry));
+        if (existingIndex !== -1) {
+            searchHistory.splice(existingIndex, 1);
+        }
+        if (searchHistory.length < 20) {
+            searchHistory = [historyEntry, ...searchHistory];
+        } else {
+            searchHistory = [historyEntry, ...searchHistory.slice(0, 19)];
+        }
+        window.electronStore.set("searchHistory", JSON.stringify(searchHistory));
         window.electron.openExternal(url);
     }
 }
+async function handleHistoryItem(item: SearchHistoryT) {
+    const stored = await window.electronStore.get("searchHistory");
+    let searchHistory: SearchHistoryT[] = stored ? JSON.parse(stored) : [];
 
+    searchHistory = searchHistory.filter(entry => JSON.stringify(entry) !== JSON.stringify(item));
+    searchHistory.unshift(item);
+
+    window.electronStore.set("searchHistory", JSON.stringify(searchHistory));
+    window.electron.openExternal(item.searchUrl);
+
+}
 
 async function getBangData(query: string): Promise<BangData | null> {
     const words = query.trim().split(" ");
@@ -30,4 +58,4 @@ async function getBangData(query: string): Promise<BangData | null> {
 }
 
 
-export {handleBangs,getBangData};
+export {handleBangs, getBangData, handleHistoryItem};

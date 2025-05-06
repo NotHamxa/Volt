@@ -1,5 +1,7 @@
 import { CSSProperties, useEffect, useState } from "react";
-import { handleBangs } from "@/scripts/bangs.ts";
+import {handleBangs, handleHistoryItem} from "@/scripts/bangs.ts";
+import { SearchHistoryT } from "@/interfaces/history.ts";
+import {X} from "lucide-react";
 
 type BangSuggestionItemProps = {
     suggestion: string;
@@ -8,37 +10,51 @@ type BangSuggestionItemProps = {
     onMouseLeave: () => void;
 };
 
+type SearchHistoryItemProps = {
+    historyItem: SearchHistoryT;
+    highlighted: boolean;
+    onMouseEnter: () => void;
+    onMouseLeave: () => void;
+    onDelete: (history:SearchHistoryT) => void;
+};
+
 interface IBangSuggestions {
     bang: string;
     setQuery: (query: string) => void;
     selfQueryChanged: boolean;
 }
 
-export default function BangSuggestions({ bang, setQuery, selfQueryChanged }: IBangSuggestions) {
-    const [suggestions, setSuggestions] = useState<string[]>(new Array(11).fill("")); // Start with 11 empty items
+export default function BangSuggestions({bang, setQuery, selfQueryChanged}: IBangSuggestions) {
+    const [suggestions, setSuggestions] = useState<string[]>(new Array(11).fill(""));
+    const [searchHistory, setSearchHistory] = useState<SearchHistoryT[]>([]);
     const [focusedIndex, setFocusedIndex] = useState<number>(0);
     const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+    const [isHistory,setIsHistory] = useState<boolean>(false);
 
-    function BangSuggestionItem({ suggestion, highlighted, onMouseEnter, onMouseLeave }: BangSuggestionItemProps) {
+
+    function BangSuggestionItem({suggestion, highlighted, onMouseEnter, onMouseLeave,}: BangSuggestionItemProps) {
         return (
+
             <div
                 tabIndex={0}
                 onMouseEnter={onMouseEnter}
                 onMouseLeave={onMouseLeave}
                 onClick={async () => {
-                    await handleOpen(suggestion.replace(/<\/?b>/g, ''));
+                    await handleOpen(suggestion);
                 }}
                 style={{
                     padding: "8px",
                     borderRadius: "8px",
-                    background: highlighted && suggestion!=="" ? "rgba(255, 255, 255, 0.1)" : "transparent",
+                    background:
+                        highlighted && suggestion !== ""
+                            ? "rgba(255, 255, 255, 0.1)"
+                            : "transparent",
                     color: "#fff",
                     cursor: "pointer",
                     userSelect: "none",
                     transition: "background 0.15s ease-in-out",
                     justifyContent: "space-between",
                     width: "100%",
-                    margin: "0px 10px",
                     display: "flex",
                 }}
             >
@@ -47,10 +63,114 @@ export default function BangSuggestions({ bang, setQuery, selfQueryChanged }: IB
         );
     }
 
+    function SearchHistoryItem({historyItem, highlighted, onMouseEnter, onMouseLeave,onDelete}: SearchHistoryItemProps) {
+        const [isHovered, setIsHovered] = useState(false);
+        return (
+            <div
+                tabIndex={0}
+                onMouseEnter={() => {
+                    setIsHovered(true);
+                    onMouseEnter();
+                }}
+                onMouseLeave={() => {
+                    setIsHovered(false);
+                    onMouseLeave();
+                }}
+                style={{
+                    padding: "8px",
+                    borderRadius: "8px",
+                    background: (highlighted || isHovered) && historyItem.searchTerm !== ""
+                        ? "rgba(255, 255, 255, 0.1)"
+                        : "transparent",
+                    color: "#fff",
+                    cursor: "pointer",
+                    userSelect: "none",
+                    transition: "background 0.15s ease-in-out",
+                    justifyContent: "space-between",
+                    width: "100%",
+                    display: "flex",
+                }}
+            >
+                <div
+                    onClick={async () => {
+                        await handleHistoryItem(historyItem);
+                    }}
+                    style={{
+                        width: "100%",
+                        justifyContent: "space-between",
+                        flexDirection: "row",
+                        display: "flex",
+                        alignItems: "center",
+                    }}
+                >
+                    <label
+                        style={{
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            marginRight: "12px",
+                            maxWidth: "70%",
+                        }}
+                    >
+                        {historyItem.searchTerm}
+                    </label>
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            whiteSpace: "nowrap",
+                        }}
+                    >
+                        <small>{historyItem.site}</small>
+                    </div>
+                </div>
+                {isHovered && (
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                        }}
+                        onClick={()=>{
+                            onDelete(historyItem);
+                        }}
+                    >
+                        <X size={15}/>
+                    </div>
+                )}
+            </div>
+
+        );
+    }
+
+    useEffect(() => {
+        const loadHistory = async () => {
+            console.log("loading")
+            if (bang === "") {
+                const searchHistory: SearchHistoryT[] =
+                    JSON.parse(await window.electronStore.get("searchHistory")) || [];
+                setSearchHistory(searchHistory);
+                return;
+            }
+        }
+        loadHistory()
+        return () => {
+            if (isHistory && bang !== "") {
+                setIsHistory(false)
+            }
+        }
+    }, []);
+
     useEffect(() => {
         const checkBang = async () => {
             if (selfQueryChanged) return;
-
+            if (bang === "") {
+                const searchHistory: SearchHistoryT[] =
+                    JSON.parse(await window.electronStore.get("searchHistory")) || [];
+                setSearchHistory(searchHistory);
+                setIsHistory(true)
+                return;
+            }
+            setIsHistory(false);
             const words = bang.trim().split(" ");
             const lastWord = words[words.length - 1];
             const hasBang = lastWord.startsWith("!");
@@ -77,23 +197,41 @@ export default function BangSuggestions({ bang, setQuery, selfQueryChanged }: IB
             let newIndex = focusedIndex;
             let arrowUsed = false;
 
-            if (e.key === 'ArrowDown') {
-                newIndex = (focusedIndex + 1) % suggestions.length;
+            const filteredSuggestions = suggestions.filter((item) => item !== "");
+
+            if (e.key === "ArrowDown") {
+                newIndex = (focusedIndex + 1) % (isHistory ? searchHistory.length : filteredSuggestions.length);
                 arrowUsed = true;
-            } else if (e.key === 'ArrowUp') {
-                newIndex = (focusedIndex - 1 + suggestions.length) % suggestions.length;
+            }
+            else if (e.key === "ArrowUp") {
+                newIndex = (focusedIndex - 1 + (isHistory ? searchHistory.length : filteredSuggestions.length)) % (isHistory ? searchHistory.length : filteredSuggestions.length);
                 arrowUsed = true;
-            } else if (e.key === 'Enter' && focusedIndex !== -1) {
-                const suggestion = suggestions[newIndex] ? suggestions[newIndex] : "";
-                await handleOpen(suggestion.replace(/<\/?b>/g, ''));
+            }
+            else if (e.key === "Enter" && (isHistory ? searchHistory[newIndex] : filteredSuggestions[newIndex])) {
+                const item = isHistory ? searchHistory[newIndex] : filteredSuggestions[newIndex];
+                await handleOpen(item);
                 return;
             }
 
             setFocusedIndex(newIndex);
-            const currentSuggestion = suggestions[newIndex];
+            const currentItem = isHistory ? searchHistory[newIndex] : filteredSuggestions[newIndex];
+            console.log(currentItem);
 
-            if (currentSuggestion && arrowUsed) {
-                setQuery(currentSuggestion.replace(/<\/?b>/g, ''));
+            if (currentItem && arrowUsed) {
+                if (typeof currentItem === "string") {
+                    setIsHistory(false);
+                    const words = bang.trim().split(" ");
+                    const lastWord = words[words.length - 1];
+                    const hasBang = lastWord.startsWith("!");
+                    if (hasBang) {
+                        setQuery(currentItem.replace(/<\/?b>/g, "") + " " + lastWord);
+                    } else {
+                        setQuery(currentItem.replace(/<\/?b>/g, ""));
+                    }
+                } else {
+                    setIsHistory(true);
+                    setQuery(currentItem.searchTerm);
+                }
             }
         };
 
@@ -101,27 +239,54 @@ export default function BangSuggestions({ bang, setQuery, selfQueryChanged }: IB
         return () => {
             window.removeEventListener("keydown", handleKeyDown);
         };
-    }, [focusedIndex, suggestions]);
+    }, [focusedIndex, suggestions, searchHistory]);
 
-    async function handleOpen(suggestion: string) {
-        const words = bang.trim().split(" ");
-        const lastWord = words[words.length - 1];
-        const shortcut = lastWord.startsWith("!") ? lastWord.slice(1) : "g";
-        const bangString: string = suggestion + " !" + shortcut;
-        await handleBangs(bangString);
+    const handleDeleteHistoryItem = async (history:SearchHistoryT) => {
+        const updatedHistory = searchHistory.filter((item) => JSON.stringify(item) !== JSON.stringify(history));
+        setSearchHistory(updatedHistory);
+        window.electronStore.set("searchHistory", JSON.stringify(updatedHistory));
+    };
+
+    async function handleOpen(suggestion: string | SearchHistoryT) {
+        console.log(suggestion)
+        if (typeof suggestion === "string") {
+            console.log(suggestion);
+            suggestion = suggestion.replace(/<\/?b>/g, "")
+            const words = bang.trim().split(" ");
+            const lastWord = words[words.length - 1];
+            const shortcut = lastWord.startsWith("!") ? lastWord.slice(1) : "g";
+            const bangString: string = suggestion + " !" + shortcut;
+            await handleBangs(bangString);
+        }
+        else{
+            await handleHistoryItem(suggestion);
+        }
     }
 
     return (
         <div style={styles.mainContainer}>
-            {suggestions.map((suggestion, index) => (
-                <BangSuggestionItem
-                    key={index}
-                    suggestion={suggestion}
-                    highlighted={index === focusedIndex || index === hoveredIndex}
-                    onMouseEnter={() => setHoveredIndex(index)}
-                    onMouseLeave={() => setHoveredIndex(null)}
-                />
-            ))}
+            {(bang === "" || isHistory) ? (
+                searchHistory.map((item, index) => (
+                    <SearchHistoryItem
+                        key={index}
+                        historyItem={item}
+                        highlighted={index === focusedIndex || index === hoveredIndex}
+                        onMouseEnter={() => setHoveredIndex(index)}
+                        onMouseLeave={() => setHoveredIndex(null)}
+                        onDelete={handleDeleteHistoryItem}
+                    />
+                ))
+            ) : (
+                suggestions.map((item, index) => (
+                    <BangSuggestionItem
+                        key={index}
+                        suggestion={item}
+                        highlighted={index === focusedIndex || index === hoveredIndex}
+                        onMouseEnter={() => setHoveredIndex(index)}
+                        onMouseLeave={() => setHoveredIndex(null)}
+                    />
+                ))
+            )}
         </div>
     );
 }

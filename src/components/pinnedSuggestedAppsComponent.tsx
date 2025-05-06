@@ -9,18 +9,16 @@ import {ContextMenuTrigger} from "@radix-ui/react-context-menu";
 function PinnedApp({ app }: { app: SearchQueryT }) {
     const [logo,setLogo] = useState<string>("");
     useEffect(() => {
-        console.log(app.appId)
-        if (app.path) {
-            const getLogo = async ()=>{
-                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                // @ts-expect-error
-                const appLogo = await window.electron.getAppLogo(app.path);
-                console.log(appLogo);
-                setLogo(appLogo);
-            }
-            getLogo()
-            console.log()
-        }
+        // if (app.path) {
+        //     const getLogo = async ()=>{
+        //         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        //         // @ts-expect-error
+        //         const appLogo = await window.electron.getAppLogo(app.path);
+        //         setLogo(appLogo);
+        //     }
+        //     getLogo()
+        // }
+        setLogo("");
     }, []);
     return (
         <ContextMenu>
@@ -65,7 +63,6 @@ function PinnedApp({ app }: { app: SearchQueryT }) {
                 <ContextMenuSeparator/>
                 {app.path!==""?
                     <ContextMenuItem onClick={async ()=>{
-                        console.log("sadsadsad")
                         await window.electron.openApp(app,true)
                     }}>
                         <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>

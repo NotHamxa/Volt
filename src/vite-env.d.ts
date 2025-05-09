@@ -7,20 +7,24 @@ declare global {
     interface Window {
         electron: {
             invoke: (channel: string, data?: any) => Promise<any>;
-            setWindowHeight:(height: number) => void;
             openExternal:(url: string) => void;
-            searchApps: (query: string) => Promise<SearchQueryT[]>;
-            searchFilesAndFolders: (baseDir: string, query: string) => Promise<SearchQueryT[]>;
             onWindowBlurred: (callback: () => void) => void;
-            openPath: (path: string) => void;
-            openApp: (app: SearchQueryT,admin=false) => Promise<boolean>;
-            openInExplorer:(path: string) => void;
             getGoogleSuggestions: (query:string) => Promise<string[]>;
-            getAppLogo:(path: string) => Promise<string>;
         };
         electronStore: {
             set: (key: string, value: any) => void;
             get: (key: string) => Promise<string>;
         };
+        apps:{
+            searchApps: (query: string) => Promise<SearchQueryT[]>;
+            openApp: (app: SearchQueryT,admin=false) => Promise<boolean>;
+            getAppLogo:(path: string) => Promise<string>;
+            getUwpAppLogo:(appName:string) => Promise<string>;
+        };
+        file:{
+            searchFilesAndFolders: (baseDir: string, query: string) => Promise<SearchQueryT[]>;
+            openPath: (path: string) => void;
+            openInExplorer:(path: string) => void;
+        }
     }
 }

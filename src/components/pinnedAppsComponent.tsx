@@ -6,20 +6,31 @@ import {ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator} 
 import {ContextMenuTrigger} from "@radix-ui/react-context-menu";
 
 
-function PinnedApp({ app }: { app: SearchQueryT }) {
+interface IPinnedSuggestedApps{
+    setStage:(n: number) => void
+    unPinApp:(app:SearchQueryT) => void;
+    pinnedApps:SearchQueryT[];
+}
+interface IPinnedApp{
+    app:SearchQueryT;
+    unPinApp:(app:SearchQueryT) => void;
+}
+
+function PinnedApp({ app,unPinApp }: IPinnedApp) {
     const [logo,setLogo] = useState<string>("");
+    const getLogo = async ()=>{
+
+        const appLogo = await window.apps.getAppLogo(app.path as string);
+        setLogo(appLogo);
+    }
     useEffect(() => {
-        // if (app.path) {
-        //     const getLogo = async ()=>{
-        //         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        //         // @ts-expect-error
-        //         const appLogo = await window.electron.getAppLogo(app.path);
-        //         setLogo(appLogo);
-        //     }
-        //     getLogo()
-        // }
-        setLogo("");
-    }, []);
+        if (app.path) {
+            getLogo()
+        }
+        else{
+            setLogo("")
+        }
+    }, [app]);
     return (
         <ContextMenu>
             <ContextMenuTrigger>
@@ -45,7 +56,7 @@ function PinnedApp({ app }: { app: SearchQueryT }) {
                     onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
                     onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
                     onClick={async () => {
-                        await window.electron.openApp(app);
+                        await window.apps.openApp(app);
                     }}
                 >
                     {logo!==""?<img style={{width:36,height:36}} src={logo}/>:<AppWindowIcon size={36} />}
@@ -54,7 +65,12 @@ function PinnedApp({ app }: { app: SearchQueryT }) {
                 </button>
             </ContextMenuTrigger>
             <ContextMenuContent>
-                <ContextMenuItem>
+                <ContextMenuItem
+                    onClick={()=>{
+                        unPinApp(app)
+                        console.log(app )
+                    }}
+                >
                     <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
                         <PinOff size={24}/>
                         <label>Unpin from Start</label>
@@ -63,7 +79,7 @@ function PinnedApp({ app }: { app: SearchQueryT }) {
                 <ContextMenuSeparator/>
                 {app.path!==""?
                     <ContextMenuItem onClick={async ()=>{
-                        await window.electron.openApp(app,true)
+                        await window.apps.openApp(app,true)
                     }}>
                         <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
                             <ShieldCheck size={24}/>
@@ -75,9 +91,8 @@ function PinnedApp({ app }: { app: SearchQueryT }) {
                 {app.path?
                     <ContextMenuItem
                         onClick={() => {
-                            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                            // @ts-expect-error
-                            window.electron.openInExplorer(app.path)
+                            if (app.path)
+                                window.file.openInExplorer(app.path)
                         }}
                     >
                         <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
@@ -100,21 +115,8 @@ function PinnedApp({ app }: { app: SearchQueryT }) {
 }
 
 
-export default function PinnedSuggestedApps({setStage}: { setStage: (n: number) => void }) {
-    const [pinnedApps, setPinnedApps] = useState<SearchQueryT[]>([])
-    useEffect(() => {
-        const getApps= async () => {
-            const pinnedApps = await window.electronStore.get("pinnedApps")
-            if (pinnedApps){
-                setPinnedApps(JSON.parse(pinnedApps));
-            }
-            else {
-                setPinnedApps([]);
-            }
-        }
-        getApps()
 
-    }, []);
+export default function PinnedApps({setStage,unPinApp,pinnedApps}:IPinnedSuggestedApps) {
     return (
         <>
             <div style={{height: "350px", display: "flex", flexDirection: "column" }}>
@@ -143,7 +145,10 @@ export default function PinnedSuggestedApps({setStage}: { setStage: (n: number) 
                     <div style={{display: "flex", alignItems: "center", justifyContent: "center", width: "100%"}}>
                         <div className="col-span-6 w-full flex flex-wrap gap-0 px-[20px] py-[10px]">
                             {pinnedApps?.map((app: SearchQueryT) => (
-                                <PinnedApp app={app}/>
+                                <PinnedApp
+                                    app={app}
+                                    unPinApp={unPinApp}
+                                />
                             ))}
                         </div>
                     </div> :

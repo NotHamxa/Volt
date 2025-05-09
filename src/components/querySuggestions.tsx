@@ -1,6 +1,6 @@
 import { Label } from "@/components/ui/label.tsx";
 import { CSSProperties, useEffect, useState } from "react";
-import {Folder, File, AppWindow} from "lucide-react";
+import {Folder, File, AppWindowIcon} from "lucide-react";
 import {ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger} from "@/components/ui/context-menu.tsx";
 import {SearchQueryT} from "@/interfaces/searchQuery.ts";
 import {ScrollArea} from "@/components/ui/scroll-area.tsx";
@@ -25,15 +25,32 @@ export function QueryComponent({ item, highlighted = false }: QueryComponentProp
 
     const handleFocus = () => setIsFocused(true);
     const handleBlur = () => setIsFocused(false);
+
+    const [logo,setLogo] = useState<string>();
+    useEffect(() => {
+        const getLogo = async () =>{
+            if (type==="app" && path){
+                setLogo(await window.apps.getAppLogo(path))
+            }
+            else if (type==="app" && item.appId){
+                setLogo(await window.apps.getUwpAppLogo(item.name))
+                console.log("uwp app",item.name)
+            }
+            else {
+                setLogo("")
+            }
+        }
+        getLogo()
+    }, [type,path]);
     return (
         <ContextMenu>
             <ContextMenuTrigger>
                 <button
                     onClick={async () => {
                         if (type === "app") {
-                            await window.electron.openApp(item);
+                            await window.apps.openApp(item);
                         } else if (path) {
-                            window.electron.openPath(path);
+                            window.file.openPath(path);
                         }
                     }}
                     onMouseEnter={() => setHovered(true)}
@@ -54,8 +71,13 @@ export function QueryComponent({ item, highlighted = false }: QueryComponentProp
                         outline: isFocused ? "2px solid #3faffa" : "none",
                     }}
                 >
-                    {type === "app" && <AppWindow size={24} />}
-                    {type === "folder" && <Folder size={24} />}
+                    {type === "app" && (
+                        logo !== "" ? (
+                            <img style={{ width: 24, height: 24 }} src={logo} />
+                        ) : (
+                            <AppWindowIcon size={24} />
+                        )
+                    )}                    {type === "folder" && <Folder size={24} />}
                     {type === "file" && <File size={24} />}
                     <Label>{name}</Label>
                 </button>
@@ -63,17 +85,17 @@ export function QueryComponent({ item, highlighted = false }: QueryComponentProp
             <ContextMenuContent>
                 <ContextMenuItem onClick={async () => {
                     if (type === "app") {
-                        await window.electron.openApp(item);
+                        await window.apps.openApp(item);
 
                     } else if (path) {
-                        window.electron.openPath(path);
+                        window.file.openPath(path);
                     }
                 }}>
                     Open
                 </ContextMenuItem>
                 {path && (
                     <ContextMenuItem onClick={() => {
-                        window.electron.openInExplorer(path);
+                        window.file.openInExplorer(path);
                     }}>
                         Open file location
                     </ContextMenuItem>
@@ -130,9 +152,9 @@ export default function QuerySuggestions({ query }: IQuerySuggestions) {
         } else if (e.key === "Enter" && allResults[focusedIndex]) {
             const item = allResults[focusedIndex];
             if (item.type === "app") {
-                await window.electron.openApp(item);
+                await window.apps.openApp(item);
             } else if (item.path) {
-                window.electron.openPath(item.path);
+                window.file.openPath(item.path);
             }
         }
     };

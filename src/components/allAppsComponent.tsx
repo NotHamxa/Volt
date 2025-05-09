@@ -48,7 +48,7 @@ function App({app,pinnedApps,pinApp,unPinApp}:IApp) {
             <ContextMenuTrigger>
                 <button
                     onClick={async () => {
-                        await window.electron.openApp(app);
+                        await window.apps.openApp(app);
 
                     }}
                     onMouseEnter={() => setHovered(true)}
@@ -74,7 +74,7 @@ function App({app,pinnedApps,pinApp,unPinApp}:IApp) {
                 </button>
             </ContextMenuTrigger>
             <ContextMenuContent>
-                <ContextMenuItem onClick={async ()=>{
+                <ContextMenuItem onClick={()=>{
                     if (isAppPinned(app)) {
                         unPinApp(app);
                     }

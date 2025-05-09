@@ -2,7 +2,7 @@ import {CSSProperties, useEffect, useState} from "react";
 import {motion} from "framer-motion";
 import {SearchQueryT} from "@/interfaces/searchQuery.ts";
 import AllApps from "@/components/allAppsComponent.tsx";
-import PinnedSuggestedApps from "@/components/pinnedSuggestedAppsComponent.tsx";
+import PinnedApps from "@/components/pinnedAppsComponent.tsx";
 
 
 const isSameApp = (a: SearchQueryT, b: SearchQueryT) => {
@@ -26,7 +26,7 @@ export default function HomePageComponent() {
 
     useEffect(() => {
         const getAppData = async () => {
-            const apps = await window.electron.searchApps("")
+            const apps = await window.apps.searchApps("")
             setApps(apps)
             const pApps = await window.electronStore.get("pinnedApps")
             setPinnedApps(pApps?JSON.parse(pApps):[]);}
@@ -55,7 +55,11 @@ export default function HomePageComponent() {
             style={styles.mainContainer}
         >
             {stage === 1
-                ? <PinnedSuggestedApps setStage={setStage}/>
+                ? <PinnedApps
+                    pinnedApps={pinnedApps}
+                    setStage={setStage}
+                    unPinApp={unPinApp}
+                />
                 : <AllApps
                     setStage={setStage}
                     apps={apps}

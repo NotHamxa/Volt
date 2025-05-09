@@ -6,12 +6,9 @@ import fg from "fast-glob";
 import fs from "fs";
 import os from "os";
 import {exec} from "child_process";
-import {promisify} from "util";
 import https from "https";
 import {getFileIconBase64} from "./utils/appLogo.js";
 
-
-const execAsync = promisify(exec);
 const store = new Store();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,46 +16,63 @@ const __dirname = path.dirname(__filename);
 let mainWindow = null;
 let lastFocusedWindow = null;
 let appCache = [];
-exec('powershell -Command "Get-AppxPackage -Name Microsoft.Microsoft3DViewer | Select-Object -ExpandProperty InstallLocation"', (error, stdout, stderr) => {
-    if (error) {
-        console.error(`exec error: ${error}`);
-        return;
+
+const showMainWindow = () => {
+    if (!mainWindow) return;
+    lastFocusedWindow = BrowserWindow.getFocusedWindow();
+    mainWindow.show();
+    mainWindow.focus();
+    console.log("shortcut added")
+    globalShortcut.register("Esc", handleEsc);
+};
+
+const hideMainWindow = () => {
+    if (!mainWindow) return;
+    mainWindow.hide();
+    globalShortcut.unregister("Esc");
+    console.log("shortcut removed")
+    mainWindow.webContents.send('window-blurred');
+    if (lastFocusedWindow) {
+        lastFocusedWindow.focus();
     }
+};
 
-    // Check if the install location is empty
-    const installLocation = stdout.trim();
-
-    if (!installLocation) {
-        console.error("App not found or InstallLocation is empty.");
-        return;
+const handleEsc = () => {
+    console.log("shortcut")
+    if (mainWindow?.isVisible()) {
+        hideMainWindow();
     }
+};
 
-    console.log(`Install Location: ${installLocation}`);
-
-    // Construct the path to the app's icon (it may be inside Assets or Resources folder)
-    const iconPath = `${installLocation}\\Assets\\Logo.png`;
-    console.log(`Icon Path: ${iconPath}`);
-});
+// exec('powershell -Command "Get-AppxPackage -Name Microsoft.Microsoft3DViewer | Select-Object -ExpandProperty InstallLocation"', (error, stdout) => {
+//     const installLocation = stdout.trim();
+//     if (!installLocation) return;
+//     const iconPath = `${installLocation}\\Assets\\Logo.png`;
+//     console.log(`Install Location: ${installLocation}`);
+//     console.log(`Icon Path: ${iconPath}`);
+// });
 
 async function loadApps() {
+    console.log(os.homedir())
     const startMenuPaths = [
         path.join(os.homedir(), "AppData/Roaming/Microsoft/Windows/Start Menu/Programs"),
         "C:/ProgramData/Microsoft/Windows/Start Menu/Programs",
         "C:/Users/Public/Desktop"
     ];
+    console.log(startMenuPaths);
     const results = [];
     async function collectShortcuts(dir) {
         if (!fs.existsSync(dir)) return;
+        console.log(dir)
         const items = fs.readdirSync(dir);
         for (const item of items) {
             const fullPath = path.join(dir, item);
             const stat = fs.statSync(fullPath);
             if (stat.isDirectory()) {
-                collectShortcuts(fullPath);
-            } else if (fullPath.toLowerCase().endsWith(".lnk")) {
-                const appName = path.basename(fullPath, ".lnk");
+                await collectShortcuts(fullPath);
+            } else if ([".lnk"].some(ext => fullPath.toLowerCase().endsWith(ext))) {
                 results.push({
-                    name: appName,
+                    name: path.basename(fullPath, ".lnk"),
                     source: "StartMenu",
                     appId: "",
                     path: fullPath,
@@ -69,12 +83,13 @@ async function loadApps() {
     }
     function collectUWPApps() {
         return new Promise((resolve, reject) => {
-            exec('powershell -Command "Get-StartApps | ConvertTo-Json"', (error, stdout, stderr) => {
+            exec('powershell -Command "Get-StartApps | ConvertTo-Json"', (error, stdout) => {
                 if (error) return reject(error);
                 try {
                     const uwpApps = JSON.parse(stdout);
                     const appList = Array.isArray(uwpApps) ? uwpApps : [uwpApps];
                     appList.forEach(app => {
+                        // console.log(app.Name, ": ",app.AppID)
                         results.push({
                             name: app.Name,
                             source: "UWP",
@@ -84,16 +99,18 @@ async function loadApps() {
                         });
                     });
                     resolve();
-                } catch (parseError) {
-                    reject(parseError);
+                } catch (err) {
+                    reject(err);
                 }
             });
         });
     }
+
     for (const dir of startMenuPaths) {
         await collectShortcuts(dir);
     }
     await collectUWPApps();
+
     const deduped = new Map();
     for (const app of results) {
         const existing = deduped.get(app.name);
@@ -103,14 +120,6 @@ async function loadApps() {
     }
     return Array.from(deduped.values());
 }
-
-loadApps()
-    .then(apps => {
-        appCache = apps;
-    })
-    .catch(() => {
-        appCache = [];
-    });
 
 async function searchApps(query) {
     if (!appCache || !Array.isArray(appCache)) return [];
@@ -143,68 +152,38 @@ async function searchFilesAndFolders(baseDir, query) {
     return results;
 }
 
-
-ipcMain.handle('get-google-suggestions', async (event, query) => {
+ipcMain.handle('get-google-suggestions', async (_, query) => {
     return new Promise((resolve) => {
-        const encodedQuery = encodeURIComponent(query);
-        const url = `https://www.google.com/complete/search?q=${encodedQuery}&cp=${query.length}&client=gws-wiz-serp&xssi=t&hl=en-PK&authuser=0&dpr=1.25`;
-
+        const url = `https://www.google.com/complete/search?q=${encodeURIComponent(query)}&cp=${query.length}&client=gws-wiz-serp&xssi=t&hl=en-PK`;
         https.get(url, (res) => {
             let data = '';
-
             res.on('data', chunk => data += chunk);
             res.on('end', () => {
                 try {
                     const cleaned = data.replace(/^\)\]\}'\n/, '');
                     const parsed = JSON.parse(cleaned);
-                    const suggestions = parsed[0].map(item => {
-                        return item[0];
-                    });
-                    resolve(suggestions);
-                } catch (err) {
-                    console.error('Failed to parse suggestions:', err);
+                    resolve(parsed[0].map(item => item[0]));
+                } catch {
                     resolve([]);
                 }
             });
-        }).on('error', (err) => {
-            console.error('HTTP request failed:', err);
-            resolve([]);
-        });
+        }).on('error', () => resolve([]));
     });
 });
 
-ipcMain.handle('get-app-logo', async (event, path) => {
-    const b64 = await getFileIconBase64(path);
-    return b64;
+ipcMain.handle('get-app-logo', async (_, path) => {
+    return await getFileIconBase64(path);
 });
+ipcMain.handle('get-uwp-app-logo', async (_, appName) => {
+    return await ""
+})
 
-ipcMain.on('set-store', (event, { key, value }) => {
-    store.set(key, value);
-});
 
-ipcMain.handle('get-store', (event, key) => {
-    return store.get(key);
-});
+ipcMain.on('set-store', (_, { key, value }) => store.set(key, value));
+ipcMain.handle('get-store', (_, key) => store.get(key));
 
-ipcMain.on('open-external', (event, url) => {
-    shell.openExternal(url).then(r => {
-        mainWindow.hide();
-        mainWindow.webContents.send('window-blurred');
-        if (lastFocusedWindow) {
-            lastFocusedWindow.focus();
-        }
-    });
-
-});
-
-ipcMain.on('set-window-height', (event, targetHeight) => {
-    if (!mainWindow || typeof targetHeight !== 'number') return;
-    const [width, currentHeight] = mainWindow.getSize();
-    if (targetHeight !== currentHeight) {
-        mainWindow.setResizable(true);
-        mainWindow.setSize(width, targetHeight);
-        mainWindow.setResizable(false);
-    }
+ipcMain.on('open-external', (_, url) => {
+    shell.openExternal(url).then(() => hideMainWindow());
 });
 
 ipcMain.handle('search-files', async (_, dir, pattern) => {
@@ -218,50 +197,27 @@ ipcMain.handle('search-apps', async (_, pattern) => {
 ipcMain.on('open-path', async (_, filePath) => {
     try {
         await shell.openPath(filePath);
-        if (mainWindow?.isVisible()) {
-            mainWindow.webContents.send('window-blurred');
-            mainWindow.hide();
-        }
+        hideMainWindow();
     } catch {}
 });
 
-ipcMain.handle('launch-app', async (event, app, admin = false) => {
-    if (!app) return false;
 
+ipcMain.handle('launch-app', async (_, app, admin = false) => {
+    if (!app) return false;
     try {
         if (app.path) {
             if (admin) {
                 const command = `powershell -Command "Start-Process -FilePath \\"${app.path}\\" -Verb RunAs"`;
-                exec(command, (err) => {
-                    if (err) {
-                        console.error('Admin launch failed:', err);
-                        return false;
-                    }
-                });
+                exec(command, err => { if (err) console.error('Admin launch failed:', err); });
             } else {
-                exec(`start "" "${app.path}"`, (err) => {
-                    if (err) {
-                        console.error('Regular launch failed:', err);
-                        return false;
-                    }
-                });
+                exec(`start "" "${app.path}"`, err => { if (err) console.error('Regular launch failed:', err); });
             }
         } else if (app.source === "UWP" && app.appId) {
-            const command = `start shell:AppsFolder\\${app.appId}`;
-            exec(command, (err) => {
-                if (err) {
-                    console.error('UWP launch failed:', err);
-                    return false;
-                }
-            });
+            exec(`start shell:AppsFolder\\${app.appId}`, err => { if (err) console.error('UWP launch failed:', err); });
         } else {
             return false;
         }
-        mainWindow.hide();
-        mainWindow.webContents.send('window-blurred');
-        if (lastFocusedWindow) {
-            lastFocusedWindow.focus();
-        }
+        hideMainWindow();
         return true;
     } catch (err) {
         console.error('Launch error:', err);
@@ -269,15 +225,10 @@ ipcMain.handle('launch-app', async (event, app, admin = false) => {
     }
 });
 
-
-ipcMain.on('open-in-explorer', async (event, path) => {
+ipcMain.on('open-in-explorer', (_, path) => {
     try {
         shell.showItemInFolder(path);
-        mainWindow.hide();
-        mainWindow.webContents.send('window-blurred');
-        if (lastFocusedWindow) {
-            lastFocusedWindow.focus();
-        }
+        hideMainWindow();
     } catch {}
 });
 
@@ -289,7 +240,7 @@ const createWindow = () => {
 
     mainWindow = new BrowserWindow({
         width: 800,
-        height: 500,
+        height: 540,
         transparent: true,
         frame: false,
         resizable: false,
@@ -308,10 +259,7 @@ const createWindow = () => {
     const devServerURL = "http://localhost:5173";
 
     mainWindow.on('blur', () => {
-        if (mainWindow?.isVisible()) {
-            mainWindow.webContents.send('window-blurred');
-            mainWindow.hide();
-        }
+        if (mainWindow?.isVisible()) hideMainWindow();
     });
 
     mainWindow.on('focus', () => {
@@ -332,41 +280,23 @@ const createWindow = () => {
 app.whenReady().then(async () => {
     try {
         appCache = await loadApps();
-    } catch (err) {
-        console.error("Failed to load apps:", err);
+    } catch {
         appCache = [];
     }
-    createWindow();
 
-    globalShortcut.register("Esc", () => {
-        if (mainWindow.isVisible()) {
-            mainWindow.hide();
-            mainWindow.webContents.send('window-blurred');
-            if (lastFocusedWindow) {
-                lastFocusedWindow.focus();
-            }
-        }
-    });
+    createWindow();
 
     globalShortcut.register('Ctrl+Space', () => {
         if (!mainWindow) return;
-
         if (mainWindow.isVisible()) {
-            mainWindow.hide();
-            mainWindow.webContents.send('window-blurred');
-            if (lastFocusedWindow) {
-                lastFocusedWindow.focus();
-            }
+            hideMainWindow();
         } else {
-            lastFocusedWindow = BrowserWindow.getFocusedWindow();
-            mainWindow.show();
-            mainWindow.focus();
-
+            showMainWindow();
             if (process.env.NODE_ENV !== "development") {
                 mainWindow.webContents.reloadIgnoringCache();
             }
         }
-    })
+    });
 
     app.on("activate", () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();

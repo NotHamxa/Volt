@@ -5,7 +5,7 @@ contextBridge.exposeInMainWorld("electron", {
     openExternal: (url) => ipcRenderer.send('open-external', url),
     onWindowBlurred: (callback) => ipcRenderer.on('window-blurred', callback),
     getGoogleSuggestions:(query)=>ipcRenderer.invoke('get-google-suggestions',query),
-
+    openUninstall:()=>ipcRenderer.send('open-uninstall'),
 });
 contextBridge.exposeInMainWorld("file",{
     searchFilesAndFolders: (baseDir, query) => ipcRenderer.invoke('search-files', baseDir, query),

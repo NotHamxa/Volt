@@ -10,6 +10,7 @@ declare global {
             openExternal:(url: string) => void;
             onWindowBlurred: (callback: () => void) => void;
             getGoogleSuggestions: (query:string) => Promise<string[]>;
+            openUninstall:()=>void;
         };
         electronStore: {
             set: (key: string, value: any) => void;

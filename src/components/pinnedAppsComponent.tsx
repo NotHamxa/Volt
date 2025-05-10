@@ -101,9 +101,12 @@ function PinnedApp({ app,unPinApp }: IPinnedApp) {
                         </div>
                     </ContextMenuItem>
                     :null}
+                {app.path && <ContextMenuSeparator/>}
 
-                <ContextMenuSeparator/>
-                <ContextMenuItem>
+                <ContextMenuItem onClick={()=>{
+                        window.electron.openUninstall()
+                    }}
+                >
                     <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
                         <Trash2 size={24}/>
                         <label>Uninstall</label>

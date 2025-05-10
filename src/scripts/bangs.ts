@@ -3,25 +3,30 @@ import {BangData} from "@/interfaces/bang.ts";
 import {SearchHistoryT} from "@/interfaces/history.ts";
 
 async function handleBangs(query: string) {
-    const words = query.trim().split(" ");
+    const trimmedQuery = query.trim();
+    const words = trimmedQuery.split(" ");
     const possibleBang = words[words.length - 1];
     const shortcut = possibleBang.startsWith("!") ? possibleBang.slice(1) : null;
 
     let bangData = bangs.find((bang) => bang.t === shortcut);
-    const searchTerm = words.slice(0, -1).join(" ");
 
+    let searchTerm = words.slice(0, -1).join(" ");
+    if (words.length === 1 && shortcut) {
+        searchTerm = "";
+    }
     if (!bangData) {
         bangData = bangs.find((bang) => bang.t === "g");
     }
+
     if (bangData) {
         const url = bangData.u.replace("{{{s}}}", encodeURIComponent(searchTerm));
-        const historyEntry:SearchHistoryT = {
-            searchTerm:searchTerm,
-            searchUrl:url,
-            site:bangData.s,
-        }
-        const stored = await window.electronStore.get("searchHistory")
-        console.log(stored)
+        const historyEntry: SearchHistoryT = {
+            searchTerm: searchTerm,
+            searchUrl: url,
+            site: bangData.s,
+        };
+
+        const stored = await window.electronStore.get("searchHistory");
         let searchHistory: SearchHistoryT[] = stored ? JSON.parse(stored) : [];
         const existingIndex = searchHistory.findIndex(item => JSON.stringify(item) === JSON.stringify(historyEntry));
         if (existingIndex !== -1) {
@@ -32,10 +37,12 @@ async function handleBangs(query: string) {
         } else {
             searchHistory = [historyEntry, ...searchHistory.slice(0, 19)];
         }
+
         window.electronStore.set("searchHistory", JSON.stringify(searchHistory));
         window.electron.openExternal(url);
     }
 }
+
 async function handleHistoryItem(item: SearchHistoryT) {
     const stored = await window.electronStore.get("searchHistory");
     let searchHistory: SearchHistoryT[] = stored ? JSON.parse(stored) : [];

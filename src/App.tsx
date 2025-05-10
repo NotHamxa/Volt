@@ -1,5 +1,7 @@
 import {CSSProperties, useEffect, useRef, useState} from 'react';
-import {Github, Search} from "lucide-react";
+import {Search} from "lucide-react";
+import { FaGithub } from "react-icons/fa6";
+
 import {Input} from "@/components/ui/input.tsx";
 import SearchQueryFilter from "@/components/searchQueryFilter.tsx";
 import {getBangData} from "@/scripts/bangs.ts";
@@ -8,13 +10,16 @@ import QuerySuggestions from "@/components/querySuggestions.tsx";
 import BangSuggestions from "@/components/bangSuggestions.tsx";
 import HomePageComponent from "@/pages/homePageComponent.tsx";
 import { motion } from 'framer-motion';
+import HelpPage from "@/components/helpPage.tsx";
 function App() {
     const [query, setQuery] = useState('');
     const [bangData, setBangData] = useState<BangData | null>(null);
     const [selfQueryChanged,setSelfQueryChanged] = useState<boolean>(false);
     const inputRef = useRef<HTMLInputElement>(null);
-
     const [stage,setStage] = useState<number>(1);
+    const [homePageStage,setHomePageStage] = useState<number>(1);
+
+    const [helpModalOpen,setHelpModalOpen] = useState(false);
 
     useEffect(() => {
         document.documentElement.classList.add("dark");
@@ -24,11 +29,18 @@ function App() {
             setSelfQueryChanged(false);
             inputRef.current?.focus();
             setBangData(null);
+            setHelpModalOpen(false);
         };
+
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === "Tab") {
                 e.preventDefault();
                 setStage(prev => (prev === 1 ? 2 : 1));
+            }
+
+            if (e.ctrlKey && e.key.toLowerCase() === "h") {
+                e.preventDefault();
+                setHelpModalOpen(!helpModalOpen);
             }
         };
         window.electron.onWindowBlurred(handleBlur);
@@ -79,6 +91,7 @@ function App() {
     }
     return (
         <div style={styles.wrapper}>
+            <HelpPage helpModalOpen={helpModalOpen} setHelpModalOpen={setHelpModalOpen}/>
             <div style={styles.inputContainer}>
                 {faviconUrl && stage === 2 ? <img src={faviconUrl} style={styles.favicon}/> : <Search size={24}/>}
                 <Input
@@ -108,7 +121,7 @@ function App() {
                 transition={{duration: 0.3, ease: "easeInOut"}}
                 style={{ flexGrow: 1}}
             >
-                {query && stage === 1 ? (
+                {query && stage === 1 && homePageStage===1? (
                     <QuerySuggestions
                         query={query}
                     />
@@ -119,7 +132,16 @@ function App() {
                     setQuery={setQueryInput}
                     selfQueryChanged={selfQueryChanged}
                 /> : null}
-                {query === "" && stage === 1 ? <HomePageComponent/> : null}
+                {(
+                    (query === "" && stage === 1) ||
+                    (query !== "" && stage === 1 && homePageStage === 2)
+                ) ? (
+                    <HomePageComponent
+                        stage={homePageStage}
+                        setStage={setHomePageStage}
+                        query={query}
+                    />
+                ) : null}
             </motion.div>
             <div
                 style={{
@@ -141,7 +163,7 @@ function App() {
                     rel="noopener noreferrer"
                     className="text-gray-400 hover:text-white"
                 >
-                    <Github size={20} />
+                    <FaGithub size={20} />
                 </a>
                 <div className="flex items-center space-x-2 text-gray-400 text-sm">
                     <span>Settings</span>
@@ -160,7 +182,7 @@ const styles: { [key: string]: CSSProperties } = {
         width: '800px',
         height: '540px',
         overflow: 'hidden',
-        background: "rgba(10,10,10,0.9)",
+        background: "rgba(24, 24, 27,.99)",
         display: 'flex',
         flexDirection: 'column'
     },

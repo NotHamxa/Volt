@@ -1,4 +1,4 @@
-import {CSSProperties, useEffect, useState} from "react";
+import React, {CSSProperties, useEffect, useState} from "react";
 import {motion} from "framer-motion";
 import {SearchQueryT} from "@/interfaces/searchQuery.ts";
 import AllApps from "@/components/allAppsComponent.tsx";
@@ -15,14 +15,16 @@ const isSameApp = (a: SearchQueryT, b: SearchQueryT) => {
     );
 };
 
+interface IHomepage{
+    stage:number;
+    setStage:React.Dispatch<React.SetStateAction<number>>;
+    query:string;
+}
 
-
-export default function HomePageComponent() {
-
-    const [stage, setStage] = useState<number>(1)
-
+export default function HomePageComponent({stage,setStage,query}:IHomepage) {
     const [apps, setApps] = useState<SearchQueryT[]>([])
     const [pinnedApps, setPinnedApps] = useState<SearchQueryT[]>([]);
+    const [filteredApps, setFilteredApps] = useState<SearchQueryT[]>([]);
 
     useEffect(() => {
         const getAppData = async () => {
@@ -32,6 +34,14 @@ export default function HomePageComponent() {
             setPinnedApps(pApps?JSON.parse(pApps):[]);}
         getAppData()
     }, []);
+
+    useEffect(() => {
+        const q = query.toLowerCase();
+        const matched = apps.filter(app =>
+            app.name.toLowerCase().includes(q)
+        );
+        setFilteredApps(matched);
+    }, [query, apps]);
     const pinApp = async (app: SearchQueryT) => {
         if (!pinnedApps.find((a) => isSameApp(a, app))) {
             const updated = [...pinnedApps, app];
@@ -62,7 +72,7 @@ export default function HomePageComponent() {
                 />
                 : <AllApps
                     setStage={setStage}
-                    apps={apps}
+                    apps={filteredApps}
                     pinnedApps={pinnedApps}
                     pinApp={pinApp}
                     unPinApp={unPinApp}

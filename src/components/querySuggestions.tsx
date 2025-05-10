@@ -1,6 +1,17 @@
 import { Label } from "@/components/ui/label.tsx";
 import { CSSProperties, useEffect, useState } from "react";
-import {Folder, File, AppWindowIcon} from "lucide-react";
+import {
+    Folder,
+    File,
+    AppWindowIcon,
+    FileText,
+    FileImage,
+    FileVideo,
+    FileAudio,
+    FileArchive,
+    FileCode, FileSpreadsheet,
+} from "lucide-react";
+import { FaRegFilePdf, FaRegFileWord,FaRegFilePowerpoint  } from "react-icons/fa6";
 import {ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger} from "@/components/ui/context-menu.tsx";
 import {SearchQueryT} from "@/interfaces/searchQuery.ts";
 import {ScrollArea} from "@/components/ui/scroll-area.tsx";
@@ -13,6 +24,53 @@ interface IQuerySuggestions {
 type QueryComponentProps = {
     item: SearchQueryT;
     highlighted?: boolean;
+};
+const getFileIcon = (path: string) => {
+    console.log(path);
+    const extension = path.split(".")[1];
+    switch (extension.toLowerCase()) {
+        case "txt":
+        case "md":
+            return <FileText size={24} />;
+        case "jpg":
+        case "jpeg":
+        case "png":
+        case "gif":
+        case "webp":
+            return <FileImage size={24} />;
+        case "mp4":
+        case "mkv":
+        case "mov":
+            return <FileVideo size={24} />;
+        case "mp3":
+        case "wav":
+            return <FileAudio size={24} />;
+        case "zip":
+        case "rar":
+        case "7z":
+            return <FileArchive size={24} />;
+        case "js":
+        case "ts":
+        case "html":
+        case "css":
+        case "json":
+        case "py":
+        case "cpp":
+            return <FileCode size={24} />;
+        case "xls":
+        case "xlsx":
+            return <FileSpreadsheet size={24} />;
+        case "doc":
+        case "docx":
+            return <FaRegFileWord size={24} />;
+        case "ppt":
+        case "pptx":
+            return <FaRegFilePowerpoint size={24} />;
+        case "pdf":
+            return <FaRegFilePdf size={24}/> ;
+        default:
+            return <File size={24} />;
+    }
 };
 
 export function QueryComponent({ item, highlighted = false }: QueryComponentProps) {
@@ -77,8 +135,9 @@ export function QueryComponent({ item, highlighted = false }: QueryComponentProp
                         ) : (
                             <AppWindowIcon size={24} />
                         )
-                    )}                    {type === "folder" && <Folder size={24} />}
-                    {type === "file" && <File size={24} />}
+                    )}
+                    {type === "folder" && <Folder size={24} />}
+                    {type === "file" && path && getFileIcon(path)}
                     <Label>{name}</Label>
                 </button>
             </ContextMenuTrigger>

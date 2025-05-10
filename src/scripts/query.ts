@@ -9,7 +9,7 @@ interface QueryData {
 
 async function getQueryData({ query, setBestMatch }: QueryData) {
     const apps: SearchQueryT[] = await window.apps.searchApps(query);
-    const downloadFileFolders = await window.file.searchFilesAndFolders("C:\\Users\\Hamxa\\Downloads", query);
+    const downloadFileFolders = await window.file.searchFilesAndFolders("", query);
     const downloadFiles = downloadFileFolders.filter(item => item.type === "file");
     const downloadFolders = downloadFileFolders.filter(item => item.type === "folder");
 

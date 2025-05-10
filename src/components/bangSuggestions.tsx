@@ -6,15 +6,11 @@ import {X} from "lucide-react";
 type BangSuggestionItemProps = {
     suggestion: string;
     highlighted: boolean;
-    onMouseEnter: () => void;
-    onMouseLeave: () => void;
 };
 
 type SearchHistoryItemProps = {
     historyItem: SearchHistoryT;
     highlighted: boolean;
-    onMouseEnter: () => void;
-    onMouseLeave: () => void;
     onDelete: (history:SearchHistoryT) => void;
 };
 
@@ -28,25 +24,29 @@ export default function BangSuggestions({bang, setQuery, selfQueryChanged}: IBan
     const [suggestions, setSuggestions] = useState<string[]>(new Array(11).fill(""));
     const [searchHistory, setSearchHistory] = useState<SearchHistoryT[]>([]);
     const [focusedIndex, setFocusedIndex] = useState<number>(0);
-    const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
     const [isHistory,setIsHistory] = useState<boolean>(false);
 
 
-    function BangSuggestionItem({suggestion, highlighted, onMouseEnter, onMouseLeave,}: BangSuggestionItemProps) {
+    function BangSuggestionItem({suggestion, highlighted}: BangSuggestionItemProps) {
+        const [isHovered, setIsHovered] = useState(false);
         return (
 
             <div
                 tabIndex={0}
-                onMouseEnter={onMouseEnter}
-                onMouseLeave={onMouseLeave}
                 onClick={async () => {
                     await handleOpen(suggestion);
+                }}
+                onMouseEnter={() => {
+                    setIsHovered(true);
+                }}
+                onMouseLeave={() => {
+                    setIsHovered(false);
                 }}
                 style={{
                     padding: "8px",
                     borderRadius: "8px",
                     background:
-                        highlighted && suggestion !== ""
+                        (highlighted || isHovered) && suggestion !== ""
                             ? "rgba(255, 255, 255, 0.1)"
                             : "transparent",
                     color: "#fff",
@@ -63,18 +63,16 @@ export default function BangSuggestions({bang, setQuery, selfQueryChanged}: IBan
         );
     }
 
-    function SearchHistoryItem({historyItem, highlighted, onMouseEnter, onMouseLeave,onDelete}: SearchHistoryItemProps) {
+    function SearchHistoryItem({historyItem, highlighted,onDelete}: SearchHistoryItemProps) {
         const [isHovered, setIsHovered] = useState(false);
         return (
             <div
                 tabIndex={0}
                 onMouseEnter={() => {
                     setIsHovered(true);
-                    onMouseEnter();
                 }}
                 onMouseLeave={() => {
                     setIsHovered(false);
-                    onMouseLeave();
                 }}
                 style={{
                     padding: "8px",
@@ -177,16 +175,21 @@ export default function BangSuggestions({bang, setQuery, selfQueryChanged}: IBan
             const searchTerm = hasBang ? words.slice(0, -1).join(" ") : bang;
             const newSuggestions = new Array(11).fill("");
 
-            newSuggestions[0] = searchTerm;
+            if (searchTerm!=="") {
+                newSuggestions[0] = searchTerm;
+                let googleSuggestions = await window.electron.getGoogleSuggestions(searchTerm);
+                if (googleSuggestions.length > 0) {
+                    googleSuggestions = googleSuggestions.slice(0, 10);
+                    newSuggestions.splice(1, googleSuggestions.length, ...googleSuggestions);
+                }
 
-            let googleSuggestions = await window.electron.getGoogleSuggestions(searchTerm);
-            if (googleSuggestions.length > 0) {
-                googleSuggestions = googleSuggestions.slice(0, 10);
-                newSuggestions.splice(1, googleSuggestions.length, ...googleSuggestions);
+                setSuggestions(newSuggestions);
+                setFocusedIndex(0);
             }
-
-            setSuggestions(newSuggestions);
-            setFocusedIndex(0);
+            else if (hasBang) {
+                newSuggestions[0] = bang;
+                setSuggestions(newSuggestions);
+            }
         };
 
         checkBang();
@@ -248,14 +251,19 @@ export default function BangSuggestions({bang, setQuery, selfQueryChanged}: IBan
     };
 
     async function handleOpen(suggestion: string | SearchHistoryT) {
-        console.log(suggestion)
+
         if (typeof suggestion === "string") {
-            console.log(suggestion);
             suggestion = suggestion.replace(/<\/?b>/g, "")
             const words = bang.trim().split(" ");
             const lastWord = words[words.length - 1];
             const shortcut = lastWord.startsWith("!") ? lastWord.slice(1) : "g";
             const bangString: string = suggestion + " !" + shortcut;
+            if (suggestion==="!"+shortcut){
+                console.log(suggestion);
+                await handleBangs(suggestion);
+                return;
+            }
+            console.log(bangString);
             await handleBangs(bangString);
         }
         else{
@@ -270,9 +278,7 @@ export default function BangSuggestions({bang, setQuery, selfQueryChanged}: IBan
                     <SearchHistoryItem
                         key={index}
                         historyItem={item}
-                        highlighted={index === focusedIndex || index === hoveredIndex}
-                        onMouseEnter={() => setHoveredIndex(index)}
-                        onMouseLeave={() => setHoveredIndex(null)}
+                        highlighted={index === focusedIndex}
                         onDelete={handleDeleteHistoryItem}
                     />
                 ))
@@ -281,9 +287,7 @@ export default function BangSuggestions({bang, setQuery, selfQueryChanged}: IBan
                     <BangSuggestionItem
                         key={index}
                         suggestion={item}
-                        highlighted={index === focusedIndex || index === hoveredIndex}
-                        onMouseEnter={() => setHoveredIndex(index)}
-                        onMouseLeave={() => setHoveredIndex(null)}
+                        highlighted={index === focusedIndex}
                     />
                 ))
             )}

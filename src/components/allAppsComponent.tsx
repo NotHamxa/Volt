@@ -1,9 +1,15 @@
 import {SearchQueryT} from "@/interfaces/searchQuery.ts";
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {Button} from "@/components/ui/button.tsx";
-import {AppWindow, ChevronLeft, Pin, PinOff} from "lucide-react";
+import {AppWindowIcon, ChevronLeft, FolderOpen, Pin, PinOff, ShieldCheck, Trash2} from "lucide-react";
 import {ScrollArea} from "@/components/ui/scroll-area.tsx";
-import {ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger} from "@/components/ui/context-menu.tsx";
+import {
+    ContextMenu,
+    ContextMenuContent,
+    ContextMenuItem,
+    ContextMenuSeparator,
+    ContextMenuTrigger
+} from "@/components/ui/context-menu.tsx";
 import {Label} from "@/components/ui/label.tsx";
 
 const isSameApp = (a: SearchQueryT, b: SearchQueryT) => {
@@ -34,15 +40,30 @@ interface IApp{
 function App({app,pinnedApps,pinApp,unPinApp}:IApp) {
     const [hovered, setHovered] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
+    const [logo, setLogo] = useState<string>("");
+    useEffect(() => {
+        if (app.path) {
+            getLogo()
+        }
+        else{
+            setLogo("")
+        }
+    }, [app]);
 
     const isHighlighted = hovered || isFocused;
-
     const handleFocus = () => setIsFocused(true);
     const handleBlur = () => setIsFocused(false);
 
     const isAppPinned = (app: SearchQueryT): boolean => {
         return pinnedApps.some((a) => isSameApp(a, app));
     };
+
+    const getLogo = async ()=>{
+
+        const appLogo = await window.apps.getAppLogo(app.path as string);
+        setLogo(appLogo);
+    }
+
     return (
         <ContextMenu>
             <ContextMenuTrigger>
@@ -69,7 +90,7 @@ function App({app,pinnedApps,pinApp,unPinApp}:IApp) {
                         outline: isFocused ? "2px solid #3faffa" : "none",
                     }}
                 >
-                    <AppWindow size={24} />
+                    {logo!==""?<img style={{width:24,height:24}} src={logo}/>:<AppWindowIcon size={24} />}
                     <Label>{app.name}</Label>
                 </button>
             </ContextMenuTrigger>
@@ -96,6 +117,43 @@ function App({app,pinnedApps,pinApp,unPinApp}:IApp) {
                             Pin to Start
                         </>
                     }
+                </ContextMenuItem>
+                <ContextMenuSeparator/>
+                {app.path!==""?
+                    <ContextMenuItem onClick={async ()=>{
+                        await window.apps.openApp(app,true)
+                    }}>
+                        <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                            <ShieldCheck size={24}/>
+                            <label>Open as Administrator</label>
+                        </div>
+                    </ContextMenuItem>
+                    :null}
+
+                {app.path?
+                    <ContextMenuItem
+                        onClick={() => {
+                            if (app.path)
+                                window.file.openInExplorer(app.path)
+                        }}
+                    >
+                        <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                            <FolderOpen size={24}/>
+                            <label>Open file location</label>
+                        </div>
+                    </ContextMenuItem>
+                    :null}
+
+                {app.path && <ContextMenuSeparator/>}
+                <ContextMenuItem
+                    onClick={()=>{
+                        window.electron.openUninstall()
+                    }}
+                >
+                    <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                        <Trash2 size={24}/>
+                        <label>Uninstall</label>
+                    </div>
                 </ContextMenuItem>
             </ContextMenuContent>
         </ContextMenu>

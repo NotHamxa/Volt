@@ -60,7 +60,10 @@ function App({app,pinnedApps,pinApp,unPinApp}:IApp) {
 
     const getLogo = async ()=>{
 
-        const appLogo = await window.apps.getAppLogo(app.path as string);
+        const appLogo = await window.apps.getAppLogo(app);
+        if (app.name==="About Java"){
+            console.log(appLogo);
+        }
         setLogo(appLogo);
     }
 

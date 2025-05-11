@@ -19,13 +19,14 @@ declare global {
         apps:{
             searchApps: (query: string) => Promise<SearchQueryT[]>;
             openApp: (app: SearchQueryT,admin=false) => Promise<boolean>;
-            getAppLogo:(path: string) => Promise<string>;
+            getAppLogo:(app: SearchQueryT) => Promise<string>;
             getUwpAppLogo:(appName:string) => Promise<string>;
         };
         file:{
             searchFilesAndFolders: (baseDir: string, query: string) => Promise<SearchQueryT[]>;
             openPath: (path: string) => void;
             openInExplorer:(path: string) => void;
+            openFileWith:(path: string) => void;
         }
     }
 }

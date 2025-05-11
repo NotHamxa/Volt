@@ -88,7 +88,7 @@ export function QueryComponent({ item, highlighted = false }: QueryComponentProp
     useEffect(() => {
         const getLogo = async () =>{
             if (type==="app" && path){
-                setLogo(await window.apps.getAppLogo(path))
+                setLogo(await window.apps.getAppLogo(item))
             }
             else if (type==="app" && item.appId){
                 setLogo(await window.apps.getUwpAppLogo(item.name))
@@ -164,6 +164,13 @@ export function QueryComponent({ item, highlighted = false }: QueryComponentProp
                         await navigator.clipboard.writeText(path);
                     }}>
                         Copy path
+                    </ContextMenuItem>
+                )}
+                {path && (
+                    <ContextMenuItem onClick={async () => {
+                        window.file.openFileWith(path)
+                    }}>
+                        Open file with
                     </ContextMenuItem>
                 )}
             </ContextMenuContent>

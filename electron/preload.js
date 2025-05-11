@@ -11,12 +11,13 @@ contextBridge.exposeInMainWorld("file",{
     searchFilesAndFolders: (baseDir, query) => ipcRenderer.invoke('search-files', baseDir, query),
     openPath:(path) => ipcRenderer.send('open-path', path),
     openInExplorer:(path)=>ipcRenderer.send('open-in-explorer', path),
+    openFileWith:(path)=>ipcRenderer.send('open-file-with', path),
 })
 
 contextBridge.exposeInMainWorld("apps",{
     searchApps: (query) => ipcRenderer.invoke('search-apps', query),
     openApp:(app,admin=false) => ipcRenderer.invoke('launch-app', app,admin),
-    getAppLogo: (path) => ipcRenderer.invoke('get-app-logo', path),
+    getAppLogo: (app) => ipcRenderer.invoke('get-app-logo', app),
     getUwpAppLogo: (appName)=>ipcRenderer.invoke('get-uwp-app-logo', appName),
 })
 

@@ -20,7 +20,8 @@ function PinnedApp({ app,unPinApp }: IPinnedApp) {
     const [logo,setLogo] = useState<string>("");
     const getLogo = async ()=>{
 
-        const appLogo = await window.apps.getAppLogo(app.path as string);
+        const appLogo = await window.apps.getAppLogo(app);
+        console.log(appLogo);
         setLogo(appLogo);
     }
     useEffect(() => {
@@ -30,7 +31,7 @@ function PinnedApp({ app,unPinApp }: IPinnedApp) {
         else{
             setLogo("")
         }
-    }, [app]);
+    }, []);
     return (
         <ContextMenu>
             <ContextMenuTrigger>

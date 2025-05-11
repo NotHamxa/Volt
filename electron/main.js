@@ -3,11 +3,12 @@ import Store from "electron-store";
 import path from "path";
 import {fileURLToPath} from "url";
 import {exec} from "child_process";
-import {getFileIconBase64} from "./utils/appLogo.js";
-import {loadApps} from "./utils/cache.js";
+import {cacheAppIcon, loadApps} from "./utils/cache.js";
 import {searchApps, searchFilesAndFolders} from "./utils/search.js";
 import {getGoogleSuggestions} from "./utils/autoSuggestion.js";
 import {launchApp} from "./utils/launchApp.js";
+import {extractAppLogo, getAppLogo} from "./utils/appLogo.js";
+import {openFileWith} from "./utils/appData/openFileWith.js";
 
 const store = new Store();
 const __filename = fileURLToPath(import.meta.url);
@@ -16,13 +17,12 @@ const __dirname = path.dirname(__filename);
 let mainWindow = null;
 let lastFocusedWindow = null;
 let appCache = [];
-
+let appIconsCache = {}
 const showMainWindow = () => {
     if (!mainWindow) return;
     lastFocusedWindow = BrowserWindow.getFocusedWindow();
     mainWindow.show();
     mainWindow.focus();
-    console.log("shortcut added")
     globalShortcut.register("Esc", handleEsc);
 };
 
@@ -30,7 +30,6 @@ const hideMainWindow = () => {
     if (!mainWindow) return;
     mainWindow.hide();
     globalShortcut.unregister("Esc");
-    console.log("shortcut removed")
     mainWindow.webContents.send('window-blurred');
     if (lastFocusedWindow) {
         lastFocusedWindow.focus();
@@ -38,7 +37,6 @@ const hideMainWindow = () => {
 };
 
 const handleEsc = () => {
-    console.log("shortcut")
     if (mainWindow?.isVisible()) {
         hideMainWindow();
     }
@@ -55,8 +53,8 @@ const handleEsc = () => {
 ipcMain.handle('get-google-suggestions', async (_, query) => {
     return await getGoogleSuggestions(query);
 });
-ipcMain.handle('get-app-logo', async (_, path) => {
-    return await getFileIconBase64(path);
+ipcMain.handle('get-app-logo', async (_, app) => {
+    return await getAppLogo(app,appIconsCache);
 });
 ipcMain.handle('get-uwp-app-logo', async (_, appName) => {
     return await ""
@@ -94,7 +92,9 @@ ipcMain.on('open-in-explorer', (_, path) => {
         hideMainWindow();
     } catch {}
 });
-
+ipcMain.on('open-file-with',async (_, path) => {
+    await openFileWith(path);
+})
 const createWindow = () => {
     if (mainWindow) {
         mainWindow.loadURL("http://localhost:5173");
@@ -144,8 +144,26 @@ const createWindow = () => {
 app.whenReady().then(async () => {
     try {
         appCache = await loadApps();
-    } catch {
+        appIconsCache = store.get("appIconsCache");
+        console.log("icon cache",appIconsCache)
+        if (appIconsCache) {
+            appIconsCache = JSON.parse(appIconsCache);
+        }
+        else{
+            appIconsCache = {}
+        }
+        console.time("IconCachingTime");
+        for (const appData of appCache) {
+            if (!(appData.name in appIconsCache) && appData.path !== "") {
+                appIconsCache = await cacheAppIcon(appData, appIconsCache);
+
+            }
+        }
+        console.timeEnd("IconCachingTime");
+        store.set("appIconsCache", JSON.stringify(appIconsCache));
+    } catch(error) {
         appCache = [];
+        console.log("error",error);
     }
 
     createWindow();

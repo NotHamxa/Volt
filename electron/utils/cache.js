@@ -2,6 +2,11 @@ import os from "os";
 import path from "path";
 import fs from "fs";
 import {exec} from "child_process";
+import {extractAppLogo, getAppLogo} from "./appLogo.js";
+import {fileURLToPath} from "url";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const appDataPath = path.join(__dirname, 'appData/icons');
 
 
 function cacheFilesAndFolders(){
@@ -15,11 +20,9 @@ export async function loadApps() {
         "C:/ProgramData/Microsoft/Windows/Start Menu/Programs",
         "C:/Users/Public/Desktop"
     ];
-    console.log(startMenuPaths);
     const results = [];
     async function collectShortcuts(dir) {
         if (!fs.existsSync(dir)) return;
-        console.log(dir)
         const items = fs.readdirSync(dir);
         for (const item of items) {
             const fullPath = path.join(dir, item);
@@ -45,7 +48,6 @@ export async function loadApps() {
                     const uwpApps = JSON.parse(stdout);
                     const appList = Array.isArray(uwpApps) ? uwpApps : [uwpApps];
                     appList.forEach(app => {
-                        // console.log(app.Name, ": ",app.AppID)
                         results.push({
                             name: app.Name,
                             source: "UWP",
@@ -75,4 +77,28 @@ export async function loadApps() {
         }
     }
     return Array.from(deduped.values());
+}
+
+
+export async function cacheAppIcon(app, appIconsCache) {
+    if (app.path) {
+        try {
+            const appIcon = await extractAppLogo(app.path);
+            if (!appIcon || !appIcon.startsWith('data:image')) {
+                console.warn(`Invalid icon for app ${app.name}`);
+                return;
+            }
+            const base64Data = appIcon.split(',')[1];
+            const iconPath = path.join(appDataPath, `${app.name}.png`);
+            if (!fs.existsSync(appDataPath)) {
+                fs.mkdirSync(appDataPath, { recursive: true });
+            }
+            fs.writeFileSync(iconPath, Buffer.from(base64Data, 'base64'));
+            appIconsCache[app.name] = iconPath;
+            return appIconsCache
+        } catch (error) {
+            console.error(`Failed to cache icon for ${app.name}:`, error);
+            return appIconsCache;
+        }
+    }
 }

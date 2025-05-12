@@ -1,37 +1,54 @@
-import {useEffect, useState} from "react";
+import React, {useEffect, useState} from "react";
 import {SearchQueryT} from "@/interfaces/searchQuery.ts";
 import {Button} from "@/components/ui/button.tsx";
 import {AppWindowIcon, ChevronRight, FolderOpen, PinOff, ShieldCheck, Trash2} from "lucide-react";
-import {ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator} from "@/components/ui/context-menu.tsx";
+import {
+    ContextMenu,
+    ContextMenuContent,
+    ContextMenuItem,
+    ContextMenuSeparator
+} from "@/components/ui/context-menu.tsx";
 import {ContextMenuTrigger} from "@radix-ui/react-context-menu";
+import {
+    DndContext,
+    closestCenter,
+    PointerSensor,
+    useSensor,
+    useSensors,
+} from "@dnd-kit/core";
+import {
+    arrayMove,
+    rectSortingStrategy,
+    SortableContext,
+    useSortable,
+} from "@dnd-kit/sortable";
+import {CSS} from "@dnd-kit/utilities";
 
-
-interface IPinnedSuggestedApps{
-    setStage:(n: number) => void
-    unPinApp:(app:SearchQueryT) => void;
-    pinnedApps:SearchQueryT[];
+interface IPinnedSuggestedApps {
+    setStage: (n: number) => void;
+    unPinApp: (app: SearchQueryT) => void;
+    pinnedApps: SearchQueryT[];
+    setPinnedApps:React.Dispatch<React.SetStateAction<SearchQueryT[]>>;
 }
-interface IPinnedApp{
-    app:SearchQueryT;
-    unPinApp:(app:SearchQueryT) => void;
+
+interface IPinnedApp {
+    app: SearchQueryT;
+    unPinApp: (app: SearchQueryT) => void;
 }
 
-function PinnedApp({ app,unPinApp }: IPinnedApp) {
-    const [logo,setLogo] = useState<string>("");
-    const getLogo = async ()=>{
+function PinnedApp({app, unPinApp}: IPinnedApp) {
+    const [logo, setLogo] = useState<string>("");
 
+    const getLogo = async () => {
         const appLogo = await window.apps.getAppLogo(app);
-        console.log(appLogo);
         setLogo(appLogo);
-    }
+    };
+
     useEffect(() => {
-        if (app.path) {
-            getLogo()
-        }
-        else{
-            setLogo("")
-        }
+        if (app.path) getLogo();
+        else setLogo("");
     }, []);
+
     return (
         <ContextMenu>
             <ContextMenuTrigger>
@@ -41,7 +58,7 @@ function PinnedApp({ app,unPinApp }: IPinnedApp) {
                         alignItems: 'center',
                         justifyContent: 'flex-start',
                         width: '100px',
-                        height: '85px',
+                        height: '90px',
                         backgroundColor: 'transparent',
                         borderRadius: '8px',
                         transition: 'background-color 0.3s ease, transform 0.1s ease',
@@ -50,6 +67,7 @@ function PinnedApp({ app,unPinApp }: IPinnedApp) {
                         overflow: 'hidden',
                         textAlign: 'center',
                         userSelect: 'none',
+                        paddingTop:"5px"
                     }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#353737'}
                     onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
@@ -60,54 +78,40 @@ function PinnedApp({ app,unPinApp }: IPinnedApp) {
                         await window.apps.openApp(app);
                     }}
                 >
-                    {logo!==""?<img style={{width:36,height:36}} src={logo}/>:<AppWindowIcon size={36} />}
-
-                    <label style={{ marginTop: '8px', fontSize: '12px' }}>{app.name}</label>
+                    {logo !== "" ? (
+                        <img style={{width: 36, height: 36}} src={logo}/>
+                    ) : (
+                        <AppWindowIcon size={36}/>
+                    )}
+                    <label style={{marginTop: '8px', fontSize: '12px'}}>{app.name}</label>
                 </button>
             </ContextMenuTrigger>
             <ContextMenuContent>
-                <ContextMenuItem
-                    onClick={()=>{
-                        unPinApp(app)
-                        console.log(app )
-                    }}
-                >
+                <ContextMenuItem onClick={() => unPinApp(app)}>
                     <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
                         <PinOff size={24}/>
                         <label>Unpin from Start</label>
                     </div>
                 </ContextMenuItem>
                 <ContextMenuSeparator/>
-                {app.path!==""?
-                    <ContextMenuItem onClick={async ()=>{
-                        await window.apps.openApp(app,true)
-                    }}>
+                {app.path !== "" && (
+                    <ContextMenuItem onClick={async () => await window.apps.openApp(app, true)}>
                         <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
                             <ShieldCheck size={24}/>
                             <label>Open as Administrator</label>
                         </div>
                     </ContextMenuItem>
-                    :null}
-
-                {app.path?
-                    <ContextMenuItem
-                        onClick={() => {
-                            if (app.path)
-                                window.file.openInExplorer(app.path)
-                        }}
-                    >
+                )}
+                {app.path && (
+                    <ContextMenuItem onClick={() => window.file.openInExplorer(app.path!)}>
                         <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
                             <FolderOpen size={24}/>
                             <label>Open file location</label>
                         </div>
                     </ContextMenuItem>
-                    :null}
+                )}
                 {app.path && <ContextMenuSeparator/>}
-
-                <ContextMenuItem onClick={()=>{
-                        window.electron.openUninstall()
-                    }}
-                >
+                <ContextMenuItem onClick={() => window.electron.openUninstall()}>
                     <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
                         <Trash2 size={24}/>
                         <label>Uninstall</label>
@@ -118,12 +122,54 @@ function PinnedApp({ app,unPinApp }: IPinnedApp) {
     );
 }
 
+function SortablePinnedApp({app, unPinApp}: IPinnedApp) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+    } = useSortable({id: app.name});
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+    };
+
+    return (
+        <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+            <PinnedApp app={app} unPinApp={unPinApp}/>
+        </div>
+    );
+}
+
+export default function PinnedApps({setStage, unPinApp, pinnedApps,setPinnedApps}: IPinnedSuggestedApps) {
 
 
-export default function PinnedApps({setStage,unPinApp,pinnedApps}:IPinnedSuggestedApps) {
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 5,
+            },
+        })
+    );
+
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-expect-error
+    const handleDragEnd = (event) => {
+        const {active, over} = event;
+        if (active.id !== over.id) {
+            const oldIndex = pinnedApps.findIndex(app => app.name === active.id);
+            const newIndex = pinnedApps.findIndex(app => app.name === over.id);
+            const newOrder = arrayMove(pinnedApps, oldIndex, newIndex);
+            setPinnedApps(newOrder);
+            window.electronStore.set("pinnedApps", JSON.stringify(newOrder));
+        }
+    };
+
     return (
         <>
-            <div style={{height: "350px", display: "flex", flexDirection: "column" }}>
+            <div style={{height: "350px", display: "flex", flexDirection: "column"}}>
                 <div style={{
                     display: "flex",
                     color: "#ffffff",
@@ -137,25 +183,25 @@ export default function PinnedApps({setStage,unPinApp,pinnedApps}:IPinnedSuggest
                     <Button
                         variant="ghost"
                         className="bg-[#2b2b2b] hover:bg-[#3a3a3a] text-white px-3 py-1 h-auto text-sm rounded-md flex items-center gap-1"
-                        onClick={() => {
-                            setStage(2)
-                        }}
+                        onClick={() => setStage(2)}
                     >
                         All
                         <ChevronRight className="w-3 h-3"/>
                     </Button>
                 </div>
-                {pinnedApps?.length > 0 ?
+                {pinnedApps?.length > 0 ? (
                     <div style={{display: "flex", alignItems: "center", justifyContent: "center", width: "100%"}}>
-                        <div className="col-span-6 w-full flex flex-wrap gap-0 px-[20px] py-[10px]">
-                            {pinnedApps?.map((app: SearchQueryT) => (
-                                <PinnedApp
-                                    app={app}
-                                    unPinApp={unPinApp}
-                                />
-                            ))}
-                        </div>
-                    </div> :
+                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                            <SortableContext items={pinnedApps.map(app => app.name)} strategy={rectSortingStrategy}>
+                                <div className="col-span-6 w-full flex flex-wrap gap-0 px-[20px] py-[10px]">
+                                    {pinnedApps.map((app) => (
+                                        <SortablePinnedApp key={app.name} app={app} unPinApp={unPinApp}/>
+                                    ))}
+                                </div>
+                            </SortableContext>
+                        </DndContext>
+                    </div>
+                ) : (
                     <div style={{
                         flex: 1,
                         display: "flex",
@@ -164,7 +210,7 @@ export default function PinnedApps({setStage,unPinApp,pinnedApps}:IPinnedSuggest
                     }}>
                         <label>No Apps Pinned</label>
                     </div>
-                }
+                )}
             </div>
             <div style={{height: "100%"}}>
                 <div style={{
@@ -173,10 +219,9 @@ export default function PinnedApps({setStage,unPinApp,pinnedApps}:IPinnedSuggest
                     fontWeight: "bold",
                     fontSize: "16px",
                 }}>
-                <span style={{margin: "0 12px"}}>Suggested</span>
+                    <span style={{margin: "0 12px"}}>Suggested</span>
                 </div>
-                {/* Content below */}
             </div>
         </>
-    )
+    );
 }

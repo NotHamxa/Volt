@@ -11,6 +11,8 @@ import BangSuggestions from "@/components/bangSuggestions.tsx";
 import HomePageComponent from "@/pages/homePageComponent.tsx";
 import { motion } from 'framer-motion';
 import HelpPage from "@/components/helpPage.tsx";
+import {Toaster} from "@/components/ui/sonner.tsx";
+
 function App() {
     const [query, setQuery] = useState('');
     const [bangData, setBangData] = useState<BangData | null>(null);
@@ -91,6 +93,7 @@ function App() {
     }
     return (
         <div style={styles.wrapper}>
+            <Toaster/>
             <HelpPage helpModalOpen={helpModalOpen} setHelpModalOpen={setHelpModalOpen}/>
             <div style={styles.inputContainer}>
                 {faviconUrl && stage === 2 ? <img src={faviconUrl} style={styles.favicon}/> : <Search size={24}/>}

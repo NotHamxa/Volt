@@ -22,6 +22,7 @@ import {
 import {SearchQueryT} from "@/interfaces/searchQuery.ts";
 import {ScrollArea} from "@/components/ui/scroll-area.tsx";
 import {getQueryData} from "@/scripts/query.ts";
+import {showToast} from "@/components/toast.tsx";
 
 interface IQuerySuggestions {
     query: string;
@@ -289,6 +290,10 @@ export default function QuerySuggestions({ query }: IQuerySuggestions) {
         getAppData()
     }, []);
     const pinApp = async (app: SearchQueryT) => {
+        if (pinnedApps.length === 21) {
+            showToast("Maximum Pins Reached", "You can pin up to 21 apps only.");
+            return;
+        }
         if (!pinnedApps.find((a) => isSameApp(a, app))) {
             const updated = [...pinnedApps, app];
             window.electronStore.set("pinnedApps", JSON.stringify(updated));

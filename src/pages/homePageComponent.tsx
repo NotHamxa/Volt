@@ -3,6 +3,7 @@ import {motion} from "framer-motion";
 import {SearchQueryT} from "@/interfaces/searchQuery.ts";
 import AllApps from "@/components/allAppsComponent.tsx";
 import PinnedApps from "@/components/pinnedAppsComponent.tsx";
+import {showToast} from "@/components/toast.tsx";
 
 
 const isSameApp = (a: SearchQueryT, b: SearchQueryT) => {
@@ -43,6 +44,10 @@ export default function HomePageComponent({stage,setStage,query}:IHomepage) {
         setFilteredApps(matched);
     }, [query, apps]);
     const pinApp = async (app: SearchQueryT) => {
+        if (pinnedApps.length === 21) {
+            showToast("Maximum Pins Reached", "You can pin up to 21 apps only.");
+            return;
+        }
         if (!pinnedApps.find((a) => isSameApp(a, app))) {
             const updated = [...pinnedApps, app];
             window.electronStore.set("pinnedApps", JSON.stringify(updated));
@@ -67,6 +72,7 @@ export default function HomePageComponent({stage,setStage,query}:IHomepage) {
             {stage === 1
                 ? <PinnedApps
                     pinnedApps={pinnedApps}
+                    setPinnedApps={setPinnedApps}
                     setStage={setStage}
                     unPinApp={unPinApp}
                 />

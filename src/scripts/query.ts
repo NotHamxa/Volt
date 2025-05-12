@@ -8,17 +8,29 @@ interface QueryData {
 }
 
 async function getQueryData({ query, setBestMatch }: QueryData) {
-    const apps: SearchQueryT[] = await window.apps.searchApps(query);
+    let apps: SearchQueryT[] = await window.apps.searchApps(query);
     const downloadFileFolders = await window.file.searchFilesAndFolders("", query);
-    const downloadFiles = downloadFileFolders.filter(item => item.type === "file");
-    const downloadFolders = downloadFileFolders.filter(item => item.type === "folder");
+    let downloadFiles = downloadFileFolders.filter(item => item.type === "file");
+    let downloadFolders = downloadFileFolders.filter(item => item.type === "folder");
 
     if (apps.length > 0) {
-        const best = apps.find(app => {
-            return app.name.toLowerCase().startsWith(query.toLowerCase());
-        });
+        const appLaunchStack:string[] = JSON.parse((await window.electronStore.get("appLaunchStack")) ?? "[]");
+        const bestMatches:SearchQueryT[]  = apps.filter(item=>item.name.toLowerCase().startsWith(query.toLowerCase()));
+        const filteredAppLaunchStack:string[] = appLaunchStack.filter(item=>item.toLowerCase().startsWith(query.toLowerCase()))
+
+        let best:SearchQueryT | undefined = undefined;
+        for (const match of bestMatches) {
+            const index = filteredAppLaunchStack.lastIndexOf(match.name);
+            if (index !== -1) {
+                if (!best || appLaunchStack.lastIndexOf(match.name) < appLaunchStack.lastIndexOf(best.name)) {
+                    best = match;
+                }
+            }
+        }
+
         if (best) {
             setBestMatch(best);
+            apps = apps.filter(app=>JSON.stringify(app) !== JSON.stringify(best));
         } else {
             setBestMatch(null);
         }
@@ -28,6 +40,7 @@ async function getQueryData({ query, setBestMatch }: QueryData) {
         });
         if (best) {
             setBestMatch(best);
+            downloadFolders = downloadFolders.filter(folder=>JSON.stringify(folder) !== JSON.stringify(best));
         } else {
             setBestMatch(null);
         }
@@ -37,6 +50,7 @@ async function getQueryData({ query, setBestMatch }: QueryData) {
         });
         if (best) {
             setBestMatch(best);
+            downloadFiles = downloadFiles.filter(files => JSON.stringify(files) !== JSON.stringify(best));
         } else {
             setBestMatch(null);
         }

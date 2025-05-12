@@ -9,10 +9,16 @@ import {
     FileVideo,
     FileAudio,
     FileArchive,
-    FileCode, FileSpreadsheet,
+    FileCode, FileSpreadsheet, PinOff, Pin,
 } from "lucide-react";
 import { FaRegFilePdf, FaRegFileWord,FaRegFilePowerpoint  } from "react-icons/fa6";
-import {ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger} from "@/components/ui/context-menu.tsx";
+import {
+    ContextMenu,
+    ContextMenuContent,
+    ContextMenuItem,
+    ContextMenuSeparator,
+    ContextMenuTrigger
+} from "@/components/ui/context-menu.tsx";
 import {SearchQueryT} from "@/interfaces/searchQuery.ts";
 import {ScrollArea} from "@/components/ui/scroll-area.tsx";
 import {getQueryData} from "@/scripts/query.ts";
@@ -24,6 +30,9 @@ interface IQuerySuggestions {
 type QueryComponentProps = {
     item: SearchQueryT;
     highlighted?: boolean;
+    pinApp?:(app:SearchQueryT) => void;
+    unPinApp?:(app:SearchQueryT) => void;
+    isAppPinned?:boolean;
 };
 const getFileIcon = (path: string) => {
     console.log(path);
@@ -72,8 +81,21 @@ const getFileIcon = (path: string) => {
             return <File size={24} />;
     }
 };
+const isSameApp = (a: SearchQueryT, b: SearchQueryT) => {
+    return (
+        a.appId === b.appId &&
+        a.path === b.path &&
+        a.name === b.name &&
+        a.type === b.type &&
+        a.source === b.source
+    );
+};
 
-export function QueryComponent({ item, highlighted = false }: QueryComponentProps) {
+export function QueryComponent({ item,
+                                   highlighted = false,
+                                   isAppPinned=false,
+                                   pinApp = ()=>{},
+                                   unPinApp = ()=>{}}: QueryComponentProps) {
     const { name, type, path } = item;
 
     const [hovered, setHovered] = useState(false);
@@ -142,16 +164,41 @@ export function QueryComponent({ item, highlighted = false }: QueryComponentProp
                 </button>
             </ContextMenuTrigger>
             <ContextMenuContent>
-                <ContextMenuItem onClick={async () => {
-                    if (type === "app") {
-                        await window.apps.openApp(item);
+                {type==="app" && <>
+                    <ContextMenuItem onClick={()=>{
+                        if (isAppPinned) {
+                            unPinApp(item);
+                        }
+                        else {
+                            pinApp(item);
+                        }
+                    }}
+                    >
+                        {isAppPinned?
+                            <>
+                                <PinOff size={24}/>
+                                Unpin from Start
+                            </>
+                            :
+                            <>
+                                <Pin size={24}/>
+                                Pin to Start
+                            </>
+                        }
+                    </ContextMenuItem>
+                    <ContextMenuSeparator/>
+                </>}
 
-                    } else if (path) {
-                        window.file.openPath(path);
-                    }
-                }}>
-                    Open
-                </ContextMenuItem>
+                {type==="app" &&
+                    <>
+                        <ContextMenuItem onClick={async () => {
+                            await window.apps.openApp(item,true);
+                        }}>
+                            Open as Administrator
+                        </ContextMenuItem>
+                        <ContextMenuSeparator/>
+                    </>
+                }
                 {path && (
                     <ContextMenuItem onClick={() => {
                         window.file.openInExplorer(path);
@@ -166,7 +213,7 @@ export function QueryComponent({ item, highlighted = false }: QueryComponentProp
                         Copy path
                     </ContextMenuItem>
                 )}
-                {path && (
+                {path && type!=="app" && (
                     <ContextMenuItem onClick={async () => {
                         window.file.openFileWith(path)
                     }}>
@@ -180,11 +227,14 @@ export function QueryComponent({ item, highlighted = false }: QueryComponentProp
 
 
 export default function QuerySuggestions({ query }: IQuerySuggestions) {
+    const [pinnedApps,setPinnedApps] = useState<SearchQueryT[]>([])
+
     const [focusedIndex, setFocusedIndex] = useState<number>(0);
     const [bestMatch, setBestMatch] = useState<SearchQueryT | null>(null);
     const [apps, setApps] = useState<SearchQueryT[]>([]);
     const [folders, setFolders] = useState<SearchQueryT[]>([]);
     const [files, setFiles] = useState<SearchQueryT[]>([]);
+
 
     const limitedApps = apps.length > 3 ? apps.slice(0, 3) : apps;
     const limitedFiles = files.length > 3 ? files.slice(0, 3) : files;
@@ -201,7 +251,6 @@ export default function QuerySuggestions({ query }: IQuerySuggestions) {
         getData();
 
     }, [query]);
-
 
     const allResults: SearchQueryT[] = [
         ...(bestMatch ? [bestMatch] : []),
@@ -232,6 +281,29 @@ export default function QuerySuggestions({ query }: IQuerySuggestions) {
         };
     }, [focusedIndex, allResults]);
 
+    useEffect(() => {
+        const getAppData = async () => {
+            const pApps = await window.electronStore.get("pinnedApps")
+            setPinnedApps(pApps?JSON.parse(pApps):[]);
+        }
+        getAppData()
+    }, []);
+    const pinApp = async (app: SearchQueryT) => {
+        if (!pinnedApps.find((a) => isSameApp(a, app))) {
+            const updated = [...pinnedApps, app];
+            window.electronStore.set("pinnedApps", JSON.stringify(updated));
+            setPinnedApps(updated);
+        }
+    };
+    const unPinApp = async (app: SearchQueryT) => {
+        const updated = pinnedApps.filter((a) => !isSameApp(a, app));
+        window.electronStore.set("pinnedApps", JSON.stringify(updated));
+        setPinnedApps(updated);
+    };
+    const isAppPinned = (app: SearchQueryT): boolean => {
+        return pinnedApps.some((a) => isSameApp(a, app));
+    };
+
     return (
         <ScrollArea style={styles.mainContainer}>
             {allResults.length === 0 ? (
@@ -241,7 +313,13 @@ export default function QuerySuggestions({ query }: IQuerySuggestions) {
                     {bestMatch && (
                         <>
                             <div style={styles.label}>Best Match</div>
-                            <QueryComponent item={bestMatch} highlighted={focusedIndex === 0} />
+                            <QueryComponent
+                                item={bestMatch}
+                                highlighted={focusedIndex === 0}
+                                pinApp={pinApp}
+                                unPinApp={unPinApp}
+                                isAppPinned={bestMatch.type==="app"?isAppPinned(bestMatch):false}
+                            />
                         </>
                     )}
 
@@ -253,6 +331,9 @@ export default function QuerySuggestions({ query }: IQuerySuggestions) {
                                     key={app.name}
                                     item={app}
                                     highlighted={focusedIndex === index + (bestMatch ? 1 : 0)}
+                                    isAppPinned={isAppPinned(app)}
+                                    pinApp={pinApp}
+                                    unPinApp={unPinApp}
                                 />
                             ))}
                         </>

@@ -1,9 +1,12 @@
 import {exec} from "child_process";
+import Store from "electron-store";
 
+const store = new Store();
 
 export async function launchApp(app,admin) {
     if (!app) return false;
     try {
+        let appLaunchStack = JSON.parse((await store.get("appLaunchStack")) ?? "[]");
         if (app.path) {
             if (admin) {
                 const command = `powershell -Command "Start-Process -FilePath \\"${app.path}\\" -Verb RunAs"`;
@@ -16,6 +19,10 @@ export async function launchApp(app,admin) {
         } else {
             return false;
         }
+
+        appLaunchStack = [app.name,...appLaunchStack.filter(item=>item!==app.name)]
+        store.set("appLaunchStack", JSON.stringify(appLaunchStack));
+        console.log(appLaunchStack)
         return true;
     } catch (err) {
         console.error('Launch error:', err);

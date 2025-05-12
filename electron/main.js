@@ -2,13 +2,12 @@ import {app, BrowserWindow, globalShortcut, ipcMain, shell} from "electron";
 import Store from "electron-store";
 import path from "path";
 import {fileURLToPath} from "url";
-import {exec} from "child_process";
 import {cacheAppIcon, loadApps} from "./utils/cache.js";
 import {searchApps, searchFilesAndFolders} from "./utils/search.js";
 import {getGoogleSuggestions} from "./utils/autoSuggestion.js";
 import {launchApp} from "./utils/launchApp.js";
-import {extractAppLogo, getAppLogo} from "./utils/appLogo.js";
-import {openFileWith} from "./utils/appData/openFileWith.js";
+import {getAppLogo} from "./utils/appLogo.js";
+import {openFileWith} from "./utils/openFileWith.js";
 
 const store = new Store();
 const __filename = fileURLToPath(import.meta.url);

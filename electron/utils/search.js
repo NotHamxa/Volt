@@ -9,14 +9,39 @@ export async function searchApps(appCache,query) {
     return appCache.filter(app => app.name.toLowerCase().includes(lowerQuery));
 }
 
-
-
 export async function searchFilesAndFolders(baseDir, query) {
+    const lowerQuery = query.toLowerCase();
     const baseDirs = [path.join(os.homedir(), "Downloads")];
     if (baseDir!==""){
         baseDirs.push(baseDir);
     }
-    const lowerQuery = query.toLowerCase();
+    const userHome = os.homedir();
+    const folderMap = {
+        Downloads: path.join(userHome, "Downloads"),
+        Documents: path.join(userHome, "Documents"),
+        Desktop: path.join(userHome, "Desktop")
+    };
+    const suggestedFolders = []
+    for (const key in folderMap) {
+        if (key.toLowerCase().startsWith(lowerQuery)) {
+            suggestedFolders.push({
+                name:key,
+                type: "folder",
+                path: folderMap[key],
+                source: "PreDefined"
+            })
+        }
+    }
+    // const suggestedFolders = Object.entries(folderMap).flatMap(([key, folderPath]) => {
+    //     if (lowerQuery.includes(key.toLowerCase())) {
+    //         return [{
+    //             name: key.charAt(0).toUpperCase() + key.slice(1),
+    //             type: "folder",
+    //             path: folderPath
+    //         }];
+    //     }
+    //     return [];
+    // });
     const dirSearchPromises = baseDirs.map(async (dir) => {
         const matches = await fg([`**/*`], {
             cwd: dir,
@@ -33,14 +58,16 @@ export async function searchFilesAndFolders(baseDir, query) {
                     return [{
                         name,
                         type: stat.isFile() ? 'file' : 'folder',
-                        path: fullPath
+                        path: fullPath,
                     }];
                 }
             } catch {
-                // Ignore error
             }
             return [];
         });
     });
-    return (await Promise.all(dirSearchPromises)).flat();
+
+    const searchResults = (await Promise.all(dirSearchPromises)).flat();
+    return [...suggestedFolders, ...searchResults];
 }
+

@@ -85,7 +85,6 @@ export async function cacheAppIcon(app, appIconsCache) {
         try {
             const appIcon = await extractAppLogo(app.path);
             if (!appIcon || !appIcon.startsWith('data:image')) {
-                console.warn(`Invalid icon for app ${app.name}`);
                 return;
             }
             const base64Data = appIcon.split(',')[1];
@@ -97,7 +96,6 @@ export async function cacheAppIcon(app, appIconsCache) {
             appIconsCache[app.name] = iconPath;
             return appIconsCache
         } catch (error) {
-            console.error(`Failed to cache icon for ${app.name}:`, error);
             return appIconsCache;
         }
     }

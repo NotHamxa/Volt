@@ -9,9 +9,9 @@ import {
     FileVideo,
     FileAudio,
     FileArchive,
-    FileCode, FileSpreadsheet, PinOff, Pin,
+    FileCode, FileSpreadsheet, PinOff, Pin, Download,Monitor
 } from "lucide-react";
-import { FaRegFilePdf, FaRegFileWord,FaRegFilePowerpoint  } from "react-icons/fa6";
+import { FaRegFilePdf, FaRegFileWord,FaRegFilePowerpoint,FaFolderOpen  } from "react-icons/fa6";
 import {
     ContextMenu,
     ContextMenuContent,
@@ -36,7 +36,6 @@ type QueryComponentProps = {
     isAppPinned?:boolean;
 };
 const getFileIcon = (path: string) => {
-    console.log(path);
     const extension = path.split(".")[1];
     switch (extension.toLowerCase()) {
         case "txt":
@@ -82,6 +81,18 @@ const getFileIcon = (path: string) => {
             return <File size={24} />;
     }
 };
+const getSpecialFolderIcon = (name:string)=>{
+    switch (name) {
+        case "Downloads":
+            return <Download size={24}/>
+        case "Documents":
+            return <FaFolderOpen  size={24}/>
+        case "Desktop":
+            return <Monitor size={24}/>
+        default:
+            return <Folder size={24}/>
+    }
+}
 const isSameApp = (a: SearchQueryT, b: SearchQueryT) => {
     return (
         a.appId === b.appId &&
@@ -115,7 +126,6 @@ export function QueryComponent({ item,
             }
             else if (type==="app" && item.appId){
                 setLogo(await window.apps.getUwpAppLogo(item.name))
-                console.log("uwp app",item.name)
             }
             else {
                 setLogo("")
@@ -154,12 +164,16 @@ export function QueryComponent({ item,
                 >
                     {type === "app" && (
                         logo !== "" ? (
-                            <img style={{ width: 24, height: 24 }} src={logo} />
+                            <img style={{ width: 24, height: 24,objectFit: 'contain' }} src={logo} />
                         ) : (
                             <AppWindowIcon size={24} />
                         )
                     )}
-                    {type === "folder" && <Folder size={24} />}
+                    {type === "folder" && (
+                        item.source
+                            ? getSpecialFolderIcon(item.name)
+                            : <Folder size={24} />
+                    )}
                     {type === "file" && path && getFileIcon(path)}
                     <Label>{name}</Label>
                 </button>
@@ -191,21 +205,23 @@ export function QueryComponent({ item,
                 </>}
 
                 {type==="app" &&
-                    <>
-                        <ContextMenuItem onClick={async () => {
-                            await window.apps.openApp(item,true);
-                        }}>
-                            Open as Administrator
-                        </ContextMenuItem>
-                        <ContextMenuSeparator/>
-                    </>
+
+                    <ContextMenuItem onClick={async () => {
+                        await window.apps.openApp(item,true);
+                    }}>
+                        Open as Administrator
+                    </ContextMenuItem>
+
                 }
                 {path && (
-                    <ContextMenuItem onClick={() => {
-                        window.file.openInExplorer(path);
-                    }}>
-                        Open file location
-                    </ContextMenuItem>
+                    <>
+                        <ContextMenuSeparator/>
+                        <ContextMenuItem onClick={() => {
+                            window.file.openInExplorer(path);
+                        }}>
+                            Open file location
+                        </ContextMenuItem>
+                    </>
                 )}
                 {path && (
                     <ContextMenuItem onClick={async () => {

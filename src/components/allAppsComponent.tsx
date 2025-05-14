@@ -93,7 +93,7 @@ function App({app,pinnedApps,pinApp,unPinApp}:IApp) {
                         outline: isFocused ? "2px solid #3faffa" : "none",
                     }}
                 >
-                    {logo!==""?<img style={{width:24,height:24}} src={logo}/>:<AppWindowIcon size={24} />}
+                    {logo!==""?<img style={{width:24,height:24,objectFit: 'contain'}} src={logo}/>:<AppWindowIcon size={24} />}
                     <Label>{app.name}</Label>
                 </button>
             </ContextMenuTrigger>

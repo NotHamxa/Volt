@@ -79,7 +79,7 @@ function PinnedApp({app, unPinApp}: IPinnedApp) {
                     }}
                 >
                     {logo !== "" ? (
-                        <img style={{width: 36, height: 36}} src={logo}/>
+                        <img style={{width: 36, height: 36, objectFit: 'contain'}} src={logo}/>
                     ) : (
                         <AppWindowIcon size={36}/>
                     )}

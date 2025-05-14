@@ -8,6 +8,7 @@ import {getGoogleSuggestions} from "./utils/autoSuggestion.js";
 import {launchApp} from "./utils/launchApp.js";
 import {getAppLogo} from "./utils/appLogo.js";
 import {openFileWith} from "./utils/openFileWith.js";
+import {getUwpAppIcon} from "./utils/uwpAppLogo.js";
 
 const store = new Store();
 const __filename = fileURLToPath(import.meta.url);
@@ -17,6 +18,7 @@ let mainWindow = null;
 let lastFocusedWindow = null;
 let appCache = [];
 let appIconsCache = {}
+let loadingAppCache = true;
 const showMainWindow = () => {
     if (!mainWindow) return;
     lastFocusedWindow = BrowserWindow.getFocusedWindow();
@@ -94,6 +96,9 @@ ipcMain.on('open-in-explorer', (_, path) => {
 ipcMain.on('open-file-with',async (_, path) => {
     await openFileWith(path);
 })
+ipcMain.handle('get-loading-cache-status',(_)=>{
+    return loadingAppCache;
+})
 const createWindow = () => {
     if (mainWindow) {
         mainWindow.loadURL("http://localhost:5173");
@@ -108,6 +113,7 @@ const createWindow = () => {
         alwaysOnTop: true,
         skipTaskbar: true,
         backgroundMaterial: 'none',
+        icon:path.join(__dirname, "assets/appLogo2CroppedNoBg.png"),
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
@@ -139,30 +145,37 @@ const createWindow = () => {
         mainWindow = null;
     });
 };
+const loadAppIconsCache = async ()=>{
+    appIconsCache = store.get("appIconsCache");
+    if (appIconsCache) {
+        appIconsCache = JSON.parse(appIconsCache);
+    }
+    else{
+        appIconsCache = {}
+    }
+    appIconsCache = {}
+    for (const appData of appCache) {
+        if (!(appData.name in appIconsCache) && appData.path !== "") {
+            appIconsCache = await cacheAppIcon(appData, appIconsCache);
+        }
+        else if (appData.source==="UWP"){
 
+        }
+    }
+    store.set("appIconsCache", JSON.stringify(appIconsCache));
+    loadingAppCache = false
+    mainWindow.webContents.send('cache-loaded');
+
+}
 app.whenReady().then(async () => {
     try {
         appCache = await loadApps();
-        appIconsCache = store.get("appIconsCache");
-        console.log("icon cache",appIconsCache)
-        if (appIconsCache) {
-            appIconsCache = JSON.parse(appIconsCache);
-        }
-        else{
-            appIconsCache = {}
-        }
-        console.time("IconCachingTime");
-        for (const appData of appCache) {
-            if (!(appData.name in appIconsCache) && appData.path !== "") {
-                appIconsCache = await cacheAppIcon(appData, appIconsCache);
-
-            }
-        }
-        console.timeEnd("IconCachingTime");
-        store.set("appIconsCache", JSON.stringify(appIconsCache));
+        setTimeout(()=>{
+            loadAppIconsCache();
+            getUwpAppIcon(appCache.filter((app)=>app.source==="UWP"))
+        }, 1);
     } catch(error) {
         appCache = [];
-        console.log("error",error);
     }
 
     createWindow();

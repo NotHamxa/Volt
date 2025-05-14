@@ -6,6 +6,9 @@ contextBridge.exposeInMainWorld("electron", {
     onWindowBlurred: (callback) => ipcRenderer.on('window-blurred', callback),
     getGoogleSuggestions:(query)=>ipcRenderer.invoke('get-google-suggestions',query),
     openUninstall:()=>ipcRenderer.send('open-uninstall'),
+    getCacheLoadingStatus:()=>ipcRenderer.invoke('get-loading-cache-status'),
+    onCacheLoaded: (callback) => ipcRenderer.on('cache-loaded', callback),
+
 });
 contextBridge.exposeInMainWorld("file",{
     searchFilesAndFolders: (baseDir, query) => ipcRenderer.invoke('search-files', baseDir, query),

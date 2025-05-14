@@ -12,20 +12,23 @@ import HomePageComponent from "@/pages/homePageComponent.tsx";
 import { motion } from 'framer-motion';
 import HelpPage from "@/components/helpPage.tsx";
 import {Toaster} from "@/components/ui/sonner.tsx";
+import {Label} from "@/components/ui/label.tsx";
+import {RingLoader} from "react-spinners";
 
 function App() {
+
+    const [cacheLoadingStatus, setCacheLoadingStatus] = useState<boolean>(false);
+
     const [query, setQuery] = useState('');
     const [bangData, setBangData] = useState<BangData | null>(null);
     const [selfQueryChanged,setSelfQueryChanged] = useState<boolean>(false);
     const inputRef = useRef<HTMLInputElement>(null);
     const [stage,setStage] = useState<number>(1);
     const [homePageStage,setHomePageStage] = useState<number>(1);
-
     const [helpModalOpen,setHelpModalOpen] = useState(false);
 
     useEffect(() => {
         document.documentElement.classList.add("dark");
-
         const handleBlur = () => {
             setQuery("");
             setSelfQueryChanged(false);
@@ -33,7 +36,6 @@ function App() {
             setBangData(null);
             setHelpModalOpen(false);
         };
-
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === "Tab") {
                 e.preventDefault();
@@ -47,7 +49,18 @@ function App() {
         };
         window.electron.onWindowBlurred(handleBlur);
         window.addEventListener("keydown", handleKeyDown);
-
+        const handleCacheLoadedEvent = ()=>{
+            setCacheLoadingStatus(false);
+        }
+        const getCacheLoadingStatus = async ()=>{
+            const status = await window.electron.getCacheLoadingStatus()
+            if (status){
+                window.electron.onCacheLoaded(handleCacheLoadedEvent)
+            }
+            console.log(status)
+            setCacheLoadingStatus(status);
+        }
+        getCacheLoadingStatus();
         return () => {
             window.removeEventListener("keydown", handleKeyDown);
         };
@@ -91,6 +104,16 @@ function App() {
         setSelfQueryChanged(true)
         setQuery(value);
     }
+
+    if (cacheLoadingStatus) {
+        return (
+            <div style={styles.cacheLoading}>
+                <Label style={styles.cacheLabel}>App data loading, please wait...</Label>
+                <RingLoader size={40} color="#ffffff" />
+            </div>
+        );
+    }
+
     return (
         <div style={styles.wrapper}>
             <Toaster/>
@@ -216,6 +239,22 @@ const styles: { [key: string]: CSSProperties } = {
     favicon: {
         width: 24,
         height: 24,
+    },
+    cacheLoading: {
+        width: '800px',
+        height: '540px',
+        background: "rgba(24, 24, 27, .99)",
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '16px',
+    },
+
+    cacheLabel: {
+        fontSize: '18px',
+        color: '#ffffff',
+        fontWeight: '500',
     },
 };
 

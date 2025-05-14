@@ -1,5 +1,5 @@
 {
-  "name": "spotlight-search",
+  "name": "volt-search",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -13,8 +13,8 @@
   },
   "main": "electron/main.js",
   "build": {
-    "appId": "com.spotlight.search",
-    "productName": "Spotlight-Search",
+    "appId": "com.volt.search",
+    "productName": "Volt",
     "files": [
       "dist/**/*",
       "electron/**/*"
@@ -23,7 +23,8 @@
       "buildResources": "assets"
     },
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "build/appLogoNoBg.ico"
     },
     "nsis": {
       "oneClick": false,
@@ -31,7 +32,7 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "runAfterFinish": true,
-      "shortcutName": "Spotlight-Search",
+      "shortcutName": "Volt",
       "include": "build/installer.nsh"
     }
   },
@@ -57,6 +58,7 @@
     "file-icon": "^5.1.1",
     "file-icon-extractor": "^1.0.4",
     "framer-motion": "^12.9.4",
+    "install": "^0.13.0",
     "jimp": "^1.6.0",
     "lucide-react": "^0.503.0",
     "next-themes": "^0.4.6",
@@ -64,13 +66,15 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-icons": "^5.5.0",
+    "react-spinners": "^0.17.0",
     "react-virtualized": "^9.22.6",
     "react-virtualized-auto-sizer": "^1.0.26",
     "react-window": "^1.8.11",
     "sharp": "^0.34.1",
     "sonner": "^2.0.3",
     "tailwind-merge": "^3.2.0",
-    "windows-shortcuts": "^0.1.6"
+    "windows-shortcuts": "^0.1.6",
+    "xml2js": "^0.6.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.22.0",

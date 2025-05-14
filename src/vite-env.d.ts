@@ -11,6 +11,8 @@ declare global {
             onWindowBlurred: (callback: () => void) => void;
             getGoogleSuggestions: (query:string) => Promise<string[]>;
             openUninstall:()=>void;
+            onCacheLoaded:(callback: () => void) => void;
+            getCacheLoadingStatus:()=>Promise<boolean>;
         };
         electronStore: {
             set: (key: string, value: any) => void;

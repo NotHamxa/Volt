@@ -190,14 +190,14 @@ function App() {
                     width: "800px",
                 }}
             >
-                <a
-                    href="https://github.com/NotHamxa"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                <button
                     className="text-gray-400 hover:text-white"
+                    onClick={async ()=>{
+                        window.electron.openExternal("https://github.com/NotHamxa")
+                    }}
                 >
                     <FaGithub size={20} />
-                </a>
+                </button>
                 <div className="flex items-center space-x-2 text-gray-400 text-sm">
                     <span>Settings</span>
                     <span className="px-2 py-0.5 text-xs border border-gray-500 rounded-sm">Ctrl</span>
@@ -213,7 +213,7 @@ function App() {
 const styles: { [key: string]: CSSProperties } = {
     wrapper: {
         width: '800px',
-        height: '540px',
+        height: '550px',
         overflow: 'hidden',
         background: "rgba(24, 24, 27,.99)",
         display: 'flex',

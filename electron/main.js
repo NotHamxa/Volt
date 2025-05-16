@@ -10,6 +10,11 @@ import {getAppLogo} from "./utils/appLogo.js";
 import {openFileWith} from "./utils/openFileWith.js";
 import {getUwpAppIcon, getUwpInstallLocations} from "./utils/uwpAppLogo.js";
 
+if (!app.requestSingleInstanceLock()) {
+    app.quit();
+    process.exit(0);
+}
+
 const store = new Store();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -83,10 +88,11 @@ ipcMain.handle('get-uwp-app-logo', async (_, app) => {
 })
 ipcMain.on('set-store', (_, { key, value }) => store.set(key, value));
 ipcMain.handle('get-store', (_, key) => store.get(key));
-ipcMain.on("clear-store",(_)=> {
-    store.clear()
-    app.relaunch()
-})
+ipcMain.on("clear-store", (_) => {
+    store.clear();
+    app.relaunch();
+    app.exit(0);
+});
 ipcMain.on('open-external', (_, url) => {
     shell.openExternal(url).then(() => hideMainWindow());
 });
@@ -131,7 +137,7 @@ const createWindow = () => {
     }
     mainWindow = new BrowserWindow({
         width: 800,
-        height: 540,
+        height: 550,
         transparent: true,
         frame: false,
         resizable: false,

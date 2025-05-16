@@ -13,11 +13,13 @@ import { motion } from 'framer-motion';
 import HelpPage from "@/components/helpPage.tsx";
 import {Toaster} from "@/components/ui/sonner.tsx";
 import {Label} from "@/components/ui/label.tsx";
-import {RingLoader} from "react-spinners";
+import {Progress} from "@/components/ui/progress.tsx";
 
 function App() {
 
     const [cacheLoadingStatus, setCacheLoadingStatus] = useState<boolean>(false);
+    const [currentCacheStep,setCurrentCacheStep] = useState<number>(0);
+    const [totalCacheSteps,setTotalCacheSteps] = useState<number>(0);
 
     const [query, setQuery] = useState('');
     const [bangData, setBangData] = useState<BangData | null>(null);
@@ -56,6 +58,10 @@ function App() {
             const status = await window.electron.getCacheLoadingStatus()
             if (status){
                 window.electron.onCacheLoaded(handleCacheLoadedEvent)
+                window.electron.setCacheLoadingBar((currentStep,totalSteps)=>{
+                    setCurrentCacheStep(currentStep)
+                    setTotalCacheSteps(totalSteps)
+                })
             }
             console.log(status)
             setCacheLoadingStatus(status);
@@ -95,8 +101,6 @@ function App() {
             </div>
         );
     }
-
-
     const faviconUrl = bangData?.d
         ? `https://www.google.com/s2/favicons?sz=24&domain_url=${encodeURIComponent(bangData.d)}`
         : null;
@@ -109,7 +113,10 @@ function App() {
         return (
             <div style={styles.cacheLoading}>
                 <Label style={styles.cacheLabel}>App data loading, please wait...</Label>
-                <RingLoader size={40} color="#ffffff" />
+                <Progress
+                    value={Math.trunc((currentCacheStep/totalCacheSteps)*100)}
+                    style={{width:"60%"}}
+                />
             </div>
         );
     }

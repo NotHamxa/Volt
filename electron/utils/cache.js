@@ -4,9 +4,15 @@ import fs from "fs";
 import {exec} from "child_process";
 import {extractAppLogo, getAppLogo} from "./appLogo.js";
 import {fileURLToPath} from "url";
+import {promisify} from "node:util";
+import xml2js from "xml2js";
+import sharp from "sharp";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const appDataPath = path.join(__dirname, 'appData/icons');
+const parseString = promisify(xml2js.parseString)
+
+const validImageExtensions = [".png", ".jpg", ".jpeg"];
 
 
 function cacheFilesAndFolders(){
@@ -78,8 +84,6 @@ export async function loadApps() {
     }
     return Array.from(deduped.values());
 }
-
-
 export async function cacheAppIcon(app, appIconsCache) {
     if (app.path) {
         try {
@@ -94,9 +98,114 @@ export async function cacheAppIcon(app, appIconsCache) {
             }
             fs.writeFileSync(iconPath, Buffer.from(base64Data, 'base64'));
             appIconsCache[app.name] = iconPath;
+            console.log(iconPath.replace(/\\\\/g, '\\'))
             return appIconsCache
         } catch (error) {
             return appIconsCache;
         }
+    }
+}
+
+async function copyAppLogo(targetPath, endPath) {
+    try {
+        // Resize the image and get it as a Buffer
+        const buffer = await sharp(targetPath)
+            .resize(64, 64, {
+                fit: "inside",
+                withoutEnlargement: true
+            })
+            .toFormat("png")
+            .toBuffer();
+
+        // Convert buffer to base64
+        const base64 = buffer.toString("base64");
+
+        // Convert base64 back to binary buffer
+        const binaryBuffer = Buffer.from(base64, "base64");
+        await fs.writeFileSync(endPath, binaryBuffer);
+
+        return true;
+    } catch (error) {
+        console.error("Error copying logo:", error);
+        return false;
+    }
+}
+export async function cacheUwpIcon(installPath, name, appIconsCache) {
+    const manifestPath = path.join(installPath, "AppxManifest.xml");
+    if (!fs.existsSync(manifestPath)) {
+        console.warn(`Manifest not found for ${name}`);
+        return appIconsCache
+    }
+    const xml = fs.readFileSync(manifestPath, "utf8");
+    let manifest;
+    try {
+        manifest = await parseString(xml);
+    } catch (err) {
+        console.error(`Failed to parse manifest for ${name}`, err);
+        return appIconsCache
+    }
+    let logoRelativePath;
+    try {
+        logoRelativePath = manifest?.Package?.Properties?.[0]?.Logo?.[0];
+        if (!logoRelativePath) {
+            console.warn(`Logo not found in manifest for ${name}`);
+            return appIconsCache;
+        }
+        const normalizedLogoPath = path.normalize(logoRelativePath);
+        const logoFullPath = path.join(installPath, normalizedLogoPath);
+        const assetsFolder = path.dirname(logoFullPath);
+        const logoBaseName = path.basename(logoFullPath, path.extname(logoFullPath));
+        if (!fs.existsSync(assetsFolder)) {
+            console.warn(`Assets folder not found: ${assetsFolder}`);
+            return appIconsCache;
+        }
+        const files = fs.readdirSync(assetsFolder);
+        const icons = []
+        files.forEach(file => {
+            const ext = path.extname(file).toLowerCase();
+            const base = path.basename(file, ext);
+            if (base.startsWith(logoBaseName) && validImageExtensions.includes(ext)) {
+                icons.push(path.join(assetsFolder, file));
+            }
+        });
+        if (icons.length>0){
+            const scoredIcons = icons.map(file => {
+                const name = path.basename(file).toLowerCase();
+                let score = 0;
+
+                const targetSizeMatch = name.match(/targetsize-(\d+)/);
+                const scaleMatch = name.match(/scale-(\d+)/);
+
+                if (targetSizeMatch) {
+                    score = 10000 + parseInt(targetSizeMatch[1]);
+                } else if (scaleMatch) {
+                    score = 5000 + parseInt(scaleMatch[1]);
+                } else if (name === `${logoBaseName.toLowerCase()}.png`) {
+                    score = 1;
+                }
+
+                return { file, score };
+            });
+            scoredIcons.sort((a, b) => b.score - a.score);
+            const iconPath = scoredIcons[0].file;
+
+            const targetPath = path.join(appDataPath, `${name}.png`);
+            console.log(iconPath.replace(/\\\\/g, '\\'),targetPath.replace(/\\\\/g, '\\'));
+            if (!fs.existsSync(appDataPath)) {
+                fs.mkdirSync(appDataPath, { recursive: true });
+            }
+            if (await copyAppLogo(iconPath,targetPath)){
+                appIconsCache[name] = targetPath;
+                return appIconsCache;
+            }
+            else{
+                return appIconsCache;
+            }
+        }
+        return appIconsCache;
+
+    } catch (err) {
+        console.error(`Error processing logo path for ${name}`, err);
+        return appIconsCache;
     }
 }

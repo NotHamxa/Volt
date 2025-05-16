@@ -42,12 +42,7 @@ function App({app,pinnedApps,pinApp,unPinApp}:IApp) {
     const [isFocused, setIsFocused] = useState(false);
     const [logo, setLogo] = useState<string>("");
     useEffect(() => {
-        if (app.path) {
-            getLogo()
-        }
-        else{
-            setLogo("")
-        }
+        getLogo()
     }, [app]);
 
     const isHighlighted = hovered || isFocused;
@@ -58,14 +53,16 @@ function App({app,pinnedApps,pinApp,unPinApp}:IApp) {
         return pinnedApps.some((a) => isSameApp(a, app));
     };
 
-    const getLogo = async ()=>{
-
-        const appLogo = await window.apps.getAppLogo(app);
-        if (app.name==="About Java"){
-            console.log(appLogo);
+    const getLogo = async () => {
+        if (app.path){
+            const appLogo = await window.apps.getAppLogo(app);
+            setLogo(appLogo);
         }
-        setLogo(appLogo);
-    }
+        else if(app.source==="UWP"){
+            const appLogo = await window.apps.getUwpAppLogo(app)
+            setLogo(appLogo);
+        }
+    };
 
     return (
         <ContextMenu>
@@ -93,7 +90,7 @@ function App({app,pinnedApps,pinApp,unPinApp}:IApp) {
                         outline: isFocused ? "2px solid #3faffa" : "none",
                     }}
                 >
-                    {logo!==""?<img style={{width:24,height:24,objectFit: 'contain'}} src={logo}/>:<AppWindowIcon size={24} />}
+                    {logo?<img style={{width:24,height:24,objectFit: 'contain'}} src={logo}/>:<AppWindowIcon size={24} />}
                     <Label>{app.name}</Label>
                 </button>
             </ContextMenuTrigger>

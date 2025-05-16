@@ -119,20 +119,19 @@ export function QueryComponent({ item,
     const handleBlur = () => setIsFocused(false);
 
     const [logo,setLogo] = useState<string>();
-    useEffect(() => {
-        const getLogo = async () =>{
-            if (type==="app" && path){
-                setLogo(await window.apps.getAppLogo(item))
-            }
-            else if (type==="app" && item.appId){
-                setLogo(await window.apps.getUwpAppLogo(item.name))
-            }
-            else {
-                setLogo("")
-            }
+    const getLogo = async () => {
+        if (item.path){
+            const appLogo = await window.apps.getAppLogo(item);
+            setLogo(appLogo);
         }
+        else if(item.source==="UWP"){
+            const appLogo = await window.apps.getUwpAppLogo(item)
+            setLogo(appLogo);
+        }
+    };
+    useEffect(() => {
         getLogo()
-    }, [type,path]);
+    },[item,path]);
     return (
         <ContextMenu>
             <ContextMenuTrigger>
@@ -163,7 +162,7 @@ export function QueryComponent({ item,
                     }}
                 >
                     {type === "app" && (
-                        logo !== "" ? (
+                        logo? (
                             <img style={{ width: 24, height: 24,objectFit: 'contain' }} src={logo} />
                         ) : (
                             <AppWindowIcon size={24} />

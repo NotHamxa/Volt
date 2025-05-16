@@ -7,22 +7,25 @@ declare global {
     interface Window {
         electron: {
             invoke: (channel: string, data?: any) => Promise<any>;
+            setOpenBind:(binding:string)=>Promise<boolean>;
             openExternal:(url: string) => void;
             onWindowBlurred: (callback: () => void) => void;
             getGoogleSuggestions: (query:string) => Promise<string[]>;
             openUninstall:()=>void;
             onCacheLoaded:(callback: () => void) => void;
             getCacheLoadingStatus:()=>Promise<boolean>;
+            setCacheLoadingBar: (callback: (currentCacheStep: number, totalCacheSteps: number) => void) => void;
         };
         electronStore: {
             set: (key: string, value: any) => void;
             get: (key: string) => Promise<string>;
+            clear: () => void;
         };
         apps:{
             searchApps: (query: string) => Promise<SearchQueryT[]>;
             openApp: (app: SearchQueryT,admin=false) => Promise<boolean>;
             getAppLogo:(app: SearchQueryT) => Promise<string>;
-            getUwpAppLogo:(appName:string) => Promise<string>;
+            getUwpAppLogo:(app:SearchQueryT) => Promise<string>;
         };
         file:{
             searchFilesAndFolders: (baseDir: string, query: string) => Promise<SearchQueryT[]>;

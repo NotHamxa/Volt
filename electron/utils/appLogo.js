@@ -39,7 +39,7 @@ export async function getAppLogo(app, appIconsCache) {
         return await extractAppLogo(app.path);
 
     } catch (error) {
-        console.error(`Failed to get icon for ${name}:`, error);
+        console.error(`Failed to get icon for ${app.name}:`, error);
         return null;
     }
 }

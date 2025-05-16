@@ -2,11 +2,17 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("electron", {
     invoke: (channel, data) => ipcRenderer.invoke(channel, data),
+    setOpenBind:(binding)=>ipcRenderer.invoke("set-open-bind", binding),
     openExternal: (url) => ipcRenderer.send('open-external', url),
     onWindowBlurred: (callback) => ipcRenderer.on('window-blurred', callback),
     getGoogleSuggestions:(query)=>ipcRenderer.invoke('get-google-suggestions',query),
     openUninstall:()=>ipcRenderer.send('open-uninstall'),
     getCacheLoadingStatus:()=>ipcRenderer.invoke('get-loading-cache-status'),
+    setCacheLoadingBar: (callback) => {
+        ipcRenderer.on('set-cache-loading-bar', (_event, currentNum, totalNum) => {
+            callback(currentNum, totalNum);
+        });
+    },
     onCacheLoaded: (callback) => ipcRenderer.on('cache-loaded', callback),
 
 });
@@ -28,4 +34,5 @@ contextBridge.exposeInMainWorld("apps",{
 contextBridge.exposeInMainWorld('electronStore', {
     set: (key, value) => ipcRenderer.send('set-store', { key, value }),
     get: (key) => ipcRenderer.invoke('get-store', key),
+    clear:()=>ipcRenderer.send("clear-store")
 });

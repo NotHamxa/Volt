@@ -40,14 +40,19 @@ function PinnedApp({app, unPinApp}: IPinnedApp) {
     const [logo, setLogo] = useState<string>("");
 
     const getLogo = async () => {
-        const appLogo = await window.apps.getAppLogo(app);
-        setLogo(appLogo);
+        if (app.path){
+            const appLogo = await window.apps.getAppLogo(app);
+            setLogo(appLogo);
+        }
+        else if(app.source==="UWP"){
+            const appLogo = await window.apps.getUwpAppLogo(app)
+            setLogo(appLogo);
+        }
     };
 
     useEffect(() => {
-        if (app.path) getLogo();
-        else setLogo("");
-    }, []);
+        getLogo();
+        },[]);
 
     return (
         <ContextMenu>
@@ -78,7 +83,7 @@ function PinnedApp({app, unPinApp}: IPinnedApp) {
                         await window.apps.openApp(app);
                     }}
                 >
-                    {logo !== "" ? (
+                    {logo ? (
                         <img style={{width: 36, height: 36, objectFit: 'contain'}} src={logo}/>
                     ) : (
                         <AppWindowIcon size={36}/>

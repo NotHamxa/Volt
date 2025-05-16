@@ -2,23 +2,31 @@ import {app, BrowserWindow, globalShortcut, ipcMain, shell} from "electron";
 import Store from "electron-store";
 import path from "path";
 import {fileURLToPath} from "url";
-import {cacheAppIcon, loadApps} from "./utils/cache.js";
+import {cacheAppIcon, cacheUwpIcon, loadApps} from "./utils/cache.js";
 import {searchApps, searchFilesAndFolders} from "./utils/search.js";
 import {getGoogleSuggestions} from "./utils/autoSuggestion.js";
 import {launchApp} from "./utils/launchApp.js";
 import {getAppLogo} from "./utils/appLogo.js";
 import {openFileWith} from "./utils/openFileWith.js";
-import {getUwpAppIcon} from "./utils/uwpAppLogo.js";
+import {getUwpAppIcon, getUwpInstallLocations} from "./utils/uwpAppLogo.js";
 
 const store = new Store();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+let openShortcut = store.get("openWindowBind");
+if (!openShortcut) {
+    store.set("openWindowBind", "Ctrl+Space");
+    openShortcut = "Ctrl+Space";
+}
 let mainWindow = null;
 let lastFocusedWindow = null;
 let appCache = [];
 let appIconsCache = {}
 let loadingAppCache = true;
+
+
+
 const showMainWindow = () => {
     if (!mainWindow) return;
     lastFocusedWindow = BrowserWindow.getFocusedWindow();
@@ -37,31 +45,48 @@ const hideMainWindow = () => {
     }
 };
 
+const changeOpenBind = async (binding)=>{
+    globalShortcut.unregister(openShortcut);
+    console.log(openShortcut)
+    globalShortcut.register(binding, () => {
+        if (!mainWindow) return;
+        if (mainWindow.isVisible()) {
+            hideMainWindow();
+        } else {
+            showMainWindow();
+            if (process.env.NODE_ENV !== "development") {
+                mainWindow.webContents.reloadIgnoringCache();
+            }
+        }
+    });
+    openShortcut = binding;
+    store.set("openWindowBind", binding);
+    return true
+}
+
 const handleEsc = () => {
     if (mainWindow?.isVisible()) {
         hideMainWindow();
     }
 };
-
-// exec('powershell -Command "Get-AppxPackage -Name Microsoft.Microsoft3DViewer | Select-Object -ExpandProperty InstallLocation"', (error, stdout) => {
-//     const installLocation = stdout.trim();
-//     if (!installLocation) return;
-//     const iconPath = `${installLocation}\\Assets\\Logo.png`;
-//     console.log(`Install Location: ${installLocation}`);
-//     console.log(`Icon Path: ${iconPath}`);
-// });
-
+ipcMain.handle('set-open-bind',async (_,binding)=>{
+    return await changeOpenBind(binding);
+})
 ipcMain.handle('get-google-suggestions', async (_, query) => {
     return await getGoogleSuggestions(query);
 });
 ipcMain.handle('get-app-logo', async (_, app) => {
     return await getAppLogo(app,appIconsCache);
 });
-ipcMain.handle('get-uwp-app-logo', async (_, appName) => {
-    return await ""
+ipcMain.handle('get-uwp-app-logo', async (_, app) => {
+    return await getUwpAppIcon(app,appIconsCache);
 })
 ipcMain.on('set-store', (_, { key, value }) => store.set(key, value));
 ipcMain.handle('get-store', (_, key) => store.get(key));
+ipcMain.on("clear-store",(_)=> {
+    store.clear()
+    app.relaunch()
+})
 ipcMain.on('open-external', (_, url) => {
     shell.openExternal(url).then(() => hideMainWindow());
 });
@@ -153,13 +178,30 @@ const loadAppIconsCache = async ()=>{
     else{
         appIconsCache = {}
     }
-    appIconsCache = {}
+    const uwpIconsToCache = []
+    let totalApps = appCache.length;
+    let currentNumber = 0;
     for (const appData of appCache) {
-        if (!(appData.name in appIconsCache) && appData.path !== "") {
+        if (!(appData.name in appIconsCache) && appData.path) {
             appIconsCache = await cacheAppIcon(appData, appIconsCache);
+            currentNumber = currentNumber+1
+            mainWindow.webContents.send("set-cache-loading-bar",currentNumber,totalApps)
         }
-        else if (appData.source==="UWP"){
-
+        else if (appData.source==="UWP" && !(appData.name in appIconsCache)) {
+            uwpIconsToCache.push(appData)
+        }
+    }
+    if (uwpIconsToCache.length > 0) {
+        const uwpIconsInstallPath = await getUwpInstallLocations(uwpIconsToCache);
+        const diff = uwpIconsToCache.length - uwpIconsInstallPath.length;
+        currentNumber = currentNumber+diff
+        mainWindow.webContents.send("set-cache-loading-bar",currentNumber,totalApps)
+        for (const uwpApp of uwpIconsInstallPath) {
+            if (uwpApp.installLocation){
+                appIconsCache = await cacheUwpIcon(uwpApp.installLocation,uwpApp.name,appIconsCache)
+                currentNumber = currentNumber+1
+                mainWindow.webContents.send("set-cache-loading-bar",currentNumber,totalApps)
+            }
         }
     }
     store.set("appIconsCache", JSON.stringify(appIconsCache));
@@ -172,7 +214,6 @@ app.whenReady().then(async () => {
         appCache = await loadApps();
         setTimeout(()=>{
             loadAppIconsCache();
-            getUwpAppIcon(appCache.filter((app)=>app.source==="UWP"))
         }, 1);
     } catch(error) {
         appCache = [];
@@ -180,7 +221,7 @@ app.whenReady().then(async () => {
 
     createWindow();
 
-    globalShortcut.register('Ctrl+Space', () => {
+    globalShortcut.register(openShortcut, () => {
         if (!mainWindow) return;
         if (mainWindow.isVisible()) {
             hideMainWindow();

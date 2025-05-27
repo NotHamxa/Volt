@@ -29,6 +29,8 @@ function App() {
     const [homePageStage,setHomePageStage] = useState<number>(1);
     const [helpModalOpen,setHelpModalOpen] = useState(false);
 
+    const [searchQueryFilters,setSearchQueryFilters] = useState<boolean[]>([true, true, true]);
+
     useEffect(() => {
         document.documentElement.classList.add("dark");
         const handleBlur = () => {
@@ -144,7 +146,10 @@ function App() {
                     autoFocus
                 />
                 {!query && <SwitchModes/>}
-                {query && stage === 1 ? <SearchQueryFilter/> : null}
+                {query && stage === 1 ? <SearchQueryFilter
+                    filters={searchQueryFilters}
+                    setFilters={setSearchQueryFilters}
+                /> : null}
             </div>
             <motion.div
                 key={stage}
@@ -157,6 +162,7 @@ function App() {
                 {query && stage === 1 && homePageStage===1? (
                     <QuerySuggestions
                         query={query}
+                        searchFilters={searchQueryFilters}
                     />
                 ) : null}
 
@@ -199,7 +205,14 @@ function App() {
                     <FaGithub size={20} />
                 </button>
                 <div className="flex items-center space-x-2 text-gray-400 text-sm">
-                    <span>Settings</span>
+                    <button
+                        onClick={() => {
+                            setHelpModalOpen(true);
+                        }}
+                        className="hover:underline cursor-pointer"
+                    >
+                        Settings
+                    </button>
                     <span className="px-2 py-0.5 text-xs border border-gray-500 rounded-sm">Ctrl</span>
                     <span>+</span>
                     <span className="px-2 py-0.5 text-xs border border-gray-500 rounded-sm">H</span>
@@ -249,7 +262,7 @@ const styles: { [key: string]: CSSProperties } = {
     },
     cacheLoading: {
         width: '800px',
-        height: '540px',
+        height: '550px',
         background: "rgba(24, 24, 27, .99)",
         display: 'flex',
         flexDirection: 'column',

@@ -5,11 +5,14 @@ import {
     DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu.tsx";
 import {Check, SlidersHorizontal} from "lucide-react";
-import {useState} from "react";
+import React from "react";
 
-function SearchQueryFilter() {
+interface SearchQueryFilterT{
+    filters: boolean[],
+    setFilters:React.Dispatch<React.SetStateAction<boolean[]>>;
+}
 
-    const [filters, setFilters] = useState<boolean[]>([true, true, true]);
+function SearchQueryFilter({filters,setFilters}:SearchQueryFilterT) {
 
     function handlePress(index: number) {
         setFilters(prev =>

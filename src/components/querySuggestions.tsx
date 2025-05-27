@@ -26,6 +26,7 @@ import {showToast} from "@/components/toast.tsx";
 
 interface IQuerySuggestions {
     query: string;
+    searchFilters:boolean[]
 }
 
 type QueryComponentProps = {
@@ -242,7 +243,7 @@ export function QueryComponent({ item,
 }
 
 
-export default function QuerySuggestions({ query }: IQuerySuggestions) {
+export default function QuerySuggestions({ query, searchFilters }: IQuerySuggestions) {
     const [pinnedApps,setPinnedApps] = useState<SearchQueryT[]>([])
 
     const [focusedIndex, setFocusedIndex] = useState<number>(0);
@@ -251,22 +252,34 @@ export default function QuerySuggestions({ query }: IQuerySuggestions) {
     const [folders, setFolders] = useState<SearchQueryT[]>([]);
     const [files, setFiles] = useState<SearchQueryT[]>([]);
 
+    const searchOptionsSelected = searchFilters.filter(Boolean).length;
 
-    const limitedApps = apps.length > 3 ? apps.slice(0, 3) : apps;
-    const limitedFiles = files.length > 3 ? files.slice(0, 3) : files;
-    const limitedFolders = folders.length > 3 ? folders.slice(0, 3) : folders;
+    let appLimit = 3;
+    let fileLimit = 3;
+    let folderLimit = 3;
+    if (searchOptionsSelected === 2) {
+        appLimit = fileLimit = folderLimit = 5;
+    } else if (searchOptionsSelected === 1) {
+        appLimit = fileLimit = folderLimit = apps.length;
+    }
+    const limitedApps = apps.slice(0, appLimit);
+    const limitedFiles = files.slice(0, fileLimit);
+    const limitedFolders = folders.slice(0, folderLimit);
 
     useEffect(() => {
         const getData = async ()=>{
-            const queryData = await getQueryData({ query, setBestMatch });
+            const queryData = await getQueryData({
+                query:query.trim(),
+                setBestMatch,
+                searchQueryFilters:searchFilters
+            });
             setApps(queryData.apps);
             setFolders(queryData.folders);
             setFiles(queryData.files);
 
         }
         getData();
-
-    }, [query]);
+    }, [query,searchFilters]);
 
     const allResults: SearchQueryT[] = [
         ...(bestMatch ? [bestMatch] : []),
@@ -343,7 +356,7 @@ export default function QuerySuggestions({ query }: IQuerySuggestions) {
                         </>
                     )}
 
-                    {limitedApps.length > 0 && (
+                    {limitedApps.length > 0 && searchFilters[0] && (
                         <>
                             <div style={styles.label}>Applications</div>
                             {limitedApps.map((app, index) => (
@@ -359,7 +372,7 @@ export default function QuerySuggestions({ query }: IQuerySuggestions) {
                         </>
                     )}
 
-                    {limitedFiles.length > 0 && (
+                    {limitedFiles.length > 0 && searchFilters[1] &&  (
                         <>
                             <div style={styles.label}>Files</div>
                             {limitedFiles.map((file, index) => (
@@ -372,7 +385,7 @@ export default function QuerySuggestions({ query }: IQuerySuggestions) {
                         </>
                     )}
 
-                    {limitedFolders.length > 0 && (
+                    {limitedFolders.length > 0 && searchFilters[2] &&  (
                         <>
                             <div style={styles.label}>Folders</div>
                             {limitedFolders.map((folder, index) => (

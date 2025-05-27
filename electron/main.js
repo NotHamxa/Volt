@@ -14,7 +14,6 @@ if (!app.requestSingleInstanceLock()) {
     app.quit();
     process.exit(0);
 }
-
 const store = new Store();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

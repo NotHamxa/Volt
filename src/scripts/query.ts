@@ -4,15 +4,16 @@ import {SearchQueryT} from "@/interfaces/searchQuery.ts";
 interface QueryData {
     query: string;
     setBestMatch: React.Dispatch<React.SetStateAction<SearchQueryT | null>>;
+    searchQueryFilters: boolean[]
 
 }
 
-async function getQueryData({ query, setBestMatch }: QueryData) {
+async function getQueryData({ query, setBestMatch,searchQueryFilters }: QueryData) {
     let apps: SearchQueryT[] = await window.apps.searchApps(query);
     const downloadFileFolders = await window.file.searchFilesAndFolders("", query);
     let downloadFiles = downloadFileFolders.filter(item => item.type === "file");
     let downloadFolders = downloadFileFolders.filter(item => item.type === "folder");
-
+    console.log(searchQueryFilters);
     if (apps.length > 0) {
         const appLaunchStack:string[] = JSON.parse((await window.electronStore.get("appLaunchStack")) ?? "[]");
         const bestMatches:SearchQueryT[]  = apps.filter(item=>item.name.toLowerCase().startsWith(query.toLowerCase()));
@@ -28,7 +29,7 @@ async function getQueryData({ query, setBestMatch }: QueryData) {
             }
         }
 
-        if (best) {
+        if (best && searchQueryFilters[0]) {
             setBestMatch(best);
             apps = apps.filter(app=>JSON.stringify(app) !== JSON.stringify(best));
         } else {
@@ -38,7 +39,7 @@ async function getQueryData({ query, setBestMatch }: QueryData) {
         const best = downloadFolders.find(folder => {
             return folder.name.toLowerCase().startsWith(query.toLowerCase());
         });
-        if (best) {
+        if (best && searchQueryFilters[1]) {
             setBestMatch(best);
             downloadFolders = downloadFolders.filter(folder=>JSON.stringify(folder) !== JSON.stringify(best));
         } else {
@@ -48,7 +49,7 @@ async function getQueryData({ query, setBestMatch }: QueryData) {
         const best = downloadFiles.find(file => {
             return file.name.toLowerCase().startsWith(query.toLowerCase());
         });
-        if (best) {
+        if (best && searchQueryFilters[2]) {
             setBestMatch(best);
             downloadFiles = downloadFiles.filter(files => JSON.stringify(files) !== JSON.stringify(best));
         } else {

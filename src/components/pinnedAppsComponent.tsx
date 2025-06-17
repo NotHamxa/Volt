@@ -45,12 +45,11 @@ interface ISuggestedApp{
 function SuggestedApp({app, pinApp}: ISuggestedApp) {
     const [logo, setLogo] = useState<string>("");
     const getLogo = async () => {
-        if (app.path){
+        if (app?.path) {
             const appLogo = await window.apps.getAppLogo(app);
             setLogo(appLogo);
-        }
-        else if(app.source==="UWP"){
-            const appLogo = await window.apps.getUwpAppLogo(app)
+        } else if (app?.source === "UWP") {
+            const appLogo = await window.apps.getUwpAppLogo(app);
             setLogo(appLogo);
         }
     };
@@ -59,6 +58,9 @@ function SuggestedApp({app, pinApp}: ISuggestedApp) {
         getLogo();
     },[app]);
 
+    if (!app?.name || !app?.type){
+        return
+    }
     return (
         <ContextMenu>
             <ContextMenuTrigger>
@@ -136,12 +138,11 @@ function PinnedApp({app, unPinApp}: IPinnedApp) {
     const [logo, setLogo] = useState<string>("");
 
     const getLogo = async () => {
-        if (app.path){
+        if (app?.path) {
             const appLogo = await window.apps.getAppLogo(app);
             setLogo(appLogo);
-        }
-        else if(app.source==="UWP"){
-            const appLogo = await window.apps.getUwpAppLogo(app)
+        } else if (app?.source === "UWP") {
+            const appLogo = await window.apps.getUwpAppLogo(app);
             setLogo(appLogo);
         }
     };

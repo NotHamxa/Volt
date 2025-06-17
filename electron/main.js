@@ -51,7 +51,6 @@ const hideMainWindow = () => {
 
 const changeOpenBind = async (binding)=>{
     globalShortcut.unregister(openShortcut);
-    console.log(openShortcut)
     globalShortcut.register(binding, () => {
         if (!mainWindow) return;
         if (mainWindow.isVisible()) {
@@ -143,7 +142,7 @@ const createWindow = () => {
         alwaysOnTop: true,
         skipTaskbar: true,
         backgroundMaterial: 'none',
-        icon:path.join(__dirname, "assets/appLogo2CroppedNoBg.png"),
+        // icon:path.join(__dirname, "assets/appLogo2CroppedNoBg.png"),
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
@@ -152,7 +151,6 @@ const createWindow = () => {
         titleBarStyle: "hidden",
         titleBarOverlay: false,
     });
-
     const devServerURL = "http://localhost:5173";
 
     mainWindow.on('blur', () => {
@@ -169,7 +167,6 @@ const createWindow = () => {
     } else {
         mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
     }
-
 
     mainWindow.on("closed", () => {
         mainWindow = null;

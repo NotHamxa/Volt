@@ -31,6 +31,11 @@ function App() {
 
     const [searchQueryFilters,setSearchQueryFilters] = useState<boolean[]>([true, true, true]);
 
+    window.onerror = function (msg, url, line, col, error) {
+        console.error("GLOBAL ERROR CAUGHT:");
+        console.error(msg, url, line, col, error);
+    };
+
     useEffect(() => {
         document.documentElement.classList.add("dark");
         const handleBlur = () => {

@@ -6,7 +6,6 @@ import fs from "fs";
 export async function getUwpAppIcon(uwpApp, appIconsCache) {
     try {
         const cachedIconPath = appIconsCache[uwpApp.name];
-        console.log(cachedIconPath, uwpApp.name);
         if (cachedIconPath && fs.existsSync(cachedIconPath)) {
             const imageBuffer = fs.readFileSync(cachedIconPath);
             const base64 = imageBuffer.toString('base64');
@@ -15,7 +14,6 @@ export async function getUwpAppIcon(uwpApp, appIconsCache) {
         return null;
 
     } catch (error) {
-        console.error(`Failed to get icon for ${uwpApp.name}:`, error);
         return null;
     }
 }

@@ -145,7 +145,7 @@ export default function BangSuggestions({bang, setQuery, selfQueryChanged}: IBan
             console.log("loading")
             if (bang === "") {
                 const searchHistory: SearchHistoryT[] =
-                    JSON.parse(await window.electronStore.get("searchHistory")) || [];
+                    JSON.parse(await window.electronStore.get("searchHistory")  || "[]");
                 setSearchHistory(searchHistory);
                 return;
             }
@@ -163,7 +163,7 @@ export default function BangSuggestions({bang, setQuery, selfQueryChanged}: IBan
             if (selfQueryChanged) return;
             if (bang === "") {
                 const searchHistory: SearchHistoryT[] =
-                    JSON.parse(await window.electronStore.get("searchHistory")) || [];
+                    JSON.parse(await window.electronStore.get("searchHistory") || "[]");
                 setSearchHistory(searchHistory);
                 setIsHistory(true)
                 return;

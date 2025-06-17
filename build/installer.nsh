@@ -1,7 +1,16 @@
 !macro customInstall
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "YourApp" "$INSTDIR\YourApp.exe"
+  ; Ask user if they want the app to start on boot
+  MessageBox MB_YESNO "Do you want YourApp to start with Windows?" IDYES addStartup
+
+  Goto done
+
+  addStartup:
+    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "YourApp" "$INSTDIR\Volt.exe"
+
+  done:
 !macroend
 
 !macro customUnInstall
-  DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "YourApp"
+  ; Remove startup entry
+  DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "Volt"
 !macroend

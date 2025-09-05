@@ -48,7 +48,9 @@ function App() {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === "Tab") {
                 e.preventDefault();
+                console.log("Tab", stage);
                 setStage(prev => (prev === 1 ? 2 : 1));
+                inputRef.current?.focus()
             }
 
             if (e.ctrlKey && e.key.toLowerCase() === "h") {
@@ -73,9 +75,24 @@ function App() {
             console.log(status)
             setCacheLoadingStatus(status);
         }
+        const handleShortcutModalOpen = ()=>{
+            window.removeEventListener("keydown", handleKeyDown);
+
+        }
+        const handleShortcutModalClose = ()=>{
+            window.addEventListener("keydown", handleKeyDown);
+        }
+
+        window.addEventListener("shortcutModalOpen",handleShortcutModalOpen)
+        window.addEventListener("shortcutModalClose",handleShortcutModalClose)
+
+
+
         getCacheLoadingStatus();
         return () => {
             window.removeEventListener("keydown", handleKeyDown);
+            window.removeEventListener("shortcutModalOpen", handleShortcutModalOpen);
+            window.removeEventListener("shortcutModalClose", handleShortcutModalClose);
         };
     }, []);
 
@@ -149,6 +166,7 @@ function App() {
                     placeholder={stage === 1 ? "Search apps and documents" : "Search the web"}
                     style={styles.input}
                     autoFocus
+
                 />
                 {!query && <SwitchModes/>}
                 {query && stage === 1 ? <SearchQueryFilter

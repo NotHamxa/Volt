@@ -1,4 +1,4 @@
-import {app, BrowserWindow, globalShortcut, ipcMain, shell} from "electron";
+import {app, BrowserWindow, globalShortcut, ipcMain, shell, Tray, Menu} from "electron";
 import Store from "electron-store";
 import path from "path";
 import {fileURLToPath} from "url";
@@ -151,6 +151,23 @@ const createWindow = () => {
         titleBarStyle: "hidden",
         titleBarOverlay: false,
     });
+
+    const tray = new Tray(path.join(__dirname, "Assets/appLogo2CroppedNoBg.png"));
+    tray.setToolTip("Volt")
+
+    const contextMenu = Menu.buildFromTemplate([
+        {
+            label: 'Quit',
+            click: () => {
+                app.quit();
+                process.exit(0);
+
+            },
+        },
+    ]);
+
+    tray.setContextMenu(contextMenu);
+
     const devServerURL = "http://localhost:5173";
 
     mainWindow.on('blur', () => {
@@ -171,8 +188,10 @@ const createWindow = () => {
     mainWindow.on("closed", () => {
         mainWindow = null;
     });
+    mainWindow.hide();
+
 };
-const loadAppIconsCache = async ()=>{
+const loadAppIconsCache = async ()=> {
     appIconsCache = store.get("appIconsCache");
     if (appIconsCache) {
         appIconsCache = JSON.parse(appIconsCache);
@@ -244,6 +263,7 @@ app.whenReady().then(async () => {
             mainWindow?.webContents.reload();
         }, 500);
     }
+
 });
 
 app.on("window-all-closed", () => {

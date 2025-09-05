@@ -76,7 +76,6 @@ export default function HomePageComponent({stage,setStage,query}:IHomepage) {
                     setPinnedApps={setPinnedApps}
                     setStage={setStage}
                     unPinApp={unPinApp}
-                    pinApp={pinApp}
                 />
                 : <AllApps
                     setStage={setStage}

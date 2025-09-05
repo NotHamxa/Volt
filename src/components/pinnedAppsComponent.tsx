@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from "react";
 import {SearchQueryT} from "@/interfaces/searchQuery.ts";
 import {Button} from "@/components/ui/button.tsx";
-import {AppWindowIcon, ChevronRight, FolderOpen, Pin, PinOff, ShieldCheck, Trash2} from "lucide-react";
+import {AppWindowIcon, ChevronRight, FolderOpen, PinOff, Plus, ShieldCheck, Trash2} from "lucide-react";
 import {
     ContextMenu,
     ContextMenuContent,
@@ -23,11 +23,14 @@ import {
     useSortable,
 } from "@dnd-kit/sortable";
 import {CSS} from "@dnd-kit/utilities";
+import {Dialog, DialogContent} from "@/components/ui/dialog.tsx";
+import {Label} from "@/components/ui/label.tsx";
+import {Input} from "@/components/ui/input.tsx";
+import {showToast} from "@/components/toast.tsx";
 
 interface IPinnedSuggestedApps {
     setStage: (n: number) => void;
     unPinApp: (app: SearchQueryT) => void;
-    pinApp: (app: SearchQueryT) => void;
     apps:SearchQueryT[];
     pinnedApps: SearchQueryT[];
     setPinnedApps:React.Dispatch<React.SetStateAction<SearchQueryT[]>>;
@@ -37,102 +40,107 @@ interface IPinnedApp {
     app: SearchQueryT;
     unPinApp: (app: SearchQueryT) => void;
 }
-interface ISuggestedApp{
-    app: SearchQueryT;
-    pinApp:(app: SearchQueryT) => void;
+interface IPinnedLinks{
+    name:string
+    shortcut:string
+    removeLink:(link:string)=>void;
 }
-
-function SuggestedApp({app, pinApp}: ISuggestedApp) {
-    const [logo, setLogo] = useState<string>("");
-    const getLogo = async () => {
-        if (app?.path) {
-            const appLogo = await window.apps.getAppLogo(app);
-            setLogo(appLogo);
-        } else if (app?.source === "UWP") {
-            const appLogo = await window.apps.getUwpAppLogo(app);
-            setLogo(appLogo);
-        }
-    };
-
-    useEffect(() => {
-        getLogo();
-    },[app]);
-
-    if (!app?.name || !app?.type){
-        return
-    }
-    return (
-        <ContextMenu>
-            <ContextMenuTrigger>
-                <button
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'flex-start',
-                        width: '100px',
-                        height: '80px',
-                        backgroundColor: 'transparent',
-                        borderRadius: '8px',
-                        transition: 'background-color 0.3s ease, transform 0.1s ease',
-                        cursor: 'pointer',
-                        flexDirection: 'column',
-                        overflow: 'hidden',
-                        textAlign: 'center',
-                        userSelect: 'none',
-                        paddingTop:"5px"
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#353737'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                    onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.95)'}
-                    onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                    onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                    onClick={async () => {
-                        await window.apps.openApp(app);
-                    }}
-                >
-                    {logo ? (
-                        <img style={{width: 28, height: 28, objectFit: 'contain'}} src={logo}/>
-                    ) : (
-                        <AppWindowIcon size={28}/>
-                    )}
-                    <label style={{marginTop: '8px', fontSize: '12px'}}>{app.name}</label>
-                </button>
-            </ContextMenuTrigger>
-            <ContextMenuContent>
-                <ContextMenuItem onClick={() => pinApp(app)}>
-                    <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                        <Pin size={24}/>
-                        <label>Pin to Start</label>
-                    </div>
-                </ContextMenuItem>
-                <ContextMenuSeparator/>
-                {app.path !== "" && (
-                    <ContextMenuItem onClick={async () => await window.apps.openApp(app, true)}>
-                        <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                            <ShieldCheck size={24}/>
-                            <label>Open as Administrator</label>
-                        </div>
-                    </ContextMenuItem>
-                )}
-                {app.path && (
-                    <ContextMenuItem onClick={() => window.file.openInExplorer(app.path!)}>
-                        <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                            <FolderOpen size={24}/>
-                            <label>Open file location</label>
-                        </div>
-                    </ContextMenuItem>
-                )}
-                {app.path && <ContextMenuSeparator/>}
-                <ContextMenuItem onClick={() => window.electron.openUninstall()}>
-                    <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                        <Trash2 size={24}/>
-                        <label>Uninstall</label>
-                    </div>
-                </ContextMenuItem>
-            </ContextMenuContent>
-        </ContextMenu>
-    );
-}
+// interface ISuggestedApp{
+//     app: SearchQueryT;
+//     pinApp:(app: SearchQueryT) => void;
+// }
+//
+// function SuggestedApp({app, pinApp}: ISuggestedApp) {
+//     const [logo, setLogo] = useState<string>("");
+//     const getLogo = async () => {
+//         if (app?.path) {
+//             const appLogo = await window.apps.getAppLogo(app);
+//             setLogo(appLogo);
+//         } else if (app?.source === "UWP") {
+//             const appLogo = await window.apps.getUwpAppLogo(app);
+//             setLogo(appLogo);
+//         }
+//     };
+//
+//     useEffect(() => {
+//         getLogo();
+//     },[app]);
+//
+//     if (!app?.name || !app?.type){
+//         return
+//     }
+//     return (
+//         <ContextMenu>
+//             <ContextMenuTrigger>
+//                 <button
+//                     style={{
+//                         display: 'flex',
+//                         alignItems: 'center',
+//                         justifyContent: 'flex-start',
+//                         width: '100px',
+//                         height: '80px',
+//                         backgroundColor: 'transparent',
+//                         borderRadius: '8px',
+//                         transition: 'background-color 0.3s ease, transform 0.1s ease',
+//                         cursor: 'pointer',
+//                         flexDirection: 'column',
+//                         overflow: 'hidden',
+//                         textAlign: 'center',
+//                         userSelect: 'none',
+//                         paddingTop:"5px"
+//                     }}
+//                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#353737'}
+//                     onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+//                     onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.95)'}
+//                     onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+//                     onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+//                     onClick={async () => {
+//                         await window.apps.openApp(app);
+//                     }}
+//                 >
+//                     {logo ? (
+//                         <img style={{width: 28, height: 28, objectFit: 'contain'}} src={logo}/>
+//                     ) : (
+//                         <AppWindowIcon size={28}/>
+//                     )}
+//                     <label style={{marginTop: '8px', fontSize: '12px'}}>{app.name}</label>
+//                 </button>
+//             </ContextMenuTrigger>
+//             <ContextMenuContent>
+//                 <ContextMenuItem onClick={() => pinApp(app)}>
+//                     <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+//                         <Pin size={24}/>
+//                         <label>Pin to Start</label>
+//                     </div>
+//                 </ContextMenuItem>
+//                 <ContextMenuSeparator/>
+//                 {app.path !== "" && (
+//                     <ContextMenuItem onClick={async () => await window.apps.openApp(app, true)}>
+//                         <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+//                             <ShieldCheck size={24}/>
+//                             <label>Open as Administrator</label>
+//                         </div>
+//                     </ContextMenuItem>
+//                 )}
+//                 {app.path && (
+//                     <ContextMenuItem onClick={() => window.file.openInExplorer(app.path!)}>
+//                         <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+//                             <FolderOpen size={24}/>
+//                             <label>Open file location</label>
+//                         </div>
+//                     </ContextMenuItem>
+//                 )}
+//                 {app.path && <ContextMenuSeparator/>}
+//                 <ContextMenuItem onClick={() => window.electron.openUninstall()}>
+//                     <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+//                         <Trash2 size={24}/>
+//                         <label>Uninstall</label>
+//                     </div>
+//                 </ContextMenuItem>
+//             </ContextMenuContent>
+//         </ContextMenu>
+//     );
+// }
 
 function PinnedApp({app, unPinApp}: IPinnedApp) {
     const [logo, setLogo] = useState<string>("");
@@ -245,9 +253,71 @@ function SortablePinnedApp({app, unPinApp}: IPinnedApp) {
     );
 }
 
-export default function PinnedApps({setStage, unPinApp, pinApp, apps, pinnedApps,setPinnedApps}: IPinnedSuggestedApps) {
+export function PinnedLinks({ name, shortcut, removeLink }: IPinnedLinks) {
+    const getFaviconUrl = (url: string) => {
+        try {
+            const { hostname } = new URL(url);
+            const parts = hostname.split('.');
+            const baseDomain = parts.length >= 2 ? parts.slice(-2).join('.') : hostname;
 
-    const [suggestedApps,setSuggestedApps] = useState<SearchQueryT[]>([]);
+            return `https://www.google.com/s2/favicons?domain=${baseDomain}&sz=64`;
+        } catch {
+            return "";
+        }
+    };
+    return (
+        <ContextMenu>
+            <ContextMenuTrigger asChild>
+                <div
+                    className="relative group"
+                    style={{ width: "100px", height: "80px" }}
+                >
+                    {/* Main Shortcut Button */}
+                    <button
+                        className="w-full h-full flex flex-col items-center justify-start pt-1 rounded-lg text-center transition-all duration-200 cursor-pointer select-none hover:bg-[#353737] active:scale-95"
+                        onClick={() => window.electron.openExternal(shortcut)}
+                    >
+                        <img
+                            src={getFaviconUrl(shortcut)}
+                            alt={`${name} favicon`}
+                            className="w-8 h-8 mb-1"
+                        />
+                        <span className="text-sm">{name}</span>
+                    </button>
+                    <button
+                        className="absolute top-1 right-1 p-1 rounded hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                        }}
+                    >
+                        {/*<MoreVertical className="w-4 h-4 text-white" />*/}
+                    </button>
+                </div>
+            </ContextMenuTrigger>
+            <ContextMenuContent className="z-50">
+                <ContextMenuItem onClick={()=>{}}>Edit</ContextMenuItem>
+                <ContextMenuItem onClick={()=>removeLink(shortcut)}>Remove</ContextMenuItem>
+            </ContextMenuContent>
+        </ContextMenu>
+    );
+}
+type LinkShortcutType = {
+    name: string,
+    shortcut:string
+}
+export default function PinnedApps({setStage, unPinApp, apps, pinnedApps,setPinnedApps}: IPinnedSuggestedApps) {
+    const [addShortcutOpenModal,setAddShortcutOpenModal] = useState<boolean>(false);
+    const [addLinkName, setAddLinkName] = useState<string>('');
+    const [addLinkShortcutInput, setAddLinkShortcutInput] = useState<string>('');
+
+    const [editShortcutOpenModal,setEditShortcutOpenModal] = useState<boolean>(false);
+    const [editLinkName, setEditLinkName] = useState<string>('');
+    const [editLinkShortcut, setEditLinkShortcut] = useState<string>('');
+
+    const [linkShortcuts, setLinkShortcuts] = useState<LinkShortcutType[]>([]);
+
+
 
     useEffect(() => {
         const getSuggestedApps = async ()=>{
@@ -263,15 +333,25 @@ export default function PinnedApps({setStage, unPinApp, pinApp, apps, pinnedApps
                     sApps.push(app)
                 }
             }
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-expect-error
-            setSuggestedApps(sApps);
-            console.log(sApps);
+            // setSuggestedApps(sApps);
         }
         if (apps.length>0)
             getSuggestedApps();
     }, [apps,pinnedApps]);
-
+    useEffect(() => {
+        const loadLinks = async ()=>{
+            const data = await window.electronStore.get("linkShortcuts");
+            const shortcuts = JSON.parse(data) ?? [];
+            setLinkShortcuts(shortcuts as LinkShortcutType[]);
+        }
+        loadLinks()
+    }, []);
+    const deleteLinkShortcut = async (link:string)=>{
+        const shortcuts = linkShortcuts.filter(shortcut=>shortcut.shortcut!==link);
+        window.electronStore.set("linkShortcuts",JSON.stringify(shortcuts));
+        setLinkShortcuts(shortcuts)
+        showToast("","Shortcut removed.")
+    }
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {
@@ -293,8 +373,110 @@ export default function PinnedApps({setStage, unPinApp, pinApp, apps, pinnedApps
         }
     };
 
+    const addLinkShortcut = async (name: string, shortcut: string) => {
+        let normalizedShortcut = shortcut.trim();
+        if (!/^https?:\/\//i.test(normalizedShortcut)) {
+            normalizedShortcut = "https://" + normalizedShortcut;
+        }
+        const shortcuts = [...linkShortcuts, { name, shortcut: normalizedShortcut }];
+        setLinkShortcuts(shortcuts);
+        window.electronStore.set("linkShortcuts", JSON.stringify(shortcuts));
+        showToast("", "Shortcut added.");
+    };
+    const editShortcut = async (oldShortcut:string,name: string, newShortcut: string) => {
+        const existing = linkShortcuts.find(link => link.shortcut === oldShortcut);
+        if (!existing) {
+            showToast("", "Shortcut not found");
+            return;
+        }
+        const updatedShortcuts = linkShortcuts.map(link =>
+            link.shortcut === oldShortcut ? { ...link, name, newShortcut } : link
+        );
+        setLinkShortcuts(updatedShortcuts);
+        window.electronStore.set("linkShortcuts", JSON.stringify(updatedShortcuts));
+        showToast("", "Shortcut updated.");
+    };
+
+
+    useEffect(() => {
+        if (addShortcutOpenModal){
+            window.dispatchEvent(new Event("shortcutModalOpen"));
+        }
+        else {
+            window.dispatchEvent(new Event("shortcutModalClose"));
+        }
+    }, [addShortcutOpenModal]);
+
     return (
         <>
+            <Dialog
+                open={addShortcutOpenModal}
+                onOpenChange={setAddShortcutOpenModal}
+            >
+                <DialogContent
+                    style={{background: "rgba(24, 24, 27,1)"}}
+                >
+                    <Label style={{display:"flex",alignSelf:'center'}}>Add Shortcut</Label>
+                    <Label>Name</Label>
+                    <Input
+                        value={addLinkName}
+                        onChange={(e) => setAddLinkName(e.target.value)}
+                    />
+                    <Label>Link</Label>
+                    <Input
+                        value={addLinkShortcutInput}
+                        onChange={(e)=>setAddLinkShortcutInput(e.target.value)}
+                    />
+                    <Button
+                        onClick={async ()=>{
+                            if (addLinkName==="" || addLinkShortcutInput === "") {
+                                showToast("Error","Please fill all fields")
+                                return;
+                            }
+                            await addLinkShortcut(addLinkName,addLinkShortcutInput);
+                            setAddLinkShortcutInput("")
+                            setAddLinkName("")
+                            setAddShortcutOpenModal(false);
+                        }}
+                    >
+                        Save
+                    </Button>
+                </DialogContent>
+            </Dialog>
+            <Dialog
+                open={editShortcutOpenModal}
+                onOpenChange={setEditShortcutOpenModal}
+            >
+                <DialogContent
+                    style={{background: "rgba(24, 24, 27,1)"}}
+                >
+                    <Label style={{display:"flex",alignSelf:'center'}}>Edit Shortcut</Label>
+                    <Label>Name</Label>
+                    <Input
+                        value={editLinkName}
+                        onChange={(e) => setEditLinkName(e.target.value)}
+                    />
+                    <Label>Link</Label>
+                    <Input
+                        value={editLinkShortcut}
+                        onChange={(e)=>setEditLinkShortcut(e.target.value)}
+                    />
+                    <Button
+                        onClick={async ()=>{
+                            if (editLinkName==="" || editLinkShortcut === "") {
+                                showToast("Error","Please fill all fields")
+                                return;
+                            }
+                            await addLinkShortcut(editLinkName,editLinkShortcut);
+                            setEditLinkName("")
+                            setEditLinkShortcut("")
+                            setEditShortcutOpenModal(false);
+                        }}
+                    >
+                        Save
+                    </Button>
+                </DialogContent>
+            </Dialog>
             <div style={{height: "325px", display: "flex", flexDirection: "column"}}>
                 <div style={{
                     display: "flex",
@@ -344,14 +526,26 @@ export default function PinnedApps({setStage, unPinApp, pinApp, apps, pinnedApps
                     color: "#ffffff",
                     fontWeight: "bold",
                     fontSize: "16px",
+                    justifyContent: "space-between",
+                    paddingRight: "10px",
                 }}>
-                    <span style={{margin: "0 12px"}}>Suggested</span>
+                    <span style={{margin: "0 12px"}}>Links</span>
+                    <Button
+                        variant="ghost"
+                        className="bg-[#2b2b2b] hover:bg-[#3a3a3a] text-white px-3 py-1 h-auto text-sm rounded-md flex items-center gap-1"
+                        onClick={()=>{
+                                setAddShortcutOpenModal(true)
+                            }}
+                    >
+                        Add
+                        <Plus/>
+                    </Button>
                 </div>
                 <div style={{height: "100%", display: "flex", flexDirection: "row",padding:"10px 20px"}}>
-                    {suggestedApps.length > 0 ?
+                    {linkShortcuts.length > 0 ?
                         <>
-                            {suggestedApps.map(app => {
-                                return <SuggestedApp app={app} pinApp={pinApp}/>
+                            {linkShortcuts.map(link => {
+                                return <PinnedLinks name={link.name} shortcut={link.shortcut} removeLink={deleteLinkShortcut}/>
                             })}
                         </> :
                         <div style={{
@@ -360,9 +554,24 @@ export default function PinnedApps({setStage, unPinApp, pinApp, apps, pinnedApps
                             alignItems: "center",
                             justifyContent: "center",
                         }}>
-                            <label>No Apps Pinned</label>
+                            <label>No Links Pinned</label>
                         </div>
                     }
+                    {/*{suggestedApps.length > 0 ?*/}
+                    {/*    <>*/}
+                    {/*        {suggestedApps.map(app => {*/}
+                    {/*            return <SuggestedApp app={app} pinApp={pinApp}/>*/}
+                    {/*        })}*/}
+                    {/*    </> :*/}
+                    {/*    <div style={{*/}
+                    {/*        flex: 1,*/}
+                    {/*        display: "flex",*/}
+                    {/*        alignItems: "center",*/}
+                    {/*        justifyContent: "center",*/}
+                    {/*    }}>*/}
+                    {/*        <label>No Apps Pinned</label>*/}
+                    {/*    </div>*/}
+                    {/*}*/}
                 </div>
             </div>
         </>

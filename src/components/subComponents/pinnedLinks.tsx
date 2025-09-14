@@ -3,7 +3,7 @@ import {LinkShortcutType} from "@/interfaces/links.ts";
 interface IPinnedLinks{
     link:LinkShortcutType;
     removeLink:(link:string)=>void;
-    setEditLink:(link:LinkShortcutType)=>void;
+    setEditLink:()=>void;
 }
 export function PinnedLinks({ link, removeLink, setEditLink }: IPinnedLinks) {
     const {name,shortcut} = link;
@@ -47,7 +47,7 @@ export function PinnedLinks({ link, removeLink, setEditLink }: IPinnedLinks) {
                 </div>
             </ContextMenuTrigger>
             <ContextMenuContent className="z-50">
-                <ContextMenuItem onClick={()=>setEditLink(link)}>Edit</ContextMenuItem>
+                <ContextMenuItem onClick={()=>setEditLink()}>Edit</ContextMenuItem>
                 <ContextMenuItem onClick={()=>removeLink(shortcut)}>Remove</ContextMenuItem>
             </ContextMenuContent>
         </ContextMenu>

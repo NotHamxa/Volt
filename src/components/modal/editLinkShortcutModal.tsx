@@ -72,7 +72,6 @@ export default function EditLinkShortcutModal({
             setEditLink(null);
         }
     };
-
     return (
         <Dialog
             open={editLink!=null}

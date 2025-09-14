@@ -10,7 +10,7 @@ import QuerySuggestions from "@/components/querySuggestions.tsx";
 import BangSuggestions from "@/components/bangSuggestions.tsx";
 import HomePageComponent from "@/pages/homePageComponent.tsx";
 import { motion } from 'framer-motion';
-import HelpPage from "@/components/helpPage.tsx";
+import HelpPage from "@/components/modal/helpPage.tsx";
 import {Toaster} from "@/components/ui/sonner.tsx";
 import {Label} from "@/components/ui/label.tsx";
 import {Progress} from "@/components/ui/progress.tsx";

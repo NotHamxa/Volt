@@ -36,7 +36,8 @@ export default function PinnedApps({setStage, unPinApp, apps, pinnedApps,setPinn
     const [editLinkShortcut,setEditLinkShortcut] = useState<LinkShortcutType | null>(null);
 
     const openEditModal = (link:LinkShortcutType)=>{
-        setEditLinkShortcut(link);
+        const editLink = {...link} as LinkShortcutType;
+        setEditLinkShortcut(editLink);
     }
 
     useEffect(() => {
@@ -65,6 +66,7 @@ export default function PinnedApps({setStage, unPinApp, apps, pinnedApps,setPinn
             setLinkShortcuts(shortcuts as LinkShortcutType[]);
         }
         loadLinks()
+
     }, []);
     const deleteLinkShortcut = async (link:string)=>{
         const shortcuts = linkShortcuts.filter(shortcut=>shortcut.shortcut!==link);
@@ -188,7 +190,7 @@ export default function PinnedApps({setStage, unPinApp, apps, pinnedApps,setPinn
                                 return <PinnedLinks
                                     link={link}
                                     removeLink={deleteLinkShortcut}
-                                    setEditLink={openEditModal}
+                                    setEditLink={() => openEditModal(link)}
                                 />
                             })}
                         </> :

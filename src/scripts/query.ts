@@ -11,6 +11,7 @@ interface QueryData {
 async function getQueryData({ query, setBestMatch,searchQueryFilters }: QueryData) {
     let apps: SearchQueryT[] = await window.apps.searchApps(query);
     const downloadFileFolders = await window.file.searchFilesAndFolders("", query);
+    const settings = await window.apps.searchSettings(query);
     let downloadFiles = downloadFileFolders.filter(item => item.type === "file");
     let downloadFolders = downloadFileFolders.filter(item => item.type === "folder");
     console.log(searchQueryFilters);
@@ -35,7 +36,19 @@ async function getQueryData({ query, setBestMatch,searchQueryFilters }: QueryDat
         } else {
             setBestMatch(null);
         }
-    } else if (downloadFolders.length > 0) {
+    }
+    else if (settings.length > 0) {
+        const best:SearchQueryT | undefined = settings.find(setting =>{
+            return setting.name.toLowerCase().startsWith(query.toLowerCase())
+        })
+        if (best && searchQueryFilters[3]) {
+            setBestMatch(best);
+        }
+        else {
+            setBestMatch(null);
+        }
+    }
+    else if (downloadFolders.length > 0) {
         const best = downloadFolders.find(folder => {
             return folder.name.toLowerCase().startsWith(query.toLowerCase());
         });
@@ -63,6 +76,7 @@ async function getQueryData({ query, setBestMatch,searchQueryFilters }: QueryDat
         apps:apps,
         folders: downloadFolders,
         files: downloadFiles,
+        settings: settings,
     };
 }
 function getNameFromPath(path: string): string {

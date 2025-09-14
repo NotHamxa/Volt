@@ -3,12 +3,13 @@ import Store from "electron-store";
 import path from "path";
 import {fileURLToPath} from "url";
 import {cacheAppIcon, cacheUwpIcon, loadApps} from "./utils/cache.js";
-import {searchApps, searchFilesAndFolders} from "./utils/search.js";
+import {searchApps, searchFilesAndFolders, searchSettings} from "./utils/search.js";
 import {getGoogleSuggestions} from "./utils/autoSuggestion.js";
 import {launchApp} from "./utils/launchApp.js";
 import {getAppLogo} from "./utils/appLogo.js";
 import {openFileWith} from "./utils/openFileWith.js";
 import {getUwpAppIcon, getUwpInstallLocations} from "./utils/uwpAppLogo.js";
+import {pattern} from "framer-motion/m";
 
 if (!app.requestSingleInstanceLock()) {
     app.quit();
@@ -100,6 +101,13 @@ ipcMain.handle('search-files', async (_, dir, pattern) => {
 ipcMain.handle('search-apps', async (_, pattern) => {
     return await searchApps(appCache, pattern);
 });
+ipcMain.handle('search-settings',async (_, pattern) => {
+    return await searchSettings(pattern);
+})
+ipcMain.on('open-setting',async (_,setting) => {
+   await shell.openExternal(setting);
+
+})
 ipcMain.on('open-path', async (_, filePath) => {
     try {
         await shell.openPath(filePath);
@@ -107,7 +115,13 @@ ipcMain.on('open-path', async (_, filePath) => {
     } catch {}
 });
 ipcMain.on('open-uninstall',async (_) => {
-    await shell.openExternal('ms-settings:appsfeatures');
+    try{
+        await shell.openExternal('ms-settings:appsfeatures');
+        return true
+    }
+    catch{
+        return false;
+    }
 })
 ipcMain.handle('launch-app', async (_, app, admin = false) => {
     const opened = await launchApp(app,admin)

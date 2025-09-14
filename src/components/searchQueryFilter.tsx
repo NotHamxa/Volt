@@ -50,6 +50,7 @@ function SearchQueryFilter({filters,setFilters}:SearchQueryFilterT) {
                     <MenuItem index={0} text={"Apps"}/>
                     <MenuItem index={1} text={"Files"}/>
                     <MenuItem index={2} text={"Folders"}/>
+                    <MenuItem index={3} text={"Settings"}/>
                 </DropdownMenuContent>
             </DropdownMenu>
         </div>

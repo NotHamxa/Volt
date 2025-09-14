@@ -2,11 +2,17 @@ import path from "path";
 import os from "os";
 import fg from "fast-glob";
 import fs from "fs";
-
+import settings from "./settings.json" with { type: 'json' };
 export async function searchApps(appCache,query) {
     if (!appCache || !Array.isArray(appCache)) return [];
     const lowerQuery = query.toLowerCase().trim();
     return appCache.filter(app => app.name.toLowerCase().includes(lowerQuery));
+}
+
+export async function searchSettings(query) {
+    if (!settings) return [];
+    const lowerQuery = query.toLowerCase().trim();
+    return settings.filter(app => app.name.toLowerCase().includes(lowerQuery));
 }
 
 export async function searchFilesAndFolders(baseDir, query) {
@@ -32,16 +38,7 @@ export async function searchFilesAndFolders(baseDir, query) {
             })
         }
     }
-    // const suggestedFolders = Object.entries(folderMap).flatMap(([key, folderPath]) => {
-    //     if (lowerQuery.includes(key.toLowerCase())) {
-    //         return [{
-    //             name: key.charAt(0).toUpperCase() + key.slice(1),
-    //             type: "folder",
-    //             path: folderPath
-    //         }];
-    //     }
-    //     return [];
-    // });
+
     const dirSearchPromises = baseDirs.map(async (dir) => {
         const matches = await fg([`**/*`], {
             cwd: dir,

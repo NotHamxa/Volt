@@ -25,7 +25,9 @@ contextBridge.exposeInMainWorld("file",{
 
 contextBridge.exposeInMainWorld("apps",{
     searchApps: (query) => ipcRenderer.invoke('search-apps', query),
+    searchSettings: (query) => ipcRenderer.invoke('search-settings', query),
     openApp:(app,admin=false) => ipcRenderer.invoke('launch-app', app,admin),
+    openSetting:(setting)=>ipcRenderer.invoke('open-setting', setting),
     getAppLogo: (app) => ipcRenderer.invoke('get-app-logo', app),
     getUwpAppLogo: (appName)=>ipcRenderer.invoke('get-uwp-app-logo', appName),
 })

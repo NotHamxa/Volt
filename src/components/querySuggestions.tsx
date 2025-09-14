@@ -9,7 +9,7 @@ import {
     FileVideo,
     FileAudio,
     FileArchive,
-    FileCode, FileSpreadsheet, PinOff, Pin, Download,Monitor
+    FileCode, FileSpreadsheet, PinOff, Pin, Download, Monitor, Bolt
 } from "lucide-react";
 import { FaRegFilePdf, FaRegFileWord,FaRegFilePowerpoint,FaFolderOpen  } from "react-icons/fa6";
 import {
@@ -140,7 +140,8 @@ export function QueryComponent({ item,
                     onClick={async () => {
                         if (type === "app") {
                             await window.apps.openApp(item);
-                        } else if (path) {
+                        }
+                        else if (path) {
                             window.file.openPath(path);
                         }
                     }}
@@ -175,6 +176,9 @@ export function QueryComponent({ item,
                             : <Folder size={24} />
                     )}
                     {type === "file" && path && getFileIcon(path)}
+                    {type==="setting" &&(
+                        <Bolt size={24} />
+                    )}
                     <Label>{name}</Label>
                 </button>
             </ContextMenuTrigger>
@@ -213,7 +217,7 @@ export function QueryComponent({ item,
                     </ContextMenuItem>
 
                 }
-                {path && (
+                {path && type!=="setting" && (
                     <>
                         <ContextMenuSeparator/>
                         <ContextMenuItem onClick={() => {
@@ -223,14 +227,14 @@ export function QueryComponent({ item,
                         </ContextMenuItem>
                     </>
                 )}
-                {path && (
+                {path && type!=="setting" && (
                     <ContextMenuItem onClick={async () => {
                         await navigator.clipboard.writeText(path);
                     }}>
                         Copy path
                     </ContextMenuItem>
                 )}
-                {path && type!=="app" && (
+                {path && type!=="app" && type!=="setting" && (
                     <ContextMenuItem onClick={async () => {
                         window.file.openFileWith(path)
                     }}>
@@ -251,21 +255,23 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
     const [apps, setApps] = useState<SearchQueryT[]>([]);
     const [folders, setFolders] = useState<SearchQueryT[]>([]);
     const [files, setFiles] = useState<SearchQueryT[]>([]);
+    const [settings, setSettings] = useState<SearchQueryT[]>([]);
 
     const searchOptionsSelected = searchFilters.filter(Boolean).length;
 
     let appLimit = 3;
+    let settingLimit = 3;
     let fileLimit = 3;
     let folderLimit = 3;
     if (searchOptionsSelected === 2) {
-        appLimit = fileLimit = folderLimit = 5;
+        appLimit = fileLimit = settingLimit = folderLimit = 5;
     } else if (searchOptionsSelected === 1) {
-        appLimit = fileLimit = folderLimit = apps.length;
+        appLimit = fileLimit = folderLimit = settingLimit = apps.length;
     }
     const limitedApps = apps.slice(0, appLimit);
     const limitedFiles = files.slice(0, fileLimit);
     const limitedFolders = folders.slice(0, folderLimit);
-
+    const limitedSettings = settings.slice(0, settingLimit);
     useEffect(() => {
         const getData = async ()=>{
             const queryData = await getQueryData({
@@ -276,6 +282,7 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
             setApps(queryData.apps);
             setFolders(queryData.folders);
             setFiles(queryData.files);
+            setSettings(queryData.settings);
 
         }
         getData();
@@ -284,6 +291,7 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
     const allResults: SearchQueryT[] = [
         ...(bestMatch ? [bestMatch] : []),
         ...limitedApps,
+        ...limitedSettings,
         ...limitedFiles,
         ...limitedFolders,
     ];
@@ -297,7 +305,8 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
             const item = allResults[focusedIndex];
             if (item.type === "app") {
                 await window.apps.openApp(item);
-            } else if (item.path) {
+            }
+            else if (item.path) {
                 window.file.openPath(item.path);
             }
         }
@@ -371,7 +380,20 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
                             ))}
                         </>
                     )}
-
+                    {
+                        limitedSettings.length > 0 && searchFilters[3] &&(
+                            <>
+                                <div style={styles.label}>Settings</div>
+                                {limitedSettings.map((file, index) => (
+                                    <QueryComponent
+                                        key={file.name}
+                                        item={file}
+                                        highlighted={focusedIndex === index + (bestMatch ? 1 : 0) + limitedApps.length}
+                                    />
+                                ))}
+                            </>
+                        )
+                    }
                     {limitedFiles.length > 0 && searchFilters[1] &&  (
                         <>
                             <div style={styles.label}>Files</div>
@@ -379,7 +401,8 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
                                 <QueryComponent
                                     key={file.name}
                                     item={file}
-                                    highlighted={focusedIndex === index + (bestMatch ? 1 : 0) + limitedApps.length}
+                                    highlighted={focusedIndex ===
+                                        index + (bestMatch ? 1 : 0) + limitedApps.length + limitedSettings.length}
                                 />
                             ))}
                         </>
@@ -394,7 +417,7 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
                                     item={folder}
                                     highlighted={
                                         focusedIndex ===
-                                        index + (bestMatch ? 1 : 0) + limitedApps.length + limitedFiles.length
+                                        index + (bestMatch ? 1 : 0) + limitedApps.length + limitedFiles.length + limitedSettings.length
                                     }
                                 />
                             ))}

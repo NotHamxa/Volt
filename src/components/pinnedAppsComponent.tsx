@@ -23,10 +23,10 @@ import {
     useSortable,
 } from "@dnd-kit/sortable";
 import {CSS} from "@dnd-kit/utilities";
-import {Dialog, DialogContent} from "@/components/ui/dialog.tsx";
-import {Label} from "@/components/ui/label.tsx";
-import {Input} from "@/components/ui/input.tsx";
 import {showToast} from "@/components/toast.tsx";
+import {LinkShortcutType} from "@/interfaces/links.ts";
+import AddLinkShortcutModal from "@/components/modal/addLinkShortcutModal.tsx";
+import EditLinkShortcutModal from "@/components/modal/editLinkShortcutModal.tsx";
 
 interface IPinnedSuggestedApps {
     setStage: (n: number) => void;
@@ -41,106 +41,11 @@ interface IPinnedApp {
     unPinApp: (app: SearchQueryT) => void;
 }
 interface IPinnedLinks{
-    name:string
-    shortcut:string
+    link:LinkShortcutType;
     removeLink:(link:string)=>void;
+    setEditLink:(link:LinkShortcutType | null)=>void;
 }
-// interface ISuggestedApp{
-//     app: SearchQueryT;
-//     pinApp:(app: SearchQueryT) => void;
-// }
-//
-// function SuggestedApp({app, pinApp}: ISuggestedApp) {
-//     const [logo, setLogo] = useState<string>("");
-//     const getLogo = async () => {
-//         if (app?.path) {
-//             const appLogo = await window.apps.getAppLogo(app);
-//             setLogo(appLogo);
-//         } else if (app?.source === "UWP") {
-//             const appLogo = await window.apps.getUwpAppLogo(app);
-//             setLogo(appLogo);
-//         }
-//     };
-//
-//     useEffect(() => {
-//         getLogo();
-//     },[app]);
-//
-//     if (!app?.name || !app?.type){
-//         return
-//     }
-//     return (
-//         <ContextMenu>
-//             <ContextMenuTrigger>
-//                 <button
-//                     style={{
-//                         display: 'flex',
-//                         alignItems: 'center',
-//                         justifyContent: 'flex-start',
-//                         width: '100px',
-//                         height: '80px',
-//                         backgroundColor: 'transparent',
-//                         borderRadius: '8px',
-//                         transition: 'background-color 0.3s ease, transform 0.1s ease',
-//                         cursor: 'pointer',
-//                         flexDirection: 'column',
-//                         overflow: 'hidden',
-//                         textAlign: 'center',
-//                         userSelect: 'none',
-//                         paddingTop:"5px"
-//                     }}
-//                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#353737'}
-//                     onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-//                     onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.95)'}
-//                     onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
-//                     onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
-//                     onClick={async () => {
-//                         await window.apps.openApp(app);
-//                     }}
-//                 >
-//                     {logo ? (
-//                         <img style={{width: 28, height: 28, objectFit: 'contain'}} src={logo}/>
-//                     ) : (
-//                         <AppWindowIcon size={28}/>
-//                     )}
-//                     <label style={{marginTop: '8px', fontSize: '12px'}}>{app.name}</label>
-//                 </button>
-//             </ContextMenuTrigger>
-//             <ContextMenuContent>
-//                 <ContextMenuItem onClick={() => pinApp(app)}>
-//                     <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-//                         <Pin size={24}/>
-//                         <label>Pin to Start</label>
-//                     </div>
-//                 </ContextMenuItem>
-//                 <ContextMenuSeparator/>
-//                 {app.path !== "" && (
-//                     <ContextMenuItem onClick={async () => await window.apps.openApp(app, true)}>
-//                         <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-//                             <ShieldCheck size={24}/>
-//                             <label>Open as Administrator</label>
-//                         </div>
-//                     </ContextMenuItem>
-//                 )}
-//                 {app.path && (
-//                     <ContextMenuItem onClick={() => window.file.openInExplorer(app.path!)}>
-//                         <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-//                             <FolderOpen size={24}/>
-//                             <label>Open file location</label>
-//                         </div>
-//                     </ContextMenuItem>
-//                 )}
-//                 {app.path && <ContextMenuSeparator/>}
-//                 <ContextMenuItem onClick={() => window.electron.openUninstall()}>
-//                     <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-//                         <Trash2 size={24}/>
-//                         <label>Uninstall</label>
-//                     </div>
-//                 </ContextMenuItem>
-//             </ContextMenuContent>
-//         </ContextMenu>
-//     );
-// }
+
 
 function PinnedApp({app, unPinApp}: IPinnedApp) {
     const [logo, setLogo] = useState<string>("");
@@ -253,7 +158,8 @@ function SortablePinnedApp({app, unPinApp}: IPinnedApp) {
     );
 }
 
-export function PinnedLinks({ name, shortcut, removeLink }: IPinnedLinks) {
+export function PinnedLinks({ link, removeLink, setEditLink }: IPinnedLinks) {
+    const {name,shortcut} = link;
     const getFaviconUrl = (url: string) => {
         try {
             const { hostname } = new URL(url);
@@ -272,7 +178,6 @@ export function PinnedLinks({ name, shortcut, removeLink }: IPinnedLinks) {
                     className="relative group"
                     style={{ width: "100px", height: "80px" }}
                 >
-                    {/* Main Shortcut Button */}
                     <button
                         className="w-full h-full flex flex-col items-center justify-start pt-1 rounded-lg text-center transition-all duration-200 cursor-pointer select-none hover:bg-[#353737] active:scale-95"
                         onClick={() => window.electron.openExternal(shortcut)}
@@ -291,32 +196,22 @@ export function PinnedLinks({ name, shortcut, removeLink }: IPinnedLinks) {
                             e.preventDefault();
                         }}
                     >
-                        {/*<MoreVertical className="w-4 h-4 text-white" />*/}
                     </button>
                 </div>
             </ContextMenuTrigger>
             <ContextMenuContent className="z-50">
-                <ContextMenuItem onClick={()=>{}}>Edit</ContextMenuItem>
+                <ContextMenuItem onClick={()=>setEditLink(link)}>Edit</ContextMenuItem>
                 <ContextMenuItem onClick={()=>removeLink(shortcut)}>Remove</ContextMenuItem>
             </ContextMenuContent>
         </ContextMenu>
     );
 }
-type LinkShortcutType = {
-    name: string,
-    shortcut:string
-}
+
 export default function PinnedApps({setStage, unPinApp, apps, pinnedApps,setPinnedApps}: IPinnedSuggestedApps) {
     const [addShortcutOpenModal,setAddShortcutOpenModal] = useState<boolean>(false);
-    const [addLinkName, setAddLinkName] = useState<string>('');
-    const [addLinkShortcutInput, setAddLinkShortcutInput] = useState<string>('');
-
-    const [editShortcutOpenModal,setEditShortcutOpenModal] = useState<boolean>(false);
-    const [editLinkName, setEditLinkName] = useState<string>('');
-    const [editLinkShortcut, setEditLinkShortcut] = useState<string>('');
 
     const [linkShortcuts, setLinkShortcuts] = useState<LinkShortcutType[]>([]);
-
+    const [editLinkShortcut,setEditLinkShortcut] = useState<LinkShortcutType | null>(null);
 
 
     useEffect(() => {
@@ -373,30 +268,6 @@ export default function PinnedApps({setStage, unPinApp, apps, pinnedApps,setPinn
         }
     };
 
-    const addLinkShortcut = async (name: string, shortcut: string) => {
-        let normalizedShortcut = shortcut.trim();
-        if (!/^https?:\/\//i.test(normalizedShortcut)) {
-            normalizedShortcut = "https://" + normalizedShortcut;
-        }
-        const shortcuts = [...linkShortcuts, { name, shortcut: normalizedShortcut }];
-        setLinkShortcuts(shortcuts);
-        window.electronStore.set("linkShortcuts", JSON.stringify(shortcuts));
-        showToast("", "Shortcut added.");
-    };
-    const editShortcut = async (oldShortcut:string,name: string, newShortcut: string) => {
-        const existing = linkShortcuts.find(link => link.shortcut === oldShortcut);
-        if (!existing) {
-            showToast("", "Shortcut not found");
-            return;
-        }
-        const updatedShortcuts = linkShortcuts.map(link =>
-            link.shortcut === oldShortcut ? { ...link, name, newShortcut } : link
-        );
-        setLinkShortcuts(updatedShortcuts);
-        window.electronStore.set("linkShortcuts", JSON.stringify(updatedShortcuts));
-        showToast("", "Shortcut updated.");
-    };
-
 
     useEffect(() => {
         if (addShortcutOpenModal){
@@ -409,74 +280,18 @@ export default function PinnedApps({setStage, unPinApp, apps, pinnedApps,setPinn
 
     return (
         <>
-            <Dialog
-                open={addShortcutOpenModal}
-                onOpenChange={setAddShortcutOpenModal}
-            >
-                <DialogContent
-                    style={{background: "rgba(24, 24, 27,1)"}}
-                >
-                    <Label style={{display:"flex",alignSelf:'center'}}>Add Shortcut</Label>
-                    <Label>Name</Label>
-                    <Input
-                        value={addLinkName}
-                        onChange={(e) => setAddLinkName(e.target.value)}
-                    />
-                    <Label>Link</Label>
-                    <Input
-                        value={addLinkShortcutInput}
-                        onChange={(e)=>setAddLinkShortcutInput(e.target.value)}
-                    />
-                    <Button
-                        onClick={async ()=>{
-                            if (addLinkName==="" || addLinkShortcutInput === "") {
-                                showToast("Error","Please fill all fields")
-                                return;
-                            }
-                            await addLinkShortcut(addLinkName,addLinkShortcutInput);
-                            setAddLinkShortcutInput("")
-                            setAddLinkName("")
-                            setAddShortcutOpenModal(false);
-                        }}
-                    >
-                        Save
-                    </Button>
-                </DialogContent>
-            </Dialog>
-            <Dialog
-                open={editShortcutOpenModal}
-                onOpenChange={setEditShortcutOpenModal}
-            >
-                <DialogContent
-                    style={{background: "rgba(24, 24, 27,1)"}}
-                >
-                    <Label style={{display:"flex",alignSelf:'center'}}>Edit Shortcut</Label>
-                    <Label>Name</Label>
-                    <Input
-                        value={editLinkName}
-                        onChange={(e) => setEditLinkName(e.target.value)}
-                    />
-                    <Label>Link</Label>
-                    <Input
-                        value={editLinkShortcut}
-                        onChange={(e)=>setEditLinkShortcut(e.target.value)}
-                    />
-                    <Button
-                        onClick={async ()=>{
-                            if (editLinkName==="" || editLinkShortcut === "") {
-                                showToast("Error","Please fill all fields")
-                                return;
-                            }
-                            await addLinkShortcut(editLinkName,editLinkShortcut);
-                            setEditLinkName("")
-                            setEditLinkShortcut("")
-                            setEditShortcutOpenModal(false);
-                        }}
-                    >
-                        Save
-                    </Button>
-                </DialogContent>
-            </Dialog>
+            <AddLinkShortcutModal
+                addShortcutOpenModal={addShortcutOpenModal}
+                setAddShortcutOpenModal={setAddShortcutOpenModal}
+                linkShortcuts={linkShortcuts}
+                setLinkShortcuts={setLinkShortcuts}
+            />
+            <EditLinkShortcutModal
+                editLink={editLinkShortcut}
+                setEditLink={setEditLinkShortcut}
+                linkShortcuts={linkShortcuts}
+                setLinkShortcuts={setLinkShortcuts}
+            />
             <div style={{height: "325px", display: "flex", flexDirection: "column"}}>
                 <div style={{
                     display: "flex",
@@ -541,11 +356,15 @@ export default function PinnedApps({setStage, unPinApp, apps, pinnedApps,setPinn
                         <Plus/>
                     </Button>
                 </div>
-                <div style={{height: "100%", display: "flex", flexDirection: "row",padding:"10px 20px"}}>
+                <div style={{height: "100%", display: "flex", flexDirection: "row",padding:"5px 20px"}}>
                     {linkShortcuts.length > 0 ?
                         <>
                             {linkShortcuts.map(link => {
-                                return <PinnedLinks name={link.name} shortcut={link.shortcut} removeLink={deleteLinkShortcut}/>
+                                return <PinnedLinks
+                                    link={link}
+                                    removeLink={deleteLinkShortcut}
+                                    setEditLink={setEditLinkShortcut}
+                                />
                             })}
                         </> :
                         <div style={{
@@ -557,21 +376,6 @@ export default function PinnedApps({setStage, unPinApp, apps, pinnedApps,setPinn
                             <label>No Links Pinned</label>
                         </div>
                     }
-                    {/*{suggestedApps.length > 0 ?*/}
-                    {/*    <>*/}
-                    {/*        {suggestedApps.map(app => {*/}
-                    {/*            return <SuggestedApp app={app} pinApp={pinApp}/>*/}
-                    {/*        })}*/}
-                    {/*    </> :*/}
-                    {/*    <div style={{*/}
-                    {/*        flex: 1,*/}
-                    {/*        display: "flex",*/}
-                    {/*        alignItems: "center",*/}
-                    {/*        justifyContent: "center",*/}
-                    {/*    }}>*/}
-                    {/*        <label>No Apps Pinned</label>*/}
-                    {/*    </div>*/}
-                    {/*}*/}
                 </div>
             </div>
         </>

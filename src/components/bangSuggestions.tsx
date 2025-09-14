@@ -1,6 +1,6 @@
-import { CSSProperties, useEffect, useState } from "react";
+import {CSSProperties, useEffect, useState} from "react";
 import {handleBangs, handleHistoryItem} from "@/scripts/bangs.ts";
-import { SearchHistoryT } from "@/interfaces/history.ts";
+import {SearchHistoryT} from "@/interfaces/history.ts";
 import {X} from "lucide-react";
 
 type BangSuggestionItemProps = {
@@ -159,41 +159,52 @@ export default function BangSuggestions({bang, setQuery, selfQueryChanged}: IBan
     }, []);
 
     useEffect(() => {
+        let cancelled = false;
+
         const checkBang = async () => {
+            console.log(cancelled);
             if (selfQueryChanged) return;
             if (bang === "") {
                 const searchHistory: SearchHistoryT[] =
                     JSON.parse(await window.electronStore.get("searchHistory") || "[]");
                 setSearchHistory(searchHistory);
-                setIsHistory(true)
+                setIsHistory(true);
                 return;
             }
+
             setIsHistory(false);
             const words = bang.trim().split(" ");
             const lastWord = words[words.length - 1];
             const hasBang = lastWord.startsWith("!");
             const searchTerm = hasBang ? words.slice(0, -1).join(" ") : bang;
-            const newSuggestions = new Array(11).fill("");
-
-            if (searchTerm!=="") {
-                newSuggestions[0] = searchTerm;
+            if (searchTerm !== "") {
+                setSuggestions(prev => {
+                    const updated = [...prev];
+                    updated[0] = searchTerm;
+                    return updated;
+                });
                 let googleSuggestions = await window.electron.getGoogleSuggestions(searchTerm);
+                if (cancelled) return;
+
                 if (googleSuggestions.length > 0) {
                     googleSuggestions = googleSuggestions.slice(0, 10);
-                    newSuggestions.splice(1, googleSuggestions.length, ...googleSuggestions);
                 }
-
-                setSuggestions(newSuggestions);
+                setSuggestions(() => {
+                    return [searchTerm, ...googleSuggestions];
+                });
                 setFocusedIndex(0);
-            }
-            else if (hasBang) {
-                newSuggestions[0] = bang;
-                setSuggestions(newSuggestions);
+            } else if (hasBang) {
+                setSuggestions([bang]);
             }
         };
 
         checkBang();
+
+        return () => {
+            cancelled = true;
+        };
     }, [bang]);
+
 
     useEffect(() => {
         const handleKeyDown = async (e: KeyboardEvent) => {
@@ -274,14 +285,28 @@ export default function BangSuggestions({bang, setQuery, selfQueryChanged}: IBan
     return (
         <div style={styles.mainContainer}>
             {(bang === "" || isHistory) ? (
-                searchHistory.map((item, index) => (
-                    <SearchHistoryItem
-                        key={index}
-                        historyItem={item}
-                        highlighted={index === focusedIndex}
-                        onDelete={handleDeleteHistoryItem}
-                    />
-                ))
+                searchHistory.length === 0 ? (
+                    <div style={{
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        height: "100%",
+                        width: "100%",
+                        color: "#888",
+                        fontSize: "14px"
+                    }}>
+                        No recent searches
+                    </div>
+                ) : (
+                    searchHistory.map((item, index) => (
+                        <SearchHistoryItem
+                            key={index}
+                            historyItem={item}
+                            highlighted={index === focusedIndex}
+                            onDelete={handleDeleteHistoryItem}
+                        />
+                    ))
+                )
             ) : (
                 suggestions.map((item, index) => (
                     <BangSuggestionItem
@@ -292,6 +317,7 @@ export default function BangSuggestions({bang, setQuery, selfQueryChanged}: IBan
                 ))
             )}
         </div>
+
     );
 }
 

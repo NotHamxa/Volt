@@ -29,7 +29,7 @@ function App() {
     const [homePageStage,setHomePageStage] = useState<number>(1);
     const [helpModalOpen,setHelpModalOpen] = useState(false);
 
-    const [searchQueryFilters,setSearchQueryFilters] = useState<boolean[]>([true, true, true]);
+    const [searchQueryFilters,setSearchQueryFilters] = useState<boolean[]>([true, true, true, true]);
 
     window.onerror = function (msg, url, line, col, error) {
         console.error("GLOBAL ERROR CAUGHT:");

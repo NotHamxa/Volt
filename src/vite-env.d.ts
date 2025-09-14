@@ -23,7 +23,9 @@ declare global {
         };
         apps:{
             searchApps: (query: string) => Promise<SearchQueryT[]>;
+            searchSettings: (query: string) => Promise<SearchQueryT[]>;
             openApp: (app: SearchQueryT,admin=false) => Promise<boolean>;
+            openSettings: (settings: string) => Promise<boolean>;
             getAppLogo:(app: SearchQueryT) => Promise<string>;
             getUwpAppLogo:(app:SearchQueryT) => Promise<string>;
         };

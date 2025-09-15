@@ -29,6 +29,7 @@ interface Props {
     setPinnedApps:React.Dispatch<React.SetStateAction<SearchQueryT[]>>;
 }
 
+
 export default function PinnedApps({setStage, unPinApp, apps, pinnedApps,setPinnedApps}: Props) {
     const [addShortcutOpenModal,setAddShortcutOpenModal] = useState<boolean>(false);
 

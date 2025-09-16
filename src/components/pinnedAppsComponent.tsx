@@ -36,10 +36,10 @@ export default function PinnedApps({setStage, unPinApp, apps, pinnedApps,setPinn
     const [linkShortcuts, setLinkShortcuts] = useState<LinkShortcutType[]>([]);
     const [editLinkShortcut,setEditLinkShortcut] = useState<LinkShortcutType | null>(null);
 
-    const openEditModal = (link:LinkShortcutType)=>{
-        const editLink = {...link} as LinkShortcutType;
-        setEditLinkShortcut(editLink);
-    }
+    // const openEditModal = (link:LinkShortcutType)=>{
+    //     const editLink = {...link} as LinkShortcutType;
+    //     setEditLinkShortcut(editLink);
+    // }
 
     useEffect(() => {
         const getSuggestedApps = async ()=>{
@@ -177,8 +177,8 @@ export default function PinnedApps({setStage, unPinApp, apps, pinnedApps,setPinn
                         variant="ghost"
                         className="bg-[#2b2b2b] hover:bg-[#3a3a3a] text-white px-3 py-1 h-auto text-sm rounded-md flex items-center gap-1"
                         onClick={()=>{
-                                setAddShortcutOpenModal(true)
-                            }}
+                            setAddShortcutOpenModal(true)
+                        }}
                     >
                         Add
                         <Plus/>
@@ -191,7 +191,7 @@ export default function PinnedApps({setStage, unPinApp, apps, pinnedApps,setPinn
                                 return <PinnedLinks
                                     link={link}
                                     removeLink={deleteLinkShortcut}
-                                    setEditLink={() => openEditModal(link)}
+                                    setEditLink={() => {}}
                                 />
                             })}
                         </> :

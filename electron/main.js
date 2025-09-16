@@ -10,6 +10,7 @@ import {getAppLogo} from "./utils/appLogo.js";
 import {openFileWith} from "./utils/openFileWith.js";
 import {getUwpAppIcon, getUwpInstallLocations} from "./utils/uwpAppLogo.js";
 import {pattern} from "framer-motion/m";
+import {executeUserCommand} from "./utils/cmd.js";
 
 if (!app.requestSingleInstanceLock()) {
     app.quit();
@@ -141,6 +142,9 @@ ipcMain.on('open-file-with',async (_, path) => {
 })
 ipcMain.handle('get-loading-cache-status',(_)=>{
     return loadingAppCache;
+})
+ipcMain.on("execute-cmd",async (_,cmd)=>{
+    await executeUserCommand(cmd);
 })
 const createWindow = () => {
     if (mainWindow) {

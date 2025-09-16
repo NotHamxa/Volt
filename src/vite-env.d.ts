@@ -15,6 +15,7 @@ declare global {
             onCacheLoaded:(callback: () => void) => void;
             getCacheLoadingStatus:()=>Promise<boolean>;
             setCacheLoadingBar: (callback: (currentCacheStep: number, totalCacheSteps: number) => void) => void;
+            executeCmd: (command: string) => void;
         };
         electronStore: {
             set: (key: string, value: any) => void;

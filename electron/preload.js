@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld("electron", {
         });
     },
     onCacheLoaded: (callback) => ipcRenderer.on('cache-loaded', callback),
+    executeCmd:(cmd)=>ipcRenderer.send('execute-cmd', cmd),
 
 });
 contextBridge.exposeInMainWorld("file",{

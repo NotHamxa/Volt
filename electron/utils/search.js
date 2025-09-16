@@ -3,16 +3,21 @@ import os from "os";
 import fg from "fast-glob";
 import fs from "fs";
 import settings from "./settings.json" with { type: 'json' };
+
+const normaliseString = (str) => {
+    return str.toLowerCase().replace(/\s+/g, "");
+}
+
 export async function searchApps(appCache,query) {
     if (!appCache || !Array.isArray(appCache)) return [];
-    const lowerQuery = query.toLowerCase().trim();
-    return appCache.filter(app => app.name.toLowerCase().includes(lowerQuery));
+    const lowerQuery = normaliseString(query).trim();
+    return appCache.filter(app => normaliseString(app.name).includes(lowerQuery));
 }
 
 export async function searchSettings(query) {
     if (!settings) return [];
-    const lowerQuery = query.toLowerCase().trim();
-    return settings.filter(app => app.name.toLowerCase().includes(lowerQuery));
+    const lowerQuery = normaliseString(query).trim();
+    return settings.filter(app => normaliseString(app.name).includes(lowerQuery));
 }
 
 export async function searchFilesAndFolders(baseDir, query) {
@@ -29,7 +34,7 @@ export async function searchFilesAndFolders(baseDir, query) {
     };
     const suggestedFolders = []
     for (const key in folderMap) {
-        if (key.toLowerCase().startsWith(lowerQuery)) {
+        if (normaliseString(key).startsWith(lowerQuery)) {
             suggestedFolders.push({
                 name:key,
                 type: "folder",
@@ -51,7 +56,7 @@ export async function searchFilesAndFolders(baseDir, query) {
             try {
                 const stat = fs.statSync(fullPath);
                 const name = path.basename(fullPath);
-                if (name.toLowerCase().includes(lowerQuery)) {
+                if (normaliseString(name).includes(lowerQuery)) {
                     return [{
                         name,
                         type: stat.isFile() ? 'file' : 'folder',

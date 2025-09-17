@@ -4,7 +4,6 @@ import {spawn} from "node:child_process";
 
 export function openFileWith(filePath) {
     if (!filePath || !fs.existsSync(filePath)) {
-        console.error(`File does not exist: ${filePath}`);
         return;
     }
     const normalizedPath = filePath.replaceAll('/', '\\');

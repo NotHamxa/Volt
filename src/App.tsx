@@ -48,7 +48,6 @@ function App() {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === "Tab") {
                 e.preventDefault();
-                console.log("Tab", stage);
                 setStage(prev => (prev === 1 ? 2 : 1));
                 inputRef.current?.focus()
             }
@@ -72,7 +71,6 @@ function App() {
                     setTotalCacheSteps(totalSteps)
                 })
             }
-            console.log(status)
             setCacheLoadingStatus(status);
         }
         const handleShortcutModalOpen = ()=>{

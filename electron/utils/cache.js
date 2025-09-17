@@ -14,18 +14,14 @@ const parseString = promisify(xml2js.parseString)
 
 const validImageExtensions = [".png", ".jpg", ".jpeg"];
 
-
-function cacheFilesAndFolders(){
-
-}
-
+const startMenuPaths = [
+    path.join(os.homedir(), "AppData/Roaming/Microsoft/Windows/Start Menu/Programs"),
+    "C:/ProgramData/Microsoft/Windows/Start Menu/Programs",
+    "C:/Users/Public/Desktop"
+];
 
 export async function loadApps() {
-    const startMenuPaths = [
-        path.join(os.homedir(), "AppData/Roaming/Microsoft/Windows/Start Menu/Programs"),
-        "C:/ProgramData/Microsoft/Windows/Start Menu/Programs",
-        "C:/Users/Public/Desktop"
-    ];
+
     const results = [];
     async function collectShortcuts(dir) {
         if (!fs.existsSync(dir)) return;
@@ -98,14 +94,12 @@ export async function cacheAppIcon(app, appIconsCache) {
             }
             fs.writeFileSync(iconPath, Buffer.from(base64Data, 'base64'));
             appIconsCache[app.name] = iconPath;
-            console.log(iconPath.replace(/\\\\/g, '\\'))
             return appIconsCache
         } catch (error) {
             return appIconsCache;
         }
     }
 }
-
 async function copyAppLogo(targetPath, endPath) {
     try {
         // Resize the image and get it as a Buffer
@@ -126,14 +120,12 @@ async function copyAppLogo(targetPath, endPath) {
 
         return true;
     } catch (error) {
-        console.error("Error copying logo:", error);
         return false;
     }
 }
 export async function cacheUwpIcon(installPath, name, appIconsCache) {
     const manifestPath = path.join(installPath, "AppxManifest.xml");
     if (!fs.existsSync(manifestPath)) {
-        console.warn(`Manifest not found for ${name}`);
         return appIconsCache
     }
     const xml = fs.readFileSync(manifestPath, "utf8");
@@ -141,14 +133,12 @@ export async function cacheUwpIcon(installPath, name, appIconsCache) {
     try {
         manifest = await parseString(xml);
     } catch (err) {
-        console.error(`Failed to parse manifest for ${name}`, err);
         return appIconsCache
     }
     let logoRelativePath;
     try {
         logoRelativePath = manifest?.Package?.Properties?.[0]?.Logo?.[0];
         if (!logoRelativePath) {
-            console.warn(`Logo not found in manifest for ${name}`);
             return appIconsCache;
         }
         const normalizedLogoPath = path.normalize(logoRelativePath);
@@ -156,7 +146,6 @@ export async function cacheUwpIcon(installPath, name, appIconsCache) {
         const assetsFolder = path.dirname(logoFullPath);
         const logoBaseName = path.basename(logoFullPath, path.extname(logoFullPath));
         if (!fs.existsSync(assetsFolder)) {
-            console.warn(`Assets folder not found: ${assetsFolder}`);
             return appIconsCache;
         }
         const files = fs.readdirSync(assetsFolder);
@@ -190,7 +179,6 @@ export async function cacheUwpIcon(installPath, name, appIconsCache) {
             const iconPath = scoredIcons[0].file;
 
             const targetPath = path.join(appDataPath, `${name}.png`);
-            console.log(iconPath.replace(/\\\\/g, '\\'),targetPath.replace(/\\\\/g, '\\'));
             if (!fs.existsSync(appDataPath)) {
                 fs.mkdirSync(appDataPath, { recursive: true });
             }
@@ -205,7 +193,6 @@ export async function cacheUwpIcon(installPath, name, appIconsCache) {
         return appIconsCache;
 
     } catch (err) {
-        console.error(`Error processing logo path for ${name}`, err);
         return appIconsCache;
     }
 }

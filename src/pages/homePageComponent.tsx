@@ -34,6 +34,7 @@ export default function HomePageComponent({stage,setStage,query}:IHomepage) {
             const pApps = await window.electronStore.get("pinnedApps")
             setPinnedApps(pApps?JSON.parse(pApps):[]);}
         getAppData()
+        window.electron.onCacheReload(getAppData)
     }, []);
 
     useEffect(() => {

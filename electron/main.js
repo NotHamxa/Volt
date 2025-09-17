@@ -9,8 +9,9 @@ import {launchApp} from "./utils/launchApp.js";
 import {getAppLogo} from "./utils/appLogo.js";
 import {openFileWith} from "./utils/openFileWith.js";
 import {getUwpAppIcon, getUwpInstallLocations} from "./utils/uwpAppLogo.js";
-import {pattern} from "framer-motion/m";
+import chokidar from "chokidar";
 import {executeUserCommand} from "./utils/cmd.js";
+import os from "os";
 
 if (!app.requestSingleInstanceLock()) {
     app.quit();
@@ -19,7 +20,11 @@ if (!app.requestSingleInstanceLock()) {
 const store = new Store();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
+const startMenuPaths = [
+    path.join(os.homedir(), "AppData/Roaming/Microsoft/Windows/Start Menu/Programs"),
+    "C:/ProgramData/Microsoft/Windows/Start Menu/Programs",
+    "C:/Users/Public/Desktop"
+];
 let openShortcut = store.get("openWindowBind");
 if (!openShortcut) {
     store.set("openWindowBind", "Ctrl+Space");
@@ -249,17 +254,48 @@ const loadAppIconsCache = async ()=> {
 
 }
 app.whenReady().then(async () => {
-    try {
-        appCache = await loadApps();
-        setTimeout(()=>{
-            loadAppIconsCache();
-        }, 1);
-    } catch(error) {
-        appCache = [];
+    const loadData = async ()=>{
+        try {
+            appCache = await loadApps();
+
+            setTimeout(async ()=>{
+                await validateCache();
+                await loadAppIconsCache();
+            }, 1);
+        } catch(error) {
+            appCache = [];
+        }
     }
+    const validateCache = async ()=> {
+        try {
+            store.set("appLaunchStack", "[]");
+            let appLaunchStack = JSON.parse((await store.get("appLaunchStack")) ?? "[]");
+            let pApps = JSON.parse((await store.get("pinnedApps")) ?? "[]")
+            pApps = pApps.filter(app => appCache.some(aCache=>aCache.name===app.name));
+            store.set("appLaunchStack", JSON.stringify(appLaunchStack));
+            store.set("pinnedApps", JSON.stringify(pApps));
+            mainWindow.webContents.send('reloaded-app-cache')
+        }
+        catch(error) {
+            console.error(error);
+        }
+    }
+    await loadData();
 
     createWindow();
+    const watcher = chokidar.watch(startMenuPaths,{
+        persistent: true,
+        ignoreInitial: true
+    });
+    watcher.on("add",async _=>{
+        console.log("Adding...");
+        await loadData();
 
+    })
+    watcher.on("unlink",async _=>{
+        console.log("Unlinking...");
+        setTimeout(loadData, 5000);
+    })
     globalShortcut.register(openShortcut, () => {
         if (!mainWindow) return;
         if (mainWindow.isVisible()) {

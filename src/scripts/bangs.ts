@@ -65,4 +65,9 @@ async function getBangData(query: string): Promise<BangData | null> {
 }
 
 
-export {handleBangs, getBangData, handleHistoryItem};
+export {
+    handleBangs,
+    getBangData,
+    handleHistoryItem
+};
+

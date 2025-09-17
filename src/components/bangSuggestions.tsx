@@ -142,7 +142,6 @@ export default function BangSuggestions({bang, setQuery, selfQueryChanged}: IBan
 
     useEffect(() => {
         const loadHistory = async () => {
-            console.log("loading")
             if (bang === "") {
                 const searchHistory: SearchHistoryT[] =
                     JSON.parse(await window.electronStore.get("searchHistory")  || "[]");
@@ -162,7 +161,6 @@ export default function BangSuggestions({bang, setQuery, selfQueryChanged}: IBan
         let cancelled = false;
 
         const checkBang = async () => {
-            console.log(cancelled);
             if (selfQueryChanged) return;
             if (bang === "") {
                 const searchHistory: SearchHistoryT[] =
@@ -229,7 +227,6 @@ export default function BangSuggestions({bang, setQuery, selfQueryChanged}: IBan
 
             setFocusedIndex(newIndex);
             const currentItem = isHistory ? searchHistory[newIndex] : filteredSuggestions[newIndex];
-            console.log(currentItem);
 
             if (currentItem && arrowUsed) {
                 if (typeof currentItem === "string") {
@@ -270,11 +267,9 @@ export default function BangSuggestions({bang, setQuery, selfQueryChanged}: IBan
             const shortcut = lastWord.startsWith("!") ? lastWord.slice(1) : "g";
             const bangString: string = suggestion + " !" + shortcut;
             if (suggestion==="!"+shortcut){
-                console.log(suggestion);
                 await handleBangs(suggestion);
                 return;
             }
-            console.log(bangString);
             await handleBangs(bangString);
         }
         else{
@@ -298,7 +293,7 @@ export default function BangSuggestions({bang, setQuery, selfQueryChanged}: IBan
                         No recent searches
                     </div>
                 ) : (
-                    searchHistory.map((item, index) => (
+                    searchHistory.slice(0,10).map((item, index) => (
                         <SearchHistoryItem
                             key={index}
                             historyItem={item}

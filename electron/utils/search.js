@@ -21,7 +21,7 @@ export async function searchSettings(query) {
 }
 
 export async function searchFilesAndFolders(baseDir, query) {
-    const lowerQuery = query.toLowerCase();
+    const lowerQuery = normaliseString(query).trim();
     const baseDirs = [path.join(os.homedir(), "Downloads")];
     if (baseDir!==""){
         baseDirs.push(baseDir);

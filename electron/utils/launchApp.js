@@ -22,10 +22,8 @@ export async function launchApp(app,admin) {
 
         appLaunchStack = [app.name,...appLaunchStack.filter(item=>item!==app.name)]
         store.set("appLaunchStack", JSON.stringify(appLaunchStack));
-        console.log(appLaunchStack)
         return true;
     } catch (err) {
-        console.error('Launch error:', err);
         return false;
     }
 }

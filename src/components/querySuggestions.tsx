@@ -287,6 +287,7 @@
                     setBestMatch,
                     searchQueryFilters:searchFilters
                 });
+                console.log(queryData);
                 setApps(queryData.apps);
                 setFolders(queryData.folders);
                 setFiles(queryData.files);

@@ -30,6 +30,7 @@ declare global {
             openSettings: (settings: string) => Promise<boolean>;
             getAppLogo:(app: SearchQueryT) => Promise<string>;
             getUwpAppLogo:(app:SearchQueryT) => Promise<string>;
+            getLinkFavicon:(link:string)=>Promise<string | null>
         };
         file:{
             searchFilesAndFolders: (baseDir: string, query: string) => Promise<SearchQueryT[]>;

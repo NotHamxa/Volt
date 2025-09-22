@@ -293,7 +293,7 @@ export default function BangSuggestions({bang, setQuery, selfQueryChanged}: IBan
                         No recent searches
                     </div>
                 ) : (
-                    searchHistory.slice(0,10).map((item, index) => (
+                    searchHistory.slice(0,11).map((item, index) => (
                         <SearchHistoryItem
                             key={index}
                             historyItem={item}

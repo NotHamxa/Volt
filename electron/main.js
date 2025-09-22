@@ -12,6 +12,7 @@ import {getUwpAppIcon, getUwpInstallLocations} from "./utils/uwpAppLogo.js";
 import chokidar from "chokidar";
 import {executeUserCommand} from "./utils/cmd.js";
 import os from "os";
+import {fetchFavicon} from "./utils/linkFavicon.js";
 
 if (!app.requestSingleInstanceLock()) {
     app.quit();
@@ -90,6 +91,9 @@ ipcMain.handle('get-app-logo', async (_, app) => {
 });
 ipcMain.handle('get-uwp-app-logo', async (_, app) => {
     return await getUwpAppIcon(app,appIconsCache);
+})
+ipcMain.handle('get-link-favicon', async (_, link) => {
+    return await fetchFavicon(link);
 })
 ipcMain.on('set-store', (_, { key, value }) => store.set(key, value));
 ipcMain.handle('get-store', (_, key) => store.get(key));
@@ -295,6 +299,9 @@ app.whenReady().then(async () => {
     watcher.on("unlink",async _=>{
         console.log("Unlinking...");
         setTimeout(loadData, 5000);
+    })
+    watcher.on("unlinkDir",async _=>{
+        await loadData()
     })
     globalShortcut.register(openShortcut, () => {
         if (!mainWindow) return;

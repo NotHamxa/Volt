@@ -1,5 +1,7 @@
 import {ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger} from "@/components/ui/context-menu.tsx";
 import {LinkShortcutType} from "@/interfaces/links.ts";
+import {useEffect, useState} from "react";
+import {AppWindowIcon} from "lucide-react";
 interface IPinnedLinks{
     link:LinkShortcutType;
     removeLink:(link:string)=>void;
@@ -7,17 +9,15 @@ interface IPinnedLinks{
 }
 export function PinnedLinks({ link, removeLink, setEditLink }: IPinnedLinks) {
     const {name,shortcut} = link;
-    const getFaviconUrl = (url: string) => {
-        try {
-            const { hostname } = new URL(url);
-            const parts = hostname.split('.');
-            const baseDomain = parts.length >= 2 ? parts.slice(-2).join('.') : hostname;
+    const [favicon, setFavicon] = useState<string | null>(null);
 
-            return `https://www.google.com/s2/favicons?domain=${baseDomain}&sz=64`;
-        } catch {
-            return "";
+    useEffect(() => {
+        const onLoad = async ()=>{
+            setFavicon(await window.apps.getLinkFavicon(shortcut))
         }
-    };
+        onLoad()
+    }, []);
+
     return (
         <ContextMenu>
             <ContextMenuTrigger asChild>
@@ -29,11 +29,15 @@ export function PinnedLinks({ link, removeLink, setEditLink }: IPinnedLinks) {
                         className="w-full h-full flex flex-col items-center justify-start pt-1 rounded-lg text-center transition-all duration-200 cursor-pointer select-none hover:bg-[#353737] active:scale-95"
                         onClick={() => window.electron.openExternal(shortcut)}
                     >
-                        <img
-                            src={getFaviconUrl(shortcut)}
-                            alt={`${name} favicon`}
-                            className="w-8 h-8 mb-1"
-                        />
+                        {favicon!==null?
+                            <img
+                                src={favicon}
+                                alt={`${name} favicon`}
+                                className="w-8 h-8 mb-1"
+                            />:
+                            <AppWindowIcon size={40}/>
+                        }
+
                         <span className="text-sm">{name}</span>
                     </button>
                     <button

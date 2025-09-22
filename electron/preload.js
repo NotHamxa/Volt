@@ -32,6 +32,7 @@ contextBridge.exposeInMainWorld("apps",{
     openSetting:(setting)=>ipcRenderer.invoke('open-setting', setting),
     getAppLogo: (app) => ipcRenderer.invoke('get-app-logo', app),
     getUwpAppLogo: (appName)=>ipcRenderer.invoke('get-uwp-app-logo', appName),
+    getLinkFavicon:(link)=>ipcRenderer.invoke('get-link-favicon', link),
 })
 
 

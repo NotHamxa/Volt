@@ -177,6 +177,10 @@ export default function PinnedApps({setStage, unPinApp, apps, pinnedApps,setPinn
                         variant="ghost"
                         className="bg-[#2b2b2b] hover:bg-[#3a3a3a] text-white px-3 py-1 h-auto text-sm rounded-md flex items-center gap-1"
                         onClick={()=>{
+                            if (linkShortcuts.length >= 8){
+                                showToast("Limit","You can only add 8 shortcuts.");
+                                return;
+                            }
                             setAddShortcutOpenModal(true)
                         }}
                     >

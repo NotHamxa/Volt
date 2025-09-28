@@ -2,12 +2,14 @@ import {ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger} fr
 import {LinkShortcutType} from "@/interfaces/links.ts";
 import {useEffect, useState} from "react";
 import {AppWindowIcon} from "lucide-react";
+import {useSortable} from "@dnd-kit/sortable";
+import {CSS} from "@dnd-kit/utilities";
 interface IPinnedLinks{
     link:LinkShortcutType;
     removeLink:(link:string)=>void;
     setEditLink:()=>void;
 }
-export function PinnedLinks({ link, removeLink, setEditLink }: IPinnedLinks) {
+function PinnedLinks({ link, removeLink, setEditLink }: IPinnedLinks) {
     const {name,shortcut} = link;
     const [favicon, setFavicon] = useState<string | null>(null);
 
@@ -51,9 +53,39 @@ export function PinnedLinks({ link, removeLink, setEditLink }: IPinnedLinks) {
                 </div>
             </ContextMenuTrigger>
             <ContextMenuContent className="z-50">
-                <ContextMenuItem onClick={()=>setEditLink()}>Edit</ContextMenuItem>
-                <ContextMenuItem onClick={()=>removeLink(shortcut)}>Remove</ContextMenuItem>
+                <ContextMenuItem
+                    onSelect={() => {
+                        setTimeout(()=>setEditLink(),0);
+                    }}
+                >
+                    Edit
+                </ContextMenuItem>
+
+                <ContextMenuItem
+                    onSelect={(e) => {
+                        e.preventDefault();
+                        removeLink(shortcut);
+                    }}
+                >
+                    Remove
+                </ContextMenuItem>
             </ContextMenuContent>
+
         </ContextMenu>
+    );
+}
+
+export default function SortablePinnedLink({link, removeLink, setEditLink}: IPinnedLinks) {
+    const {attributes, listeners, setNodeRef, transform, transition} = useSortable({id: link.shortcut});
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+    };
+
+    return (
+        <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+            <PinnedLinks link={link} removeLink={removeLink} setEditLink={setEditLink} />
+        </div>
     );
 }

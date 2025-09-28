@@ -18,7 +18,7 @@ import {showToast} from "@/components/toast.tsx";
 import {LinkShortcutType} from "@/interfaces/links.ts";
 import AddLinkShortcutModal from "@/components/modal/addLinkShortcutModal.tsx";
 import EditLinkShortcutModal from "@/components/modal/editLinkShortcutModal.tsx";
-import {PinnedLinks} from "@/components/subComponents/pinnedLinks.tsx";
+import SortablePinnedLink from "@/components/subComponents/pinnedLinks.tsx";
 import SortablePinnedApp from "@/components/subComponents/pinnedApps.tsx";
 
 interface Props {
@@ -32,14 +32,10 @@ interface Props {
 
 export default function PinnedApps({setStage, unPinApp, apps, pinnedApps,setPinnedApps}: Props) {
     const [addShortcutOpenModal,setAddShortcutOpenModal] = useState<boolean>(false);
+    const [editShortcutModalOpen, setEditShortcutModalOpen] = useState(false);
 
     const [linkShortcuts, setLinkShortcuts] = useState<LinkShortcutType[]>([]);
     const [editLinkShortcut,setEditLinkShortcut] = useState<LinkShortcutType | null>(null);
-
-    // const openEditModal = (link:LinkShortcutType)=>{
-    //     const editLink = {...link} as LinkShortcutType;
-    //     setEditLinkShortcut(editLink);
-    // }
 
     useEffect(() => {
         const getSuggestedApps = async ()=>{
@@ -60,6 +56,11 @@ export default function PinnedApps({setStage, unPinApp, apps, pinnedApps,setPinn
         if (apps.length>0)
             getSuggestedApps();
     }, [apps,pinnedApps]);
+
+    const openEditModal = (link:LinkShortcutType)=>{
+        setEditLinkShortcut(link)
+        setEditShortcutModalOpen(true);
+    }
     useEffect(() => {
         const loadLinks = async ()=>{
             const data = await window.electronStore.get("linkShortcuts");
@@ -67,7 +68,8 @@ export default function PinnedApps({setStage, unPinApp, apps, pinnedApps,setPinn
             setLinkShortcuts(shortcuts as LinkShortcutType[]);
         }
         loadLinks()
-
+        window.addEventListener("reloadShortcuts", loadLinks);
+        return () => window.removeEventListener("reloadShortcuts", loadLinks);
     }, []);
     const deleteLinkShortcut = async (link:string)=>{
         const shortcuts = linkShortcuts.filter(shortcut=>shortcut.shortcut!==link);
@@ -95,8 +97,18 @@ export default function PinnedApps({setStage, unPinApp, apps, pinnedApps,setPinn
             window.electronStore.set("pinnedApps", JSON.stringify(newOrder));
         }
     };
-
-
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-expect-error
+    const handleLinksDragEnd = (event) => {
+        const {active, over} = event;
+        if (active.id !== over.id) {
+            const oldIndex = linkShortcuts.findIndex(link => link.shortcut === active.id);
+            const newIndex = linkShortcuts.findIndex(link => link.shortcut === over.id);
+            const newOrder = arrayMove(linkShortcuts, oldIndex, newIndex);
+            setLinkShortcuts(newOrder);
+            window.electronStore.set("linkShortcuts", JSON.stringify(newOrder));
+        }
+    };
     useEffect(() => {
         if (addShortcutOpenModal){
             window.dispatchEvent(new Event("shortcutModalOpen"));
@@ -105,6 +117,14 @@ export default function PinnedApps({setStage, unPinApp, apps, pinnedApps,setPinn
             window.dispatchEvent(new Event("shortcutModalClose"));
         }
     }, [addShortcutOpenModal]);
+    useEffect(() => {
+        if (editShortcutModalOpen){
+            window.dispatchEvent(new Event("shortcutModalOpen"));
+        }
+        else {
+            window.dispatchEvent(new Event("shortcutModalClose"));
+        }
+    }, [editShortcutModalOpen]);
 
     return (
         <>
@@ -115,10 +135,10 @@ export default function PinnedApps({setStage, unPinApp, apps, pinnedApps,setPinn
                 setLinkShortcuts={setLinkShortcuts}
             />
             <EditLinkShortcutModal
+                open={editShortcutModalOpen}
+                setOpen={setEditShortcutModalOpen}
                 editLink={editLinkShortcut}
-                setEditLink={setEditLinkShortcut}
                 linkShortcuts={linkShortcuts}
-                setLinkShortcuts={setLinkShortcuts}
             />
             <div style={{height: "325px", display: "flex", flexDirection: "column"}}>
                 <div style={{
@@ -188,26 +208,23 @@ export default function PinnedApps({setStage, unPinApp, apps, pinnedApps,setPinn
                         <Plus/>
                     </Button>
                 </div>
-                <div style={{height: "100%", display: "flex", flexDirection: "row",padding:"5px 20px"}}>
-                    {linkShortcuts.length > 0 ?
-                        <>
-                            {linkShortcuts.map(link => {
-                                return <PinnedLinks
-                                    link={link}
-                                    removeLink={deleteLinkShortcut}
-                                    setEditLink={() => {}}
-                                />
-                            })}
-                        </> :
-                        <div style={{
-                            flex: 1,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                        }}>
+
+                <div style={{height: "100%", display: "flex", flexDirection: "row", padding:"5px 20px", width:"100%"}}>
+                    {linkShortcuts.length > 0 ? (
+                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleLinksDragEnd}>
+                            <SortableContext items={linkShortcuts.map(link => link.shortcut)} strategy={rectSortingStrategy}>
+                                <div className="col-span-8 w-full flex flex-wrap gap-0">
+                                    {linkShortcuts.map(link => (
+                                        <SortablePinnedLink key={link.shortcut} link={link} removeLink={deleteLinkShortcut} setEditLink={() => openEditModal(link)} />
+                                    ))}
+                                </div>
+                            </SortableContext>
+                        </DndContext>
+                    ) : (
+                        <div style={{flex: 1, display: "flex", alignItems: "center", justifyContent: "center"}}>
                             <label>No Links Pinned</label>
                         </div>
-                    }
+                    )}
                 </div>
             </div>
         </>

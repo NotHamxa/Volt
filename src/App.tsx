@@ -15,7 +15,7 @@ import {Toaster} from "@/components/ui/sonner.tsx";
 import {Label} from "@/components/ui/label.tsx";
 import {Progress} from "@/components/ui/progress.tsx";
 
-function App() {
+export default function App() {
 
     const [cacheLoadingStatus, setCacheLoadingStatus] = useState<boolean>(false);
     const [currentCacheStep,setCurrentCacheStep] = useState<number>(0);
@@ -299,4 +299,3 @@ const styles: { [key: string]: CSSProperties } = {
     },
 };
 
-export default App;

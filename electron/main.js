@@ -272,7 +272,6 @@ app.whenReady().then(async () => {
     }
     const validateCache = async ()=> {
         try {
-            store.set("appLaunchStack", "[]");
             let appLaunchStack = JSON.parse((await store.get("appLaunchStack")) ?? "[]");
             let pApps = JSON.parse((await store.get("pinnedApps")) ?? "[]")
             pApps = pApps.filter(app => appCache.some(aCache=>aCache.name===app.name));

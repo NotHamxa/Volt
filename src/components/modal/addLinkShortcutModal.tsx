@@ -1,4 +1,4 @@
-import {Dialog, DialogContent} from "@/components/ui/dialog.tsx";
+import {Dialog, DialogContent, DialogTitle} from "@/components/ui/dialog.tsx";
 import {Label} from "@/components/ui/label.tsx";
 import {Input} from "@/components/ui/input.tsx";
 import {Button} from "@/components/ui/button.tsx";
@@ -67,7 +67,9 @@ export default function AddLinkShortcutModal({
             <DialogContent
                 style={{ background: "rgba(24, 24, 27,1)" }}
             >
-                <Label style={{ display: "flex", alignSelf: 'center' }}>Add Shortcut</Label>
+                <DialogTitle>
+                    <Label style={{ display: "flex", alignSelf: 'center' }}>Add Shortcut</Label>
+                </DialogTitle>
                 <Label>Name</Label>
                 <Input
                     value={linkName}

@@ -16,9 +16,7 @@ async function getQueryData({ query, setBestMatch,searchQueryFilters }: QueryDat
     let downloadFolders = downloadFileFolders.filter(item => item.type === "folder");
     console.log(searchQueryFilters);
     if (apps.length > 0) {
-        console.log(await window.electronStore.get("appLaunchStack"))
         const appLaunchStack:string[] = JSON.parse((await window.electronStore.get("appLaunchStack")) ?? "[]");
-        console.log(appLaunchStack);
         const bestMatches:SearchQueryT[]  = apps.filter(item=>item.name.toLowerCase().startsWith(query.toLowerCase()));
         const filteredAppLaunchStack:string[] = appLaunchStack.filter(item=>item.toLowerCase().startsWith(query.toLowerCase()))
 

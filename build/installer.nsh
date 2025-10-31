@@ -1,6 +1,6 @@
 !macro customInstall
   ; Ask user if they want the app to start on boot
-  MessageBox MB_YESNO "Do you want YourApp to start with Windows?" IDYES addStartup
+  MessageBox MB_YESNO "Do you want Volt to start with Windows?" IDYES addStartup
 
   Goto done
 

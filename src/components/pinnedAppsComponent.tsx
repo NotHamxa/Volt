@@ -75,7 +75,6 @@ export default function PinnedApps({setStage, unPinApp, apps, pinnedApps,setPinn
         const shortcuts = linkShortcuts.filter(shortcut=>shortcut.shortcut!==link);
         window.electronStore.set("linkShortcuts",JSON.stringify(shortcuts));
         setLinkShortcuts(shortcuts)
-        showToast("","Shortcut removed.")
     }
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -214,8 +213,14 @@ export default function PinnedApps({setStage, unPinApp, apps, pinnedApps,setPinn
                         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleLinksDragEnd}>
                             <SortableContext items={linkShortcuts.map(link => link.shortcut)} strategy={rectSortingStrategy}>
                                 <div className="col-span-8 w-full flex flex-wrap gap-0">
-                                    {linkShortcuts.map(link => (
-                                        <SortablePinnedLink key={link.shortcut} link={link} removeLink={deleteLinkShortcut} setEditLink={() => openEditModal(link)} />
+                                    {linkShortcuts.map((link, index) => (
+                                        <SortablePinnedLink
+                                            key={link.shortcut}
+                                            link={link}
+                                            removeLink={deleteLinkShortcut}
+                                            setEditLink={() => openEditModal(link)}
+                                            index={index}
+                                        />
                                     ))}
                                 </div>
                             </SortableContext>

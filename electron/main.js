@@ -275,6 +275,7 @@ app.whenReady().then(async () => {
             let appLaunchStack = JSON.parse((await store.get("appLaunchStack")) ?? "[]");
             let pApps = JSON.parse((await store.get("pinnedApps")) ?? "[]")
             pApps = pApps.filter(app => appCache.some(aCache=>aCache.name===app.name));
+            appLaunchStack = appLaunchStack.filter(app => appCache.some(aCache=>aCache.name===app));
             store.set("appLaunchStack", JSON.stringify(appLaunchStack));
             store.set("pinnedApps", JSON.stringify(pApps));
             mainWindow.webContents.send('reloaded-app-cache')
@@ -302,6 +303,8 @@ app.whenReady().then(async () => {
     watcher.on("unlinkDir",async _=>{
         await loadData()
     })
+
+
     globalShortcut.register(openShortcut, () => {
         if (!mainWindow) return;
         if (mainWindow.isVisible()) {

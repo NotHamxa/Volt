@@ -2,7 +2,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog.tsx";
 import React, { useEffect, useRef, useState } from "react";
 import { Label } from "@/components/ui/label.tsx";
 import { Button } from "@/components/ui/button.tsx";
-import { Check, X } from "lucide-react";
+import { Check, X, Plus } from "lucide-react";
 import { showToast } from "@/components/toast.tsx";
 import { BarLoader } from "react-spinners";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.tsx";
@@ -199,10 +199,11 @@ export default function HelpPage({ helpModalOpen, setHelpModalOpen }: IHelpPage)
     const [bangSearch, setBangSearch] = useState<string>("");
     const [bangs, setBangs] = useState<BangType[] | null>(null);
 
+    const [cachedFolders,setCachedFolders] = useState<string[]>([]);
+
     const onLoad = async () => {
         setCurrentOpenBind(await window.electronStore.get("openWindowBind"));
     };
-
     const formatKey = (code: string, key: string): string => {
         const keyMap: Record<string, string> = {
             ControlLeft: "Ctrl",
@@ -240,6 +241,7 @@ export default function HelpPage({ helpModalOpen, setHelpModalOpen }: IHelpPage)
             setOpenBind("");
             setListeningToKeyboard(false);
         }
+        setCachedFolders([])
     }, [helpModalOpen]);
 
     useEffect(() => {
@@ -272,6 +274,13 @@ export default function HelpPage({ helpModalOpen, setHelpModalOpen }: IHelpPage)
             pressedKeysRef.current.clear();
         }
     };
+    const onAddFolder = async ()=>{
+        const folder = await window.electron.selectFolder();
+        console.log(folder);
+        if (folder) {
+            setCachedFolders([...cachedFolders, folder]);
+        }
+    }
 
     return (
         <Dialog open={helpModalOpen} onOpenChange={setHelpModalOpen}>
@@ -281,6 +290,7 @@ export default function HelpPage({ helpModalOpen, setHelpModalOpen }: IHelpPage)
                         <TabsList className="flex gap-2">
                             <TabsTrigger value="settings">Settings</TabsTrigger>
                             <TabsTrigger value="bangs">Bangs</TabsTrigger>
+                            <TabsTrigger value={"folders"}>Folders</TabsTrigger>
                         </TabsList>
                     </div>
                     <TabsContent value="settings">
@@ -343,6 +353,17 @@ export default function HelpPage({ helpModalOpen, setHelpModalOpen }: IHelpPage)
                                 <div className="text-sm text-gray-400 mt-2 px-2">No results found</div>
                             ) : null}
                         </ScrollArea>
+                    </TabsContent>
+                    <TabsContent value={"folders"}>
+                        <Button onClick={onAddFolder}>
+                            <Plus size={24}/>
+                        </Button>
+                        {cachedFolders.map((folder, index) => (
+                            <div>
+                                <label>{folder}</label>
+                                <label>{index}</label>
+                            </div>
+                        ))}
                     </TabsContent>
                 </Tabs>
             </DialogContent>

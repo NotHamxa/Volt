@@ -196,3 +196,6 @@ export async function cacheUwpIcon(installPath, name, appIconsCache) {
         return appIconsCache;
     }
 }
+export async function cacheFolder(path){
+
+}

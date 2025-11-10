@@ -1,4 +1,4 @@
-import {app, BrowserWindow, globalShortcut, ipcMain, shell, Tray, Menu} from "electron";
+import {app, BrowserWindow, globalShortcut, ipcMain, shell, Tray, Menu, dialog} from "electron";
 import Store from "electron-store";
 import path from "path";
 import {fileURLToPath} from "url";
@@ -36,7 +36,7 @@ let lastFocusedWindow = null;
 let appCache = [];
 let appIconsCache = {}
 let loadingAppCache = true;
-
+let fixWindowOpen = false;
 
 
 const showMainWindow = () => {
@@ -48,7 +48,8 @@ const showMainWindow = () => {
 };
 
 const hideMainWindow = () => {
-    if (!mainWindow) return;
+    if (!mainWindow || fixWindowOpen) return;
+    console.log(fixWindowOpen)
     mainWindow.hide();
     globalShortcut.unregister("Esc");
     mainWindow.webContents.send('window-blurred');
@@ -155,6 +156,17 @@ ipcMain.handle('get-loading-cache-status',(_)=>{
 ipcMain.on("execute-cmd",async (_,cmd)=>{
     await executeUserCommand(cmd);
 })
+ipcMain.handle("select-folder", async () => {
+    fixWindowOpen = true;
+    const result = await dialog.showOpenDialog({
+        title: "Select Folder",
+        properties: ["openDirectory"],
+    });
+    const dirPath = result.filePaths?.[0];
+    setTimeout(()=>{fixWindowOpen=false},5000);
+    if (!dirPath) return null;
+    return dirPath;
+});
 const createWindow = () => {
     if (mainWindow) {
         mainWindow.loadURL("http://localhost:5173");

@@ -23,14 +23,11 @@ function PinnedLinks({ link, removeLink, setEditLink, index }: IPinnedLinks) {
         onLoad();
         let ctrlPressed = false;
         const handleKeyDown = (event: KeyboardEvent) => {
-            console.log(ctrlPressed);
-
             if (event.key === "Control") {
                 ctrlPressed = true;
                 setShowKbd(true);
             }
             if (ctrlPressed && event.key === (index + 1).toString()) {
-                console.log("Open", shortcut);
                 window.electron.openExternal(shortcut);
             }
         };

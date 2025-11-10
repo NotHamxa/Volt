@@ -17,7 +17,7 @@ export async function fetchFavicon(siteUrl) {
         const parsed = new URL(siteUrl);
         const parsedDomain = psl.parse(parsed.hostname);
         const rootDomain = parsedDomain.domain || parsed.hostname;
-
+        console.log(`Found ${rootDomain}`);
         const fileName = rootDomain + '.png';
         const filePath = path.join(faviconDataPath, fileName);
 
@@ -36,7 +36,7 @@ export async function fetchFavicon(siteUrl) {
 
     }
     catch(error) {
-        // console.error(error);
+
         return null;
     }
 }

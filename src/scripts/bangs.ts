@@ -3,7 +3,6 @@ import {BangData} from "@/interfaces/bang.ts";
 import {SearchHistoryT} from "@/interfaces/history.ts";
 
 async function handleBangs(query: string) {
-    console.log(bangs.length);
     const trimmedQuery = query.trim();
     const words = trimmedQuery.split(" ");
     const possibleBang = words[words.length - 1];

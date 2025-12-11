@@ -257,6 +257,32 @@ export default function BangSuggestions({bang, setQuery, selfQueryChanged}: IBan
         setSearchHistory(updatedHistory);
         window.electronStore.set("searchHistory", JSON.stringify(updatedHistory));
     };
+    function isValidUrl(url: string): string | null {
+        try {
+            let normalizedUrl = url;
+
+            if (!/^https?:\/\//i.test(url)) {
+                // Default to http for localhost/127.0.0.1, otherwise https
+                normalizedUrl = /^(localhost|127\.0\.0\.1)/i.test(url)
+                    ? `http://${url}`
+                    : `https://${url}`;
+            }
+
+            const parsed = new URL(normalizedUrl);
+            const hostname = parsed.hostname;
+            if (
+                hostname === "localhost" ||
+                /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname) || // IPv4
+                hostname.includes(".") // normal domain
+            ) {
+                return normalizedUrl;
+            }
+
+            return null;
+        } catch {
+            return null;
+        }
+    }
 
     async function handleOpen(suggestion: string | SearchHistoryT) {
 
@@ -264,7 +290,7 @@ export default function BangSuggestions({bang, setQuery, selfQueryChanged}: IBan
             suggestion = suggestion.replace(/<\/?b>/g, "")
             const words = bang.trim().split(" ");
             const lastWord = words[words.length - 1];
-            const shortcut = lastWord.startsWith("!") ? lastWord.slice(1) : "g";
+            const shortcut = lastWord.startsWith("!") ? lastWord.slice(1) : isValidUrl(suggestion)?"ds":"g";
             const bangString: string = suggestion + " !" + shortcut;
             if (suggestion==="!"+shortcut){
                 await handleBangs(suggestion);

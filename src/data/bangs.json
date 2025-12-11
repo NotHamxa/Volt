@@ -28184,7 +28184,7 @@
     "s": "Direct Search",
     "sc": "",
     "t": "ds",
-    "u": "https://{{{s}}}"
+    "u": "http://{{{s}}}"
   },
   {
     "c": "Research",

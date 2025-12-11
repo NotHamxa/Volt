@@ -1,5 +1,5 @@
 import {CSSProperties, useEffect, useRef, useState} from 'react';
-import {Search} from "lucide-react";
+import {Search, Unlock,Lock} from "lucide-react";
 import { FaGithub } from "react-icons/fa6";
 
 import {Input} from "@/components/ui/input.tsx";
@@ -30,7 +30,10 @@ export default function App() {
     const [helpModalOpen,setHelpModalOpen] = useState(false);
 
     const [searchQueryFilters,setSearchQueryFilters] = useState<boolean[]>([true, true, true, true]);
-
+    const [showLockedIcon,setShowLockedIcon] = useState<boolean>(false);
+    const [showUnlockedIcon,setShowUnlockedIcon] = useState<boolean>(false);
+    const lockTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const unlockTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     window.onerror = function (msg, url, line, col, error) {
         console.error("GLOBAL ERROR CAUGHT:");
         console.error(msg, url, line, col, error);
@@ -57,8 +60,6 @@ export default function App() {
                 setHelpModalOpen(!helpModalOpen);
             }
         };
-        window.electron.onWindowBlurred(handleBlur);
-        window.addEventListener("keydown", handleKeyDown);
         const handleCacheLoadedEvent = ()=>{
             setCacheLoadingStatus(false);
         }
@@ -81,9 +82,35 @@ export default function App() {
             window.addEventListener("keydown", handleKeyDown);
         }
 
+
+        const handleWindowLock = () => {
+            if (lockTimeoutRef.current) clearTimeout(lockTimeoutRef.current);
+
+            setShowLockedIcon(true);
+            setShowUnlockedIcon(false);
+            lockTimeoutRef.current = setTimeout(() => {
+                setShowLockedIcon(false);
+                lockTimeoutRef.current = null;
+            }, 1000);
+        };
+
+        const handleWindowUnlock = () => {
+            if (unlockTimeoutRef.current) clearTimeout(unlockTimeoutRef.current);
+            setShowUnlockedIcon(true);
+            setShowLockedIcon(false);
+            unlockTimeoutRef.current = setTimeout(() => {
+                setShowUnlockedIcon(false);
+                unlockTimeoutRef.current = null;
+            }, 1000);
+        };
+
+        window.electron.onWindowBlurred(handleBlur);
+        window.electron.onWindowLocked(handleWindowLock)
+        window.electron.onWindowUnlocked(handleWindowUnlock)
+
+        window.addEventListener("keydown", handleKeyDown);
         window.addEventListener("shortcutModalOpen",handleShortcutModalOpen)
         window.addEventListener("shortcutModalClose",handleShortcutModalClose)
-
 
 
         getCacheLoadingStatus();
@@ -146,6 +173,30 @@ export default function App() {
     return (
         <div style={styles.wrapper}>
             <Toaster/>
+            { (showUnlockedIcon || showLockedIcon) &&
+            <div
+                style={{
+                    position: "absolute",
+                    top: "50%",
+                    left: "50%",
+                    transform: "translate(-50%, -50%)",
+                    display: "flex",
+                    gap: "20px",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    zIndex: 50,
+                    backgroundColor: "rgba(24, 24, 27, 0.95)", // match app bg, slightly translucent
+                    padding: "20px 40px",
+                    borderRadius: "12px",
+                    backdropFilter: "blur(10px)", // frosted-glass effect
+                    boxShadow: "0 4px 15px rgba(0, 0, 0, 0.3)", // subtle shadow
+                }}
+            >
+
+                {showLockedIcon && <Lock size={48} className="text-white" />}
+                {showUnlockedIcon && <Unlock size={48} className="text-white" />}
+            </div>
+            }
             <HelpPage helpModalOpen={helpModalOpen} setHelpModalOpen={setHelpModalOpen}/>
             <div style={styles.inputContainer}>
                 {faviconUrl && stage === 2 ? <img src={faviconUrl} style={styles.favicon}/> : <Search size={24}/>}

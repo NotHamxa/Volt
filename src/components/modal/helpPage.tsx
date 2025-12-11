@@ -9,6 +9,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.t
 import allBangs from "@/data/bangs.json";
 import { Input } from "@/components/ui/input.tsx";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuLabel,
+    DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu.tsx";
 
 interface IHelpPage {
     helpModalOpen: boolean;
@@ -36,158 +42,103 @@ type BangType =
 };
 
 function DeleteHistorySection() {
-    const [open, setOpen] = useState(false);
-    const dropdownRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        function handleClickOutside(event: MouseEvent) {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-                setOpen(false);
-            }
-        }
-        if (open) {
-            document.addEventListener("mousedown", handleClickOutside);
-        }
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
-    }, [open]);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const handleDelete = async () => {
-        window.electronStore.set("searchHistory", "[]");
-        showToast("Search history deleted", "Your search history has been removed successfully.");
-        setOpen(false);
+        setIsDeleting(true);
+        try {
+            window.electronStore.set("searchHistory", "[]");
+            showToast("Search history deleted","Your search history has been removed successfully.")
+
+        } catch {
+            showToast("Error","Failed to delete search history.")
+        } finally {
+            setIsDeleting(false);
+        }
     };
 
     return (
-        <div className="relative flex items-center gap-4 m-1">
-            <Label className="text-lg">Delete search history</Label>
-            <Button
-                className="
-                    px-4 py-1 text-sm font-medium text-red-600 border border-red-600 rounded
-                    bg-transparent
-                    hover:bg-red-600/10 hover:text-red-600
-                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500
-                    transition-colors
-                "
-                onClick={() => setOpen((v) => !v)}
-                aria-expanded={open}
-                aria-haspopup="true"
-            >
-                Delete
-            </Button>
-            <div
-                ref={dropdownRef}
-                className={`absolute top-full left-0 mt-2 w-80 rounded-md border border-gray-700 bg-[#18181b] shadow-lg p-4 transition-all duration-200 ease-in-out
-                ${open ? "opacity-100 visible translate-y-0 z-50" : "opacity-0 invisible -translate-y-2 z-10"}`}
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="confirm-delete-title"
-            >
-                <p id="confirm-delete-title" className="mb-3 font-semibold text-gray-100">
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="outline">Delete</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-64 p-4">
+                <DropdownMenuLabel className="mb-2">
                     Are you sure you want to delete your search history?
-                </p>
-                <p className="mb-4 text-sm text-gray-400">This action cannot be undone.</p>
+                </DropdownMenuLabel>
+                <DropdownMenuLabel className="text-sm text-muted-foreground mb-4">
+                    This action cannot be undone.
+                </DropdownMenuLabel>
+
                 <div className="flex justify-end gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setOpen(false)}>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => console.log("Cancel clicked")}
+                    >
                         Cancel
                     </Button>
                     <Button
-                        className="
-                            px-4 py-1 text-sm font-medium text-red-600 border border-red-600 rounded
-                            bg-transparent
-                            hover:bg-red-600/10 hover:text-red-600
-                            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500
-                            transition-colors
-                        "
+                        variant="destructive"
                         size="sm"
                         onClick={handleDelete}
+                        disabled={isDeleting}
                     >
-                        Confirm
+                        {isDeleting ? "Deleting..." : "Confirm"}
                     </Button>
                 </div>
-            </div>
-        </div>
+            </DropdownMenuContent>
+        </DropdownMenu>
     );
 }
-
-function ResetAppData() {
-    const [open, setOpen] = useState(false);
-    const dropdownRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        function handleClickOutside(event: MouseEvent) {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-                setOpen(false);
-            }
-        }
-        if (open) {
-            document.addEventListener("mousedown", handleClickOutside);
-        }
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
-    }, [open]);
+export function ResetAppData() {
+    const [isResetting, setIsResetting] = useState(false);
 
     const handleReset = async () => {
-        window.electronStore.clear();
-        showToast("App data reset", "All app data has been reset successfully.");
-        setOpen(false);
+        setIsResetting(true);
+        try {
+            window.electronStore.clear();
+            showToast("App data reset", "All app data has been reset successfully.");
+        } catch{
+            showToast("Error","Failed to delete app data.")
+
+        } finally {
+            setIsResetting(false);
+        }
     };
 
     return (
-        <div className="relative flex items-center gap-4">
-            <Label className="text-lg">Reset app data</Label>
-            <Button
-                className="
-                    px-4 py-1 text-sm font-medium text-red-600 border border-red-600 rounded
-                    bg-transparent
-                    hover:bg-red-600/10 hover:text-red-600
-                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500
-                    transition-colors
-                "
-                onClick={() => setOpen((v) => !v)}
-                aria-expanded={open}
-                aria-haspopup="true"
-            >
-                Reset
-            </Button>
-            <div
-                ref={dropdownRef}
-                className={`absolute top-full left-0 mt-2 w-80 rounded-md border border-gray-700 bg-[#18181b] shadow-lg p-4 transition-all duration-200 ease-in-out
-                ${open ? "opacity-100 visible translate-y-0 z-50" : "opacity-0 invisible -translate-y-2 z-10"}`}
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="confirm-reset-title"
-            >
-                <p id="confirm-reset-title" className="mb-3 font-semibold text-gray-100">
-                    Are you sure you want to reset all app data?
-                </p>
-                <p className="mb-4 text-sm text-gray-400">
-                    This action will clear all stored data and cannot be undone. The app will restart after clearing all data.
-                </p>
-                <div className="flex justify-end gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setOpen(false)}>
-                        Cancel
-                    </Button>
-                    <Button
-                        className="
-                            px-4 py-1 text-sm font-medium text-red-600 border border-red-600 rounded
-                            bg-transparent
-                            hover:bg-red-600/10 hover:text-red-600
-                            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500
-                            transition-colors
-                        "
-                        size="sm"
-                        onClick={handleReset}
-                    >
-                        Confirm
-                    </Button>
-                </div>
-            </div>
+        <div className="flex items-center gap-4">
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="outline">Reset</Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-80 p-4">
+                    <DropdownMenuLabel className="mb-2 font-semibold text-gray-100">
+                        Are you sure you want to reset all app data?
+                    </DropdownMenuLabel>
+                    <p className="mb-4 text-sm text-gray-400">
+                        This action will clear all stored data and cannot be undone. The app will restart after clearing all data.
+                    </p>
+                    <div className="flex justify-end gap-2">
+                        <Button variant="outline" size="sm">
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={handleReset}
+                            disabled={isResetting}
+                        >
+                            {isResetting ? "Resetting..." : "Confirm"}
+                        </Button>
+                    </div>
+                </DropdownMenuContent>
+            </DropdownMenu>
         </div>
     );
 }
+
 
 export default function HelpPage({ helpModalOpen, setHelpModalOpen }: IHelpPage) {
     const [listeningToKeyboard, setListeningToKeyboard] = useState<boolean>(false);
@@ -293,30 +244,49 @@ export default function HelpPage({ helpModalOpen, setHelpModalOpen }: IHelpPage)
                             <TabsTrigger value={"folders"}>Folders</TabsTrigger>
                         </TabsList>
                     </div>
+
                     <TabsContent value="settings">
-                        <div className="flex items-center gap-4 m-1">
-                            <Label className="text-lg">Open Bind</Label>
-                            {listeningToKeyboard && (
-                                <Button className="px-3 py-1 text-sm" onClick={() => setListeningToKeyboard(false)}>
-                                    <X size={24} />
-                                </Button>
-                            )}
-                            <Button
-                                className="px-3 py-1 text-sm"
-                                onClick={async () => {
-                                    if (listeningToKeyboard) await confirmChangeBind();
-                                    else setListeningToKeyboard((prev) => !prev);
-                                }}
-                            >
-                                {listeningToKeyboard ? (bindLoad ? <BarLoader /> : <Check size={24} />) : "Edit"}
-                            </Button>
-                            <span className="text-sm text-gray-400">
-                                {listeningToKeyboard ? openBind : currentOpenBind}
-                            </span>
-                        </div>
-                        <DeleteHistorySection />
-                        <ResetAppData />
+                        <ScrollArea className="h-[60vh] w-full rounded-lg bg-[#18181b] p-4">
+                            <div className={"space-y-6"}>
+                                <div className="bg-[#1f1f23] p-4 rounded-lg shadow-sm flex flex-col gap-3">
+                                    <Label className="text-lg font-semibold">Open Bind</Label>
+                                    <div className="flex items-center gap-3 flex-wrap">
+                                        {listeningToKeyboard && (
+                                            <Button variant="outline" onClick={() => setListeningToKeyboard(false)}>
+                                                <X size={20} />
+                                            </Button>
+                                        )}
+                                        <Button
+                                            variant="secondary"
+                                            className="px-3 py-1 text-sm"
+                                            onClick={async () => {
+                                                if (listeningToKeyboard) await confirmChangeBind();
+                                                else setListeningToKeyboard((prev) => !prev);
+                                            }}
+                                        >
+                                            {listeningToKeyboard ? (bindLoad ? <BarLoader width={50} /> : <Check size={20} />) : "Edit"}
+                                        </Button>
+                                        <span className="text-sm text-gray-400 font-mono">
+                                  {listeningToKeyboard ? openBind : currentOpenBind || "No bind set"}
+                                </span>
+                                    </div>
+                                </div>
+
+                                <div className="bg-[#1f1f23] p-4 rounded-lg shadow-sm flex flex-col gap-3">
+                                    <Label className="text-lg font-semibold">Search History</Label>
+                                    <DeleteHistorySection />
+                                </div>
+
+                                <div className="bg-[#1f1f23] p-4 rounded-lg shadow-sm flex flex-col gap-3">
+                                    <Label className="text-lg font-semibold">App Data</Label>
+                                    <ResetAppData />
+                                </div>
+                            </div>
+                        </ScrollArea>
                     </TabsContent>
+
+
+
                     <TabsContent value="bangs">
                         <Input
                             value={bangSearch}

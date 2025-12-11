@@ -37,6 +37,8 @@ let appCache = [];
 let appIconsCache = {}
 let loadingAppCache = true;
 let fixWindowOpen = false;
+let windowLocked = false;
+
 
 
 const showMainWindow = () => {
@@ -48,7 +50,7 @@ const showMainWindow = () => {
 };
 
 const hideMainWindow = () => {
-    if (!mainWindow || fixWindowOpen) return;
+    if (!mainWindow || fixWindowOpen || windowLocked) return;
     console.log(fixWindowOpen)
     mainWindow.hide();
     globalShortcut.unregister("Esc");
@@ -58,6 +60,11 @@ const hideMainWindow = () => {
     }
 };
 
+const handleWindowLock = ()=>{
+    windowLocked = !windowLocked;
+    if (windowLocked) mainWindow.webContents.send('window-locked')
+    else mainWindow.webContents.send('window-unlocked');
+}
 const changeOpenBind = async (binding)=>{
     globalShortcut.unregister(openShortcut);
     globalShortcut.register(binding, () => {
@@ -158,12 +165,13 @@ ipcMain.on("execute-cmd",async (_,cmd)=>{
 })
 ipcMain.handle("select-folder", async () => {
     fixWindowOpen = true;
-    const result = await dialog.showOpenDialog({
+    const result = await dialog.showOpenDialog(mainWindow,{
         title: "Select Folder",
         properties: ["openDirectory"],
     });
     const dirPath = result.filePaths?.[0];
-    setTimeout(()=>{fixWindowOpen=false},5000);
+    mainWindow.focus()
+    fixWindowOpen = false;
     if (!dirPath) return null;
     return dirPath;
 });
@@ -328,6 +336,7 @@ app.whenReady().then(async () => {
             }
         }
     });
+    globalShortcut.register("Ctrl+L",handleWindowLock)
 
     app.on("activate", () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();

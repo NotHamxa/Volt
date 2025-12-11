@@ -10,6 +10,8 @@ declare global {
             setOpenBind:(binding:string)=>Promise<boolean>;
             openExternal:(url: string) => void;
             onWindowBlurred: (callback: () => void) => void;
+            onWindowLocked: (callback: () => void) => void;
+            onWindowUnlocked: (callback: () => void) => void;
             getGoogleSuggestions: (query:string) => Promise<string[]>;
             openUninstall:()=>void;
             onCacheLoaded:(callback: () => void) => void;

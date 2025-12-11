@@ -5,6 +5,8 @@ contextBridge.exposeInMainWorld("electron", {
     setOpenBind:(binding)=>ipcRenderer.invoke("set-open-bind", binding),
     openExternal: (url) => ipcRenderer.send('open-external', url),
     onWindowBlurred: (callback) => ipcRenderer.on('window-blurred', callback),
+    onWindowLocked: (callback) => ipcRenderer.on('window-locked', callback),
+    onWindowUnlocked: (callback) => ipcRenderer.on('window-unlocked', callback),
     getGoogleSuggestions:(query)=>ipcRenderer.invoke('get-google-suggestions',query),
     openUninstall:()=>ipcRenderer.send('open-uninstall'),
     getCacheLoadingStatus:()=>ipcRenderer.invoke('get-loading-cache-status'),

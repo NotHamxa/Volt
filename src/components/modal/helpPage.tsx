@@ -2,7 +2,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog.tsx";
 import React, { useEffect, useRef, useState } from "react";
 import { Label } from "@/components/ui/label.tsx";
 import { Button } from "@/components/ui/button.tsx";
-import { Check, X, Plus } from "lucide-react";
+import {Check, X, Plus, Trash} from "lucide-react";
 import { showToast } from "@/components/toast.tsx";
 import { BarLoader } from "react-spinners";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.tsx";
@@ -15,6 +15,8 @@ import {
     DropdownMenuLabel,
     DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu.tsx";
+import {Item} from "@/components/ui/item.tsx";
+import {Spinner} from "@/components/ui/spinner.tsx";
 
 interface IHelpPage {
     helpModalOpen: boolean;
@@ -151,9 +153,10 @@ export default function HelpPage({ helpModalOpen, setHelpModalOpen }: IHelpPage)
     const [bangs, setBangs] = useState<BangType[] | null>(null);
 
     const [cachedFolders,setCachedFolders] = useState<string[]>([]);
-
+    const [removingFolder, setRemovingFolder] = useState<string | null>(null);
     const onLoad = async () => {
         setCurrentOpenBind(await window.electronStore.get("openWindowBind"));
+        setCachedFolders(JSON.parse(await window.electronStore.get("cachedFolders")) ?? []);
     };
     const formatKey = (code: string, key: string): string => {
         const keyMap: Record<string, string> = {
@@ -231,6 +234,20 @@ export default function HelpPage({ helpModalOpen, setHelpModalOpen }: IHelpPage)
         if (folder) {
             setCachedFolders([...cachedFolders, folder]);
         }
+    }
+    const deleteFolder = async (path:string)=>{
+        setRemovingFolder(path);
+        const success = await  window.electron.deleteFolder(path);
+        if (success) {
+            showToast("Success", "Successfully deleted.");
+            setCachedFolders(cachedFolders.filter((cache)=>{
+                return cache!==path
+            }))
+        }
+        else {
+            showToast("Error","There was an error while deleting folder")
+        }
+        setRemovingFolder(null);
     }
 
     return (
@@ -324,17 +341,40 @@ export default function HelpPage({ helpModalOpen, setHelpModalOpen }: IHelpPage)
                             ) : null}
                         </ScrollArea>
                     </TabsContent>
-                    <TabsContent value={"folders"}>
-                        <Button onClick={onAddFolder}>
-                            <Plus size={24}/>
-                        </Button>
-                        {cachedFolders.map((folder, index) => (
-                            <div>
-                                <label>{folder}</label>
-                                <label>{index}</label>
-                            </div>
-                        ))}
+                    <TabsContent value="folders" className="flex flex-col h-full">
+                        {/* Add button at the top */}
+                        <div className="mb-2">
+                            <Button onClick={onAddFolder} className="w-full flex justify-center">
+                                <Plus size={24} />
+                            </Button>
+                        </div>
+
+                        {/* Scrollable folder list */}
+                        <div className="flex-1 overflow-y-auto space-y-2">
+                            {cachedFolders.map((folder, index) => (
+                                <Item key={index} className="flex justify-between" variant="outline">
+                                    <Label>{folder}</Label>
+                                    <Button
+                                        variant="outline"
+                                        disabled={removingFolder!==null}
+                                        onClick={()=>{
+                                            deleteFolder(folder);
+                                        }}
+                                    >
+                                        {removingFolder !== null && removingFolder === folder?<Spinner/>:<Trash color="red" />}
+                                    </Button>
+                                </Item>
+                            ))}
+                        </div>
+
+                        {/* Footer note */}
+                        <div className="mt-2 flex items-center text-gray-400 text-sm">
+                            <label>
+                                Note: Adding too many folders or large sized folders may cause performance issues
+                            </label>
+                        </div>
                     </TabsContent>
+
                 </Tabs>
             </DialogContent>
         </Dialog>

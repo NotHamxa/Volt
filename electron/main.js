@@ -2,7 +2,7 @@ import {app, BrowserWindow, globalShortcut, ipcMain, shell, Tray, Menu, dialog} 
 import Store from "electron-store";
 import path from "path";
 import {fileURLToPath} from "url";
-import {cacheAppIcon, cacheUwpIcon, loadApps} from "./utils/cache.js";
+import {cacheAppIcon, cacheFolder, cacheUwpIcon, loadApps} from "./utils/cache.js";
 import {searchApps, searchFilesAndFolders, searchSettings} from "./utils/search.js";
 import {getGoogleSuggestions} from "./utils/autoSuggestion.js";
 import {launchApp} from "./utils/launchApp.js";
@@ -19,6 +19,8 @@ if (!app.requestSingleInstanceLock()) {
     process.exit(0);
 }
 const store = new Store();
+// store.delete("cachedFoldersData")
+// store.delete("cachedFolders")
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const startMenuPaths = [
@@ -173,8 +175,26 @@ ipcMain.handle("select-folder", async () => {
     mainWindow.focus()
     fixWindowOpen = false;
     if (!dirPath) return null;
+    cacheFolder(dirPath).then(async (result) => {
+        const cachedFoldersData = await store.get("cachedFoldersData") ?? {};
+        cachedFoldersData[result.path] = result.files;
+        store.set("cachedFoldersData", cachedFoldersData);
+        store.set("cachedFolders",JSON.stringify(Object.keys(cachedFoldersData)));
+    })
     return dirPath;
 });
+ipcMain.handle("delete-folder", async (_, path) => {
+    const cachedFolders = JSON.parse(await store.get("cachedFolders") || "[]");
+    const cachedFoldersData = await store.get("cachedFoldersData") ?? {};
+    if (!cachedFolders.includes(path)) return false;
+    delete cachedFoldersData[path];
+    const updatedFolders = Object.keys(cachedFoldersData);
+    store.set("cachedFoldersData", cachedFoldersData);
+    store.set("cachedFolders", JSON.stringify(updatedFolders));
+
+    return true;
+});
+
 const createWindow = () => {
     if (mainWindow) {
         mainWindow.loadURL("http://localhost:5173");

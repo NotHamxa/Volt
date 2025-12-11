@@ -3,7 +3,8 @@ import os from "os";
 import fg from "fast-glob";
 import fs from "fs";
 import settings from "./settings.json" with { type: 'json' };
-
+import Store from "electron-store";
+const store = new Store();
 const normaliseString = (str) => {
     return str.toLowerCase().replace(/\s+/g, "");
 }
@@ -23,6 +24,8 @@ export async function searchSettings(query) {
 export async function searchFilesAndFolders(baseDir, query) {
     const lowerQuery = normaliseString(query).trim();
     const baseDirs = [path.join(os.homedir(), "Downloads")];
+    const cachedFolderData = await store.get("cachedFoldersData") ?? {}
+
     if (baseDir!==""){
         baseDirs.push(baseDir);
     }
@@ -68,8 +71,12 @@ export async function searchFilesAndFolders(baseDir, query) {
             return [];
         });
     });
+    const filteredCacheFiles = Object.values(cachedFolderData).flatMap(list => list.filter(item => normaliseString(item.name).startsWith(lowerQuery)));
+    const uniqueFiles = Array.from(
+        new Map(filteredCacheFiles.map(item => [item.name, item])).values()
+    );
 
     const searchResults = (await Promise.all(dirSearchPromises)).flat();
-    return [...suggestedFolders, ...searchResults];
+    return [...suggestedFolders, ...searchResults,...uniqueFiles];
 }
 

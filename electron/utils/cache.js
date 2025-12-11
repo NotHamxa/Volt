@@ -1,8 +1,9 @@
 import os from "os";
 import path from "path";
 import fs from "fs";
+import { readdir } from 'fs/promises';
 import {exec} from "child_process";
-import {extractAppLogo, getAppLogo} from "./appLogo.js";
+import {extractAppLogo} from "./appLogo.js";
 import {fileURLToPath} from "url";
 import {promisify} from "node:util";
 import xml2js from "xml2js";
@@ -196,6 +197,28 @@ export async function cacheUwpIcon(installPath, name, appIconsCache) {
         return appIconsCache;
     }
 }
-export async function cacheFolder(path){
+export async function cacheFolder(dirPath) {
+    const filesArray = [];
 
+    async function readDirRecursive(currentPath) {
+        const entries = await readdir(currentPath, { withFileTypes: true });
+
+        for (const entry of entries) {
+            const fullPath = path.join(currentPath, entry.name);
+            if (entry.isDirectory()) {
+                await readDirRecursive(fullPath);
+            } else if (entry.isFile()) {
+
+                filesArray.push({
+                    name: entry.name,
+                    source: "",
+                    appId: "",
+                    path: fullPath,
+                    type: "file"
+                });
+            }
+        }
+    }
+    await readDirRecursive(dirPath);
+    return {"path": dirPath, "files": filesArray};
 }

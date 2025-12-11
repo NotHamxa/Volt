@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld("electron", {
     onCacheReload: (callback) => ipcRenderer.on('reloaded-app-cache', callback),
     executeCmd:(cmd)=>ipcRenderer.send('execute-cmd', cmd),
     selectFolder:()=>ipcRenderer.invoke('select-folder'),
+    deleteFolder:(path)=>ipcRenderer.invoke('delete-folder',path),
 
 });
 contextBridge.exposeInMainWorld("file",{

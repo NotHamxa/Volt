@@ -20,6 +20,7 @@ declare global {
             setCacheLoadingBar: (callback: (currentCacheStep: number, totalCacheSteps: number) => void) => void;
             executeCmd: (command: string) => void;
             selectFolder:()=>Promise<string | null>;
+            deleteFolder:(path:string)=>Promise<boolean>;
         };
         electronStore: {
             set: (key: string, value: any) => void;

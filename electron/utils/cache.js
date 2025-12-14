@@ -8,13 +8,14 @@ import {fileURLToPath} from "url";
 import {promisify} from "node:util";
 import xml2js from "xml2js";
 import sharp from "sharp";
+import Store from "electron-store";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const appDataPath = path.join(__dirname, 'appData/icons');
 const parseString = promisify(xml2js.parseString)
 
 const validImageExtensions = [".png", ".jpg", ".jpeg"];
-
+const store = new Store();
 const startMenuPaths = [
     path.join(os.homedir(), "AppData/Roaming/Microsoft/Windows/Start Menu/Programs"),
     "C:/ProgramData/Microsoft/Windows/Start Menu/Programs",
@@ -197,7 +198,8 @@ export async function cacheUwpIcon(installPath, name, appIconsCache) {
         return appIconsCache;
     }
 }
-export async function cacheFolder(dirPath) {
+export async function cacheFolder(dirPath,cachedFolders,cachedFoldersData,newFolder=true) {
+    console.time("timeStart")
     const filesArray = [];
 
     async function readDirRecursive(currentPath) {
@@ -220,5 +222,9 @@ export async function cacheFolder(dirPath) {
         }
     }
     await readDirRecursive(dirPath);
-    return {"path": dirPath, "files": filesArray};
+    console.timeEnd("timeStart")
+    cachedFoldersData[dirPath] = filesArray;
+    if (newFolder) cachedFolders.push(dirPath);
+
+    return true
 }

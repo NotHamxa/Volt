@@ -19,8 +19,9 @@ if (!app.requestSingleInstanceLock()) {
     process.exit(0);
 }
 const store = new Store();
-// store.delete("cachedFoldersData")
-// store.delete("cachedFolders")
+store.delete("cachedFoldersData")
+store.delete("cachedFolders")
+store.delete("firstTimeExperience")
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const startMenuPaths = [
@@ -37,11 +38,34 @@ let mainWindow = null;
 let lastFocusedWindow = null;
 let appCache = [];
 let appIconsCache = {}
+let cachedFolders = [];
+let cachedFoldersData = {};
 let loadingAppCache = true;
 let fixWindowOpen = false;
 let windowLocked = false;
-
-
+let firstTimeExperience = false;
+const folderWatcher = chokidar.watch([],{
+    persistent: true,
+    ignoreInitial: true
+})
+folderWatcher.on("add", path => {
+    let folder = null;
+    for (let i=0; i<cachedFolders.length; i++) {
+        if (path.startsWith(cachedFolders[i])) {
+            folder = cachedFolders[i];
+        }
+    }
+    if (folder && cachedFoldersData[folder]) {
+        cachedFoldersData[folder].push(path);
+        store.set("cachedFoldersData", folder);
+    }
+})
+folderWatcher.on("unlink", path => {
+    console.log(path);
+})
+folderWatcher.on("unlinkDir", path => {
+    console.log(path);
+})
 
 const showMainWindow = () => {
     if (!mainWindow) return;
@@ -50,7 +74,6 @@ const showMainWindow = () => {
     mainWindow.focus();
     globalShortcut.register("Esc", handleEsc);
 };
-
 const hideMainWindow = () => {
     if (!mainWindow || fixWindowOpen || windowLocked) return;
     console.log(fixWindowOpen)
@@ -61,7 +84,6 @@ const hideMainWindow = () => {
         lastFocusedWindow.focus();
     }
 };
-
 const handleWindowLock = ()=>{
     windowLocked = !windowLocked;
     if (windowLocked) mainWindow.webContents.send('window-locked')
@@ -84,12 +106,13 @@ const changeOpenBind = async (binding)=>{
     store.set("openWindowBind", binding);
     return true
 }
-
 const handleEsc = () => {
     if (mainWindow?.isVisible()) {
         hideMainWindow();
     }
 };
+
+
 ipcMain.handle('set-open-bind',async (_,binding)=>{
     return await changeOpenBind(binding);
 })
@@ -116,7 +139,7 @@ ipcMain.on('open-external', (_, url) => {
     shell.openExternal(url).then(() => hideMainWindow());
 });
 ipcMain.handle('search-files', async (_, dir, pattern) => {
-    return await searchFilesAndFolders(dir, pattern);
+    return await searchFilesAndFolders(dir, pattern,cachedFoldersData);
 });
 ipcMain.handle('search-apps', async (_, pattern) => {
     return await searchApps(appCache, pattern);
@@ -175,23 +198,16 @@ ipcMain.handle("select-folder", async () => {
     mainWindow.focus()
     fixWindowOpen = false;
     if (!dirPath) return null;
-    cacheFolder(dirPath).then(async (result) => {
-        const cachedFoldersData = await store.get("cachedFoldersData") ?? {};
-        cachedFoldersData[result.path] = result.files;
-        store.set("cachedFoldersData", cachedFoldersData);
-        store.set("cachedFolders",JSON.stringify(Object.keys(cachedFoldersData)));
-    })
+    console.log("Starting Cache")
+    await cacheFolder(dirPath, cachedFolders, cachedFoldersData)
     return dirPath;
 });
 ipcMain.handle("delete-folder", async (_, path) => {
-    const cachedFolders = JSON.parse(await store.get("cachedFolders") || "[]");
-    const cachedFoldersData = await store.get("cachedFoldersData") ?? {};
     if (!cachedFolders.includes(path)) return false;
     delete cachedFoldersData[path];
-    const updatedFolders = Object.keys(cachedFoldersData);
+    const updatedFolders = cachedFolders.filter(folder => folder !== path);
     store.set("cachedFoldersData", cachedFoldersData);
     store.set("cachedFolders", JSON.stringify(updatedFolders));
-
     return true;
 });
 
@@ -221,7 +237,6 @@ const createWindow = () => {
 
     const tray = new Tray(path.join(__dirname, "Assets/appLogo2CroppedNoBg.png"));
     tray.setToolTip("Volt")
-
     const contextMenu = Menu.buildFromTemplate([
         {
             label: 'Quit',
@@ -232,7 +247,6 @@ const createWindow = () => {
             },
         },
     ]);
-
     tray.setContextMenu(contextMenu);
 
     const devServerURL = "http://localhost:5173";
@@ -300,12 +314,26 @@ const loadAppIconsCache = async ()=> {
 app.whenReady().then(async () => {
     const loadData = async ()=>{
         try {
+            firstTimeExperience = store.get("firstTimeExperience") ?? true;
+            console.log(firstTimeExperience);
             appCache = await loadApps();
-
+            cachedFolders = JSON.parse(await store.get("cachedFolders") ?? "[]");
+            if (firstTimeExperience) {
+                const desktopPath = app.getPath("desktop");
+                const downloadsPath = app.getPath("downloads");
+                cachedFolders.push(desktopPath);
+                cachedFolders.push(downloadsPath);
+                store.set("cachedFolders", JSON.stringify(cachedFolders));
+            }
+            for (const path of cachedFolders){
+                await cacheFolder(path, cachedFolders,cachedFoldersData, false);
+                folderWatcher.add(path);
+            }
             setTimeout(async ()=>{
                 await validateCache();
                 await loadAppIconsCache();
             }, 1);
+            store.set("firstTimeExperience", false);
         } catch(error) {
             appCache = [];
         }
@@ -327,23 +355,22 @@ app.whenReady().then(async () => {
     await loadData();
 
     createWindow();
-    const watcher = chokidar.watch(startMenuPaths,{
+    const appsWatcher = chokidar.watch(startMenuPaths,{
         persistent: true,
         ignoreInitial: true
     });
-    watcher.on("add",async _=>{
+    appsWatcher.on("add",async _=>{
         console.log("Adding...");
         await loadData();
 
     })
-    watcher.on("unlink",async _=>{
+    appsWatcher.on("unlink",async _=>{
         console.log("Unlinking...");
         setTimeout(loadData, 5000);
     })
-    watcher.on("unlinkDir",async _=>{
+    appsWatcher.on("unlinkDir",async _=>{
         await loadData()
     })
-
 
     globalShortcut.register(openShortcut, () => {
         if (!mainWindow) return;

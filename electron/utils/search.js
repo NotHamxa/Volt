@@ -1,10 +1,8 @@
 import path from "path";
 import os from "os";
-import fg from "fast-glob";
-import fs from "fs";
 import settings from "./settings.json" with { type: 'json' };
 import Store from "electron-store";
-const store = new Store();
+import {app} from "electron";
 const normaliseString = (str) => {
     return str.toLowerCase().replace(/\s+/g, "");
 }
@@ -12,23 +10,30 @@ const normaliseString = (str) => {
 export async function searchApps(appCache,query) {
     if (!appCache || !Array.isArray(appCache)) return [];
     const lowerQuery = normaliseString(query).trim();
-    return appCache.filter(app => normaliseString(app.name).includes(lowerQuery));
+    const resultsMap = new Map();
+    for (const app of appCache) {
+        if (normaliseString(app.name).includes(lowerQuery)) {
+            resultsMap.set(app.name, app);
+        }
+    }
+    return Array.from(resultsMap.values());
 }
 
 export async function searchSettings(query) {
     if (!settings) return [];
     const lowerQuery = normaliseString(query).trim();
-    return settings.filter(app => normaliseString(app.name).includes(lowerQuery));
+    const resultsMap = new Map();
+    for (const setting of settings){
+        if (normaliseString(setting.name).includes(lowerQuery)) {
+            resultsMap.set(setting.name, setting);
+        }
+    }
+    return Array.from(resultsMap.values());
 }
 
-export async function searchFilesAndFolders(baseDir, query) {
+export async function searchFilesAndFolders(baseDir, query, cachedFolderData) {
     const lowerQuery = normaliseString(query).trim();
-    const baseDirs = [path.join(os.homedir(), "Downloads")];
-    const cachedFolderData = await store.get("cachedFoldersData") ?? {}
-
-    if (baseDir!==""){
-        baseDirs.push(baseDir);
-    }
+    console.log(app.getPath("desktop"),app.getPath("downloads"));
     const userHome = os.homedir();
     const folderMap = {
         Downloads: path.join(userHome, "Downloads"),
@@ -46,37 +51,20 @@ export async function searchFilesAndFolders(baseDir, query) {
             })
         }
     }
-
-    const dirSearchPromises = baseDirs.map(async (dir) => {
-        const matches = await fg([`**/*`], {
-            cwd: dir,
-            absolute: true,
-            onlyFiles: false,
-            suppressErrors: true
-        });
-
-        return matches.flatMap(fullPath => {
-            try {
-                const stat = fs.statSync(fullPath);
-                const name = path.basename(fullPath);
-                if (normaliseString(name).includes(lowerQuery)) {
-                    return [{
-                        name,
-                        type: stat.isFile() ? 'file' : 'folder',
-                        path: fullPath,
-                    }];
-                }
-            } catch {
+    const resultsMap = new Map();
+    for (const list of Object.values(cachedFolderData)) {
+        for (const item of list) {
+            if (!item._normalizedName) {
+                item._normalizedName = normaliseString(item.name);
             }
-            return [];
-        });
-    });
-    const filteredCacheFiles = Object.values(cachedFolderData).flatMap(list => list.filter(item => normaliseString(item.name).startsWith(lowerQuery)));
-    const uniqueFiles = Array.from(
-        new Map(filteredCacheFiles.map(item => [item.name, item])).values()
-    );
 
-    const searchResults = (await Promise.all(dirSearchPromises)).flat();
-    return [...suggestedFolders, ...searchResults,...uniqueFiles];
+            if (item._normalizedName.startsWith(lowerQuery)) {
+                if (!resultsMap.has(item.name)) {
+                    resultsMap.set(item.name, item);
+                }
+            }
+        }
+    }
+    return [...suggestedFolders,...Array.from(resultsMap.values())];
 }
 

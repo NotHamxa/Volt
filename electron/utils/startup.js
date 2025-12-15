@@ -5,7 +5,7 @@ import {getUwpInstallLocations} from "./uwpAppLogo.js";
 
 const store = new Store();
 
-export async function loadFileData(cache,folderWatcher){
+export async function loadFileData(cache){
     cache.firstTimeExperience = store.get("firstTimeExperience") ?? true;
 
     cache.cachedFolders = JSON.parse(await store.get("cachedFolders") ?? "[]");
@@ -19,7 +19,6 @@ export async function loadFileData(cache,folderWatcher){
     }
     for (const path of cache.cachedFolders){
         await cacheFolder(path, cache,false);
-        folderWatcher.add(path);
     }
 }
 

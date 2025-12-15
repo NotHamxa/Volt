@@ -2,13 +2,13 @@ import {app, BrowserWindow, globalShortcut, ipcMain, shell, Tray, Menu, dialog} 
 import Store from "electron-store";
 import path from "path";
 import {fileURLToPath} from "url";
-import {cacheAppIcon, cacheFolder, cacheUwpIcon, deleteFolder, loadApps} from "./utils/cache.js";
+import { cacheFolder, deleteFolder} from "./utils/cache.js";
 import {searchApps, searchFilesAndFolders, searchSettings} from "./utils/search.js";
 import {getGoogleSuggestions} from "./utils/autoSuggestion.js";
 import {launchApp} from "./utils/launchApp.js";
 import {getAppLogo} from "./utils/appLogo.js";
 import {openFileWith} from "./utils/openFileWith.js";
-import {getUwpAppIcon, getUwpInstallLocations} from "./utils/uwpAppLogo.js";
+import {getUwpAppIcon} from "./utils/uwpAppLogo.js";
 import chokidar from "chokidar";
 import {executeUserCommand} from "./utils/cmd.js";
 import os from "os";
@@ -42,33 +42,57 @@ const cache = {
     appIconsCache:{},
     cachedFolders:[],
     cachedFoldersData:{},
-    loadingAppCache:true
+    loadingAppCache:true,
+    firstTimeExperience:false
 }
-
 let fixWindowOpen = false;
 let windowLocked = false;
-let firstTimeExperience = false;
 const folderWatcher = chokidar.watch([],{
     persistent: true,
     ignoreInitial: true
 })
-folderWatcher.on("add", path => {
+const getBaseFolder = (path) => {
     let folder = null;
-    for (let i=0; i<cache.cachedFolders.length; i++) {
-        if (path.startsWith(cache.cachedFolders[i])) {
-            folder = cache.cachedFolders[i];
+    let charLen = 0;
+    for (const dir of cache.cachedFolders) {
+        if (path.startsWith(dir) && charLen <= dir.length) {
+            charLen = dir.length;
+            folder = dir;
         }
     }
+    console.log(folder);
+    return folder;
+}
+folderWatcher.on("add", filePath => {
+    console.log("Adding...",filePath);
+    const folder = getBaseFolder(filePath);
     if (folder && cache.cachedFoldersData[folder]) {
-        cache.cachedFoldersData[folder].push(path);
+        cache.cachedFoldersData[folder].push({
+            name: path.basename(filePath),
+            source: "",
+            appId: "",
+            path: filePath,
+            type: "file"
+        });
         store.set("cachedFoldersData", folder);
     }
 })
-folderWatcher.on("unlink", path => {
-    console.log(path);
+folderWatcher.on("unlink", filePath => {
+    const folder = getBaseFolder(filePath);
+    if (folder && cache.cachedFoldersData[folder]) {
+        cache.cachedFoldersData[folder] = cache.cachedFoldersData[folder].filter(file=>file.path!==filePath)
+    }
 })
-folderWatcher.on("unlinkDir", path => {
-    console.log(path);
+folderWatcher.on("unlinkDir", async (dirPath) => {
+    if (cache.cachedFolders.contains(dirPath)) {
+        await deleteFolder(dirPath,cache);
+    }
+    else{
+        const folder = getBaseFolder(path);
+        if (folder && cache.cachedFoldersData[folder]) {
+            cache.cachedFoldersData[folder] = cache.cachedFoldersData[folder].filter(file=>file.path.startsWith(dirPath));
+        }
+    }
 })
 
 const showMainWindow = () => {
@@ -206,6 +230,7 @@ ipcMain.handle("select-folder", async () => {
     if (!dirPath) return null;
     console.log("Starting Cache")
     await cacheFolder(dirPath, cache)
+    folderWatcher.add(dirPath);
     return dirPath;
 });
 ipcMain.handle("delete-folder", async (_, path) => {
@@ -277,7 +302,8 @@ const createWindow = async () => {
 app.whenReady().then(async () => {
     await createWindow();
     await loadAppData(mainWindow.webContents,cache);
-    await loadFileData(cache,folderWatcher)
+    await loadFileData(cache)
+    folderWatcher.add(cache.cachedFolders)
     cache.loadingAppCache = false;
     mainWindow.webContents.send('cache-loaded');
 

@@ -348,11 +348,9 @@ export default function HelpPage({ helpModalOpen, setHelpModalOpen }: IHelpPage)
                                 <Plus size={24} />
                             </Button>
                         </div>
-
-                        {/* Scrollable folder list */}
-                        <div className="flex-1 overflow-y-auto space-y-2">
+                        <ScrollArea className="max-h-[40vh] w-full flex space-y-2">
                             {cachedFolders.map((folder, index) => (
-                                <Item key={index} className="flex justify-between" variant="outline">
+                                <Item key={index} className="flex justify-between mt-2 md-2" variant="outline">
                                     <Label>{folder}</Label>
                                     <Button
                                         variant="outline"
@@ -365,7 +363,7 @@ export default function HelpPage({ helpModalOpen, setHelpModalOpen }: IHelpPage)
                                     </Button>
                                 </Item>
                             ))}
-                        </div>
+                        </ScrollArea>
 
                         {/* Footer note */}
                         <div className="mt-2 flex items-center text-gray-400 text-sm">

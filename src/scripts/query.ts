@@ -10,7 +10,9 @@ interface QueryData {
 
 async function getQueryData({ query, setBestMatch,searchQueryFilters }: QueryData) {
     let apps: SearchQueryT[] = await window.apps.searchApps(query);
+    const start = performance.now();
     const downloadFileFolders = await window.file.searchFilesAndFolders("", query);
+    window.electron.log("Search End: "+(performance.now()-start).toString()+"ms");
     const settings = await window.apps.searchSettings(query);
     let downloadFiles = downloadFileFolders.filter(item => item.type === "file");
     let downloadFolders = downloadFileFolders.filter(item => item.type === "folder");
@@ -70,7 +72,7 @@ async function getQueryData({ query, setBestMatch,searchQueryFilters }: QueryDat
     } else {
         setBestMatch(null);
     }
-
+    window.electron.log("Function End: "+(performance.now()-start).toString()+"ms");
     return {
         apps:apps,
         folders: downloadFolders,

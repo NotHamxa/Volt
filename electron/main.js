@@ -112,7 +112,9 @@ const handleEsc = () => {
     }
 };
 
-
+ipcMain.on("log",async (_,data)=>{
+    console.log(data)
+})
 ipcMain.handle('set-open-bind',async (_,binding)=>{
     return await changeOpenBind(binding);
 })

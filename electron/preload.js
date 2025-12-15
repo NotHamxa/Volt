@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("electron", {
+    log:(data)=>{ipcRenderer.send("log",data)},
     invoke: (channel, data) => ipcRenderer.invoke(channel, data),
     setOpenBind:(binding)=>ipcRenderer.invoke("set-open-bind", binding),
     openExternal: (url) => ipcRenderer.send('open-external', url),

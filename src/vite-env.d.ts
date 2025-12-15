@@ -6,6 +6,7 @@ export {};
 declare global {
     interface Window {
         electron: {
+            log:(data:any) => void;
             invoke: (channel: string, data?: any) => Promise<any>;
             setOpenBind:(binding:string)=>Promise<boolean>;
             openExternal:(url: string) => void;

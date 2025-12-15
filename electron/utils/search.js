@@ -33,7 +33,6 @@ export async function searchSettings(query) {
 
 export async function searchFilesAndFolders(baseDir, query, cachedFolderData) {
     const lowerQuery = normaliseString(query).trim();
-    console.log(app.getPath("desktop"),app.getPath("downloads"));
     const userHome = os.homedir();
     const folderMap = {
         Downloads: path.join(userHome, "Downloads"),

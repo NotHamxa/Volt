@@ -224,7 +224,10 @@ export async function cacheFolder(dirPath,cachedFolders,cachedFoldersData,newFol
     await readDirRecursive(dirPath);
     console.timeEnd("timeStart")
     cachedFoldersData[dirPath] = filesArray;
-    if (newFolder) cachedFolders.push(dirPath);
+    if (newFolder) {
+        cachedFolders.push(dirPath);
+        store.set("cachedFolders",JSON.stringify(cachedFolders))
+    }
 
     return true
 }

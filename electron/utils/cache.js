@@ -198,7 +198,7 @@ export async function cacheUwpIcon(installPath, name, appIconsCache) {
         return appIconsCache;
     }
 }
-export async function cacheFolder(dirPath,cachedFolders,cachedFoldersData,newFolder=true) {
+export async function cacheFolder(dirPath,cache,newFolder=true) {
     console.time("timeStart")
     const filesArray = [];
 
@@ -223,11 +223,17 @@ export async function cacheFolder(dirPath,cachedFolders,cachedFoldersData,newFol
     }
     await readDirRecursive(dirPath);
     console.timeEnd("timeStart")
-    cachedFoldersData[dirPath] = filesArray;
+    cache.cachedFoldersData[dirPath] = filesArray;
     if (newFolder) {
-        cachedFolders.push(dirPath);
-        store.set("cachedFolders",JSON.stringify(cachedFolders))
+        cache.cachedFolders.push(dirPath);
+        store.set("cachedFolders",JSON.stringify(cache.cachedFolders))
     }
-
     return true
+}
+export async function deleteFolder(dirPath,cache) {
+    if (!cache.cachedFolders.includes(dirPath)) return false;
+    delete cache.cachedFoldersData[dirPath];
+    const updatedFolders = cache.cachedFolders.filter(folder => folder !== dirPath);
+    store.set("cachedFolders", JSON.stringify(updatedFolders));
+    return true;
 }

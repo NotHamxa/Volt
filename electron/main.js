@@ -20,9 +20,9 @@ if (!app.requestSingleInstanceLock()) {
     process.exit(0);
 }
 const store = new Store();
-store.delete("cachedFoldersData")
-store.delete("cachedFolders")
-store.delete("firstTimeExperience")
+// store.delete("cachedFoldersData")
+// store.delete("cachedFolders")
+// store.delete("firstTimeExperience")
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const startMenuPaths = [
@@ -84,7 +84,7 @@ folderWatcher.on("unlink", filePath => {
     }
 })
 folderWatcher.on("unlinkDir", async (dirPath) => {
-    if (cache.cachedFolders.contains(dirPath)) {
+    if (cache.cachedFolders.includes(dirPath)) {
         await deleteFolder(dirPath,cache);
     }
     else{
@@ -94,7 +94,6 @@ folderWatcher.on("unlinkDir", async (dirPath) => {
         }
     }
 })
-
 const showMainWindow = () => {
     if (!mainWindow) return;
     lastFocusedWindow = BrowserWindow.getFocusedWindow();
@@ -116,6 +115,7 @@ const handleWindowLock = ()=>{
     windowLocked = !windowLocked;
     if (windowLocked) mainWindow.webContents.send('window-locked')
     else mainWindow.webContents.send('window-unlocked');
+    console.log(process.memoryUsage().heapUsed/8/1024/1024)
 }
 const changeOpenBind = async (binding)=>{
     globalShortcut.unregister(openShortcut);
@@ -228,11 +228,21 @@ ipcMain.handle("select-folder", async () => {
     mainWindow.focus()
     fixWindowOpen = false;
     if (!dirPath) return null;
-    console.log("Starting Cache")
-    await cacheFolder(dirPath, cache)
-    folderWatcher.add(dirPath);
     return dirPath;
 });
+ipcMain.handle("cache-folder",async (_, path) => {
+    console.log(path);
+    const before = process.memoryUsage().heapUsed;
+    const result = await cacheFolder(path,cache);
+    const after = process.memoryUsage().heapUsed;
+
+    console.log(`Approx memory used by folder cache: ${(after - before)/1024/1024} MB`);
+
+    if (!result) return false;
+    folderWatcher.add(path);
+    return true;
+
+})
 ipcMain.handle("delete-folder", async (_, path) => {
     return await deleteFolder(path,cache)
 });

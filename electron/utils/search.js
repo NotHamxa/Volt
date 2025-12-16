@@ -57,7 +57,7 @@ export async function searchFilesAndFolders(baseDir, query, cachedFolderData) {
                 item._normalizedName = normaliseString(item.name);
             }
 
-            if (item._normalizedName.startsWith(lowerQuery)) {
+            if (item._normalizedName.includes(lowerQuery)) {
                 if (!resultsMap.has(item.name)) {
                     resultsMap.set(item.name, item);
                 }

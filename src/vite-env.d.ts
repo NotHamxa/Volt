@@ -42,6 +42,7 @@ declare global {
             openPath: (path: string) => void;
             openInExplorer:(path: string) => void;
             openFileWith:(path: string) => void;
+            cacheFolder:(path: string) => Promise<boolean>;
         }
     }
 }

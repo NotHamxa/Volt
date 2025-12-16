@@ -2,7 +2,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog.tsx";
 import React, { useEffect, useRef, useState } from "react";
 import { Label } from "@/components/ui/label.tsx";
 import { Button } from "@/components/ui/button.tsx";
-import {Check, X, Plus, Trash} from "lucide-react";
+import {Check, X, Plus, Trash, Folder} from "lucide-react";
 import { showToast } from "@/components/toast.tsx";
 import { BarLoader } from "react-spinners";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.tsx";
@@ -153,6 +153,7 @@ export default function HelpPage({ helpModalOpen, setHelpModalOpen }: IHelpPage)
     const [bangs, setBangs] = useState<BangType[] | null>(null);
 
     const [cachedFolders,setCachedFolders] = useState<string[]>([]);
+    const [loadingCachedFolders, setLoadingCachedFolders] = useState<string[]>([]);
     const [removingFolder, setRemovingFolder] = useState<string | null>(null);
     const onLoad = async () => {
         setCurrentOpenBind(await window.electronStore.get("openWindowBind"));
@@ -228,12 +229,33 @@ export default function HelpPage({ helpModalOpen, setHelpModalOpen }: IHelpPage)
             pressedKeysRef.current.clear();
         }
     };
+    const cacheFolder = async (path:string) => {
+        setLoadingCachedFolders([...loadingCachedFolders, path]);
+        await window.file.cacheFolder(path)
+        setCachedFolders([...cachedFolders, path]);
+        setLoadingCachedFolders(loadingCachedFolders.filter(folder=>folder!==path));
+    }
     const onAddFolder = async ()=>{
         const folder = await window.electron.selectFolder();
-        console.log(folder);
-        if (folder) {
-            setCachedFolders([...cachedFolders, folder]);
+        if (!folder) return;
+        if (cachedFolders.includes(folder)){
+            showToast("Warning", "Folder already exists!");
+            return
         }
+        for (const dir of cachedFolders){
+            if (folder.startsWith(dir)){
+                showToast(
+                    "Warning",
+                    "Adding a parent folder will automatically remove its subfolders from the list.",
+                    "Proceed",
+                    async ()=>{
+                        await cacheFolder(dir);
+                    }
+                )
+                return;
+            }
+        }
+        await cacheFolder(folder);
     }
     const deleteFolder = async (path:string)=>{
         setRemovingFolder(path);
@@ -352,23 +374,38 @@ export default function HelpPage({ helpModalOpen, setHelpModalOpen }: IHelpPage)
                             {cachedFolders.map((folder, index) => (
                                 <Item key={index} className="flex justify-between mt-2 md-2" variant="outline">
                                     <Label>{folder}</Label>
-                                    <Button
-                                        variant="outline"
-                                        disabled={removingFolder!==null}
-                                        onClick={()=>{
-                                            deleteFolder(folder);
-                                        }}
-                                    >
-                                        {removingFolder !== null && removingFolder === folder?<Spinner/>:<Trash color="red" />}
-                                    </Button>
+                                    <div>
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => {
+                                                window.file.openInExplorer(folder);
+                                            }}
+                                            className={"mr-2"}
+                                        >
+                                            <Folder/>
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            disabled={removingFolder!==null}
+                                            onClick={()=>{
+                                                deleteFolder(folder);
+                                            }}
+                                        >
+                                            {removingFolder !== null && removingFolder === folder?<Spinner/>:<Trash color="red" />}
+                                        </Button>
+                                    </div>
+                                </Item>
+                            ))}
+                            {loadingCachedFolders.map((folder, index) => (
+                                <Item key={index} className="flex justify-between mt-2 md-2" variant="outline">
+                                    <Label>{folder}</Label>
+                                    <Spinner/>
                                 </Item>
                             ))}
                         </ScrollArea>
-
-                        {/* Footer note */}
                         <div className="mt-2 flex items-center text-gray-400 text-sm">
                             <label>
-                                Note: Adding too many folders or large sized folders may cause performance issues
+                                Note: Large or numerous folders can take more memory and may affect performance
                             </label>
                         </div>
                     </TabsContent>

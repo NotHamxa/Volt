@@ -29,6 +29,7 @@ contextBridge.exposeInMainWorld("file",{
     openInExplorer:(path)=>ipcRenderer.send('open-in-explorer', path),
     openFileWith:(path)=>ipcRenderer.send('open-file-with', path),
     cacheFolder:(path)=>ipcRenderer.invoke('cache-folder', path),
+    getImageB64:(path,width=50)=>ipcRenderer.invoke('get-image-b64', path,width),
 })
 
 contextBridge.exposeInMainWorld("apps",{

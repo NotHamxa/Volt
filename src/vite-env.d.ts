@@ -43,6 +43,7 @@ declare global {
             openInExplorer:(path: string) => void;
             openFileWith:(path: string) => void;
             cacheFolder:(path: string) => Promise<boolean>;
+            getImageB64:(path,width=50)=>Promise<string | null>;
         }
     }
 }

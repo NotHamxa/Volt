@@ -51,19 +51,25 @@ export async function searchFilesAndFolders(baseDir, query, cachedFolderData) {
         }
     }
     const resultsMap = new Map();
+    const secondMap = new Map();
     for (const list of Object.values(cachedFolderData)) {
         for (const item of list) {
             if (!item._normalizedName) {
                 item._normalizedName = normaliseString(item.name);
             }
 
-            if (item._normalizedName.includes(lowerQuery)) {
+            if (item._normalizedName.startsWith(lowerQuery)) {
                 if (!resultsMap.has(item.name)) {
                     resultsMap.set(item.name, item);
                 }
             }
+            else if (item._normalizedName.includes(lowerQuery)) {
+                if (!secondMap.has(item.name)) {
+                    secondMap.set(item.name, item);
+                }
+            }
         }
     }
-    return [...suggestedFolders,...Array.from(resultsMap.values())];
+    return [...suggestedFolders,...Array.from(resultsMap.values()),...Array.from(secondMap.values())];
 }
 

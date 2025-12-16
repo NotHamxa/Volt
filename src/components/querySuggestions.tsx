@@ -94,6 +94,16 @@ const getSpecialFolderIcon = (name:string)=>{
             return <Folder size={24}/>
     }
 }
+function getParentFolders(p: string): string {
+    const normalized = p.replace(/\\/g, '/');
+    const segments = normalized.split('/').filter(Boolean);
+
+    if (segments.length <= 2) {
+        return segments[0] || '';
+    }
+    return "../"+segments.slice(segments.length - 3, segments.length - 1).join('/');
+}
+
 const isSameApp = (a: SearchQueryT, b: SearchQueryT) => {
     return (
         a.appId === b.appId &&
@@ -104,11 +114,13 @@ const isSameApp = (a: SearchQueryT, b: SearchQueryT) => {
     );
 };
 
-export function QueryComponent({ item,
+export function QueryComponent({
+                                   item,
                                    highlighted = false,
                                    isAppPinned=false,
                                    pinApp = ()=>{},
-                                   unPinApp = ()=>{}}: QueryComponentProps) {
+                                   unPinApp = ()=>{},
+}: QueryComponentProps) {
     const { name, type, path } = item;
 
     const [hovered, setHovered] = useState(false);
@@ -120,6 +132,7 @@ export function QueryComponent({ item,
     const handleBlur = () => setIsFocused(false);
 
     const [logo,setLogo] = useState<string>();
+
     const getLogo = async () => {
         if (item.path){
             const appLogo = await window.apps.getAppLogo(item);
@@ -140,8 +153,7 @@ export function QueryComponent({ item,
                     onClick={async () => {
                         if (type === "app") {
                             await window.apps.openApp(item);
-                        }
-                        else if (path) {
+                        } else if (path) {
                             window.file.openPath(path);
                         }
                     }}
@@ -154,33 +166,34 @@ export function QueryComponent({ item,
                         cursor: "pointer",
                         display: "flex",
                         alignItems: "center",
-                        gap: "8px",
-                        padding: "8px",
+                        justifyContent: "space-between", // left and right
+                        padding: "8px 12px",
                         borderRadius: "8px",
                         background: isHighlighted ? "rgba(255, 255, 255, 0.1)" : "transparent",
                         userSelect: "none",
                         transition: "background 0.15s ease-in-out",
                         outline: isFocused ? "2px solid #3faffa" : "none",
+                        gap: "12px",
                     }}
                 >
-                    {type === "app" && (
-                        logo? (
-                            <img style={{ width: 24, height: 24,objectFit: 'contain' }} src={logo} />
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        {type === "app" && (logo ? (
+                            <img style={{ width: 24, height: 24, objectFit: 'contain' }} src={logo} />
                         ) : (
                             <AppWindowIcon size={24} />
-                        )
-                    )}
-                    {type === "folder" && (
-                        item.source
-                            ? getSpecialFolderIcon(item.name)
-                            : <Folder size={24} />
-                    )}
-                    {type === "file" && path && getFileIcon(path)}
-                    {type==="setting" &&(
-                        <Bolt size={24} />
-                    )}
-                    <Label>{name}</Label>
+                        ))}
+                        {type === "folder" && (
+                            item.source ? getSpecialFolderIcon(item.name) : <Folder size={24} />
+                        )}
+                        {type === "file" && path && getFileIcon(path)}
+                        {type === "setting" && <Bolt size={24} />}
+                        <Label>{name}</Label>
+                    </div>
+                    <Label style={{ marginLeft: "auto", opacity: 0.7, fontSize: 12 }}>
+                        {type === "file" && path && getParentFolders(path)}
+                    </Label>
                 </button>
+
             </ContextMenuTrigger>
             <ContextMenuContent>
                 {type==="app" && <>
@@ -259,22 +272,38 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
     const [folders, setFolders] = useState<SearchQueryT[]>([]);
     const [files, setFiles] = useState<SearchQueryT[]>([]);
     const [settings, setSettings] = useState<SearchQueryT[]>([]);
-
+    useEffect(() => {
+        const getAppData = async () => {
+            const pApps = await window.electronStore.get("pinnedApps")
+            setPinnedApps(pApps?JSON.parse(pApps):[]);
+        }
+        getAppData()
+    }, []);
     const searchOptionsSelected = searchFilters.filter(Boolean).length;
-
-    let appLimit = 3;
-    let settingLimit = 3;
-    let fileLimit = 3;
-    let folderLimit = 3;
-    if (searchOptionsSelected === 2) {
-        appLimit = fileLimit = settingLimit = folderLimit = 5;
-    } else if (searchOptionsSelected === 1) {
-        appLimit = fileLimit = folderLimit = settingLimit = apps.length;
+    const categories = [
+        {name:"apps",item:apps},
+        {name:"folders",item:folders},
+        {name:"files",item:files},
+        {name:"settings",item:settings},
+    ]
+    let limit = 3;
+    let nullSets = 0;
+    for (const category of categories) {
+        if (category.item.length===0) nullSets++;
     }
-    const limitedApps = apps.slice(0, appLimit);
-    const limitedFiles = files.slice(0, fileLimit);
-    const limitedFolders = folders.slice(0, folderLimit);
-    const limitedSettings = settings.slice(0, settingLimit);
+    if (searchOptionsSelected === 3 || nullSets === 1){
+        limit = 5;
+    }
+    if (searchOptionsSelected === 2 || nullSets === 2) {
+        limit = 7;
+    } else if (searchOptionsSelected === 1 || nullSets === 3) {
+        const max = Math.max(apps.length,folders.length,files.length,settings.length)
+        limit = max>15?15:max;
+    }
+    const limitedApps = apps.slice(0, limit);
+    const limitedFiles = files.slice(0, limit);
+    const limitedFolders = folders.slice(0, limit);
+    const limitedSettings = settings.slice(0, limit);
     useEffect(() => {
         const words = query.trim().split(" ");
         const lastWord = words[words.length - 1];
@@ -339,13 +368,7 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
         };
     }, [focusedIndex, allResults]);
 
-    useEffect(() => {
-        const getAppData = async () => {
-            const pApps = await window.electronStore.get("pinnedApps")
-            setPinnedApps(pApps?JSON.parse(pApps):[]);
-        }
-        getAppData()
-    }, []);
+
     const pinApp = async (app: SearchQueryT) => {
         if (pinnedApps.length === 21) {
             showToast("Maximum Pins Reached", "You can pin up to 21 apps only.");
@@ -408,6 +431,7 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
                                         isAppPinned={isAppPinned(app)}
                                         pinApp={pinApp}
                                         unPinApp={unPinApp}
+
                                     />
                                 ))}
                             </>
@@ -421,6 +445,7 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
                                         key={file.name}
                                         item={file}
                                         highlighted={focusedIndex === index + (bestMatch ? 1 : 0) + limitedApps.length}
+
                                     />
                                 ))}
                             </>

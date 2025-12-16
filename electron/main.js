@@ -1,8 +1,8 @@
-import {app, BrowserWindow, globalShortcut, ipcMain, shell, Tray, Menu, dialog} from "electron";
+import {app, BrowserWindow, dialog, globalShortcut, ipcMain, Menu, shell, Tray} from "electron";
 import Store from "electron-store";
 import path from "path";
 import {fileURLToPath} from "url";
-import { cacheFolder, deleteFolder} from "./utils/cache.js";
+import {cacheFolder, deleteFolder} from "./utils/cache.js";
 import {searchApps, searchFilesAndFolders, searchSettings} from "./utils/search.js";
 import {getGoogleSuggestions} from "./utils/autoSuggestion.js";
 import {launchApp} from "./utils/launchApp.js";
@@ -14,6 +14,8 @@ import {executeUserCommand} from "./utils/cmd.js";
 import os from "os";
 import {fetchFavicon} from "./utils/linkFavicon.js";
 import {loadAppData, loadFileData} from "./utils/startup.js";
+import fs from "fs";
+import sharp from "sharp";
 
 if (!app.requestSingleInstanceLock()) {
     app.quit();
@@ -246,6 +248,21 @@ ipcMain.handle("cache-folder",async (_, path) => {
 ipcMain.handle("delete-folder", async (_, path) => {
     return await deleteFolder(path,cache)
 });
+ipcMain.handle('get-image-b64', async (event, imgPath, width = 50) => {
+    try {
+        const resolvedPath = path.resolve(imgPath);
+        if (!fs.existsSync(resolvedPath)) {
+            return null
+        }const buffer = await sharp(resolvedPath)
+            .resize({ width })
+            .jpeg({ quality: 30 })
+            .toBuffer();
+        return `data:image/jpeg;base64,${buffer.toString('base64')}`
+    } catch (error) {
+        return null;
+    }
+});
+
 
 const createWindow = async () => {
     if (mainWindow) {

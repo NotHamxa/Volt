@@ -36,6 +36,7 @@ type QueryComponentProps = {
     unPinApp?:(app:SearchQueryT) => void;
     isAppPinned?:boolean;
 };
+
 const getFileIcon = (path: string) => {
     const extension = path.split(".")[1];
     switch (extension.toLowerCase()) {

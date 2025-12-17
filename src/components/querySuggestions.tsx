@@ -23,6 +23,7 @@ import {SearchQueryT} from "@/interfaces/searchQuery.ts";
 import {ScrollArea} from "@/components/ui/scroll-area.tsx";
 import {getQueryData} from "@/scripts/query.ts";
 import {showToast} from "@/components/toast.tsx";
+import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip.tsx";
 
 interface IQuerySuggestions {
     query: string;
@@ -150,51 +151,81 @@ export function QueryComponent({
     return (
         <ContextMenu>
             <ContextMenuTrigger>
-                <button
-                    onClick={async () => {
-                        if (type === "app") {
-                            await window.apps.openApp(item);
-                        } else if (path) {
-                            window.file.openPath(path);
-                        }
-                    }}
-                    onMouseEnter={() => setHovered(true)}
-                    onMouseLeave={() => setHovered(false)}
-                    onFocus={handleFocus}
-                    onBlur={handleBlur}
-                    tabIndex={0}
-                    style={{
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between", // left and right
-                        padding: "8px 12px",
-                        borderRadius: "8px",
-                        background: isHighlighted ? "rgba(255, 255, 255, 0.1)" : "transparent",
-                        userSelect: "none",
-                        transition: "background 0.15s ease-in-out",
-                        outline: isFocused ? "2px solid #3faffa" : "none",
-                        gap: "12px",
-                    }}
-                >
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        {type === "app" && (logo ? (
-                            <img style={{ width: 24, height: 24, objectFit: 'contain' }} src={logo} />
-                        ) : (
-                            <AppWindowIcon size={24} />
-                        ))}
-                        {type === "folder" && (
-                            item.source ? getSpecialFolderIcon(item.name) : <Folder size={24} />
-                        )}
-                        {type === "file" && path && getFileIcon(path)}
-                        {type === "setting" && <Bolt size={24} />}
-                        <Label>{name}</Label>
-                    </div>
-                    <Label style={{ marginLeft: "auto", opacity: 0.7, fontSize: 12 }}>
-                        {type === "file" && path && getParentFolders(path)}
-                    </Label>
-                </button>
+                <TooltipProvider>
+                    <Tooltip delayDuration={300} >
+                        <TooltipTrigger asChild>
+                            <button
+                                onClick={async () => {
+                                    if (type === "app") {
+                                        await window.apps.openApp(item)
+                                    } else if (path) {
+                                        window.file.openPath(path)
+                                    }
+                                }}
+                                onMouseEnter={() => setHovered(true)}
+                                onMouseLeave={() => setHovered(false)}
+                                onFocus={handleFocus}
+                                onBlur={handleBlur}
+                                tabIndex={0}
+                                style={{
+                                    cursor: "pointer",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    padding: "8px 12px",
+                                    borderRadius: "8px",
+                                    background: isHighlighted
+                                        ? "rgba(255, 255, 255, 0.1)"
+                                        : "transparent",
+                                    userSelect: "none",
+                                    transition: "background 0.15s ease-in-out",
+                                    outline: isFocused ? "2px solid #3faffa" : "none",
+                                    gap: "12px",
+                                }}
+                            >
+                                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                    {type === "app" &&
+                                        (logo ? (
+                                            <img
+                                                style={{ width: 24, height: 24, objectFit: "contain" }}
+                                                src={logo}
+                                            />
+                                        ) : (
+                                            <AppWindowIcon size={24} />
+                                        ))}
 
+                                    {type === "folder" &&
+                                        (item.source
+                                            ? getSpecialFolderIcon(item.name)
+                                            : <Folder size={24} />)}
+
+                                    {type === "file" && path && getFileIcon(path)}
+                                    {type === "setting" && <Bolt size={24} />}
+
+                                    <Label>{name}</Label>
+                                </div>
+
+                                {type === "file" && path && (
+                                    <Label
+                                        style={{
+                                            marginLeft: "auto",
+                                            opacity: 0.7,
+                                            fontSize: 12,
+                                            cursor: "default",
+                                        }}
+                                    >
+                                        {getParentFolders(path)}
+                                    </Label>
+                                )}
+                            </button>
+                        </TooltipTrigger>
+                        {type === "file" && path && (
+                            <TooltipContent side={"right"}>
+                                <span>{path}</span>
+                            </TooltipContent>
+                        )}
+                    </Tooltip>
+                </TooltipProvider>
             </ContextMenuTrigger>
             <ContextMenuContent>
                 {type==="app" && <>

@@ -1,8 +1,6 @@
 import path from "path";
 import os from "os";
 import settings from "./settings.json" with { type: 'json' };
-import Store from "electron-store";
-import {app} from "electron";
 const normaliseString = (str) => {
     return str.toLowerCase().replace(/\s+/g, "");
 }

@@ -260,7 +260,8 @@ export async function cacheFolder(dirPath,cache,newFolder=true) {
         for (const entry of entries) {
             const fullPath = path.join(currentPath, entry.name);
             if (entry.isDirectory()) {
-                if (excludedFolders.includes(entry.name)) continue
+                console.log(entry.name);
+                if (excludedFolders.includes(entry.name)) continue;
                 await readDirRecursive(fullPath);
             } else if (entry.isFile()) {
                 const ext = path.extname(entry.name).replace(".","");
@@ -279,7 +280,6 @@ export async function cacheFolder(dirPath,cache,newFolder=true) {
     }
     await readDirRecursive(dirPath);
     cache.cachedFoldersData[dirPath] = filesArray;
-    console.log('Cached folder data', filesArray.length);
     console.log(extL);
     if (newFolder) {
         cache.cachedFolders.push(dirPath);

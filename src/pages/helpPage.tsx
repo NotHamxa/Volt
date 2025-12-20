@@ -244,24 +244,23 @@ export default function HelpPage({ helpModalOpen, setHelpModalOpen }: IHelpPage)
         }
         for (const dir of cachedFolders){
             if (folder.startsWith(dir)){
-                showToast(
-                    "Warning",
-                    "Adding a parent folder will automatically remove its subfolders from the list.",
-                    "Proceed",
-                    async ()=>{
-                        await cacheFolder(dir);
-                    }
-                )
+                window.electron.log(folder+"  "+dir);
+                showToast("Warning", "A parent folder is already added");
                 return;
+            }
+            else if (dir.startsWith(folder)){
+                window.electron.log(folder+"  "+dir);
+                await deleteFolder(dir,false);
+
             }
         }
         await cacheFolder(folder);
     }
-    const deleteFolder = async (path:string)=>{
+    const deleteFolder = async (path:string,show=true)=>{
         setRemovingFolder(path);
         const success = await  window.electron.deleteFolder(path);
         if (success) {
-            showToast("Success", "Successfully deleted.");
+            if (show) showToast("Success", "Successfully deleted.");
             setCachedFolders(cachedFolders.filter((cache)=>{
                 return cache!==path
             }))
@@ -285,9 +284,9 @@ export default function HelpPage({ helpModalOpen, setHelpModalOpen }: IHelpPage)
                     </div>
 
                     <TabsContent value="settings">
-                        <ScrollArea className="h-[60vh] w-full rounded-lg bg-[#18181b] p-4">
+                        <ScrollArea className="h-[60vh] w-full bg-[#18181b] p-4">
                             <div className={"space-y-6"}>
-                                <div className="bg-[#1f1f23] p-4 rounded-lg shadow-sm flex flex-col gap-3">
+                                <Item variant={"outline"}>
                                     <Label className="text-lg font-semibold">Open Bind</Label>
                                     <div className="flex items-center gap-3 flex-wrap">
                                         {listeningToKeyboard && (
@@ -306,20 +305,20 @@ export default function HelpPage({ helpModalOpen, setHelpModalOpen }: IHelpPage)
                                             {listeningToKeyboard ? (bindLoad ? <BarLoader width={50} /> : <Check size={20} />) : "Edit"}
                                         </Button>
                                         <span className="text-sm text-gray-400 font-mono">
-                                  {listeningToKeyboard ? openBind : currentOpenBind || "No bind set"}
-                                </span>
+                                          {listeningToKeyboard ? openBind : currentOpenBind || "No bind set"}
+                                        </span>
                                     </div>
-                                </div>
+                                </Item>
 
-                                <div className="bg-[#1f1f23] p-4 rounded-lg shadow-sm flex flex-col gap-3">
+                                <Item variant={"outline"}>
                                     <Label className="text-lg font-semibold">Search History</Label>
                                     <DeleteHistorySection />
-                                </div>
+                                </Item>
 
-                                <div className="bg-[#1f1f23] p-4 rounded-lg shadow-sm flex flex-col gap-3">
+                                <Item variant={"outline"}>
                                     <Label className="text-lg font-semibold">App Data</Label>
                                     <ResetAppData />
-                                </div>
+                                </Item>
                             </div>
                         </ScrollArea>
                     </TabsContent>

@@ -233,17 +233,10 @@ ipcMain.handle("select-folder", async () => {
     return dirPath;
 });
 ipcMain.handle("cache-folder",async (_, path) => {
-    console.log(path);
-    const before = process.memoryUsage().heapUsed;
     const result = await cacheFolder(path,cache);
-    const after = process.memoryUsage().heapUsed;
-
-    console.log(`Approx memory used by folder cache: ${(after - before)/1024/1024} MB`);
-
     if (!result) return false;
     folderWatcher.add(path);
     return true;
-
 })
 ipcMain.handle("delete-folder", async (_, path) => {
     return await deleteFolder(path,cache)

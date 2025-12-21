@@ -185,11 +185,11 @@ export default function App() {
                     alignItems: "center",
                     justifyContent: "center",
                     zIndex: 50,
-                    backgroundColor: "rgba(24, 24, 27, 0.95)", // match app bg, slightly translucent
+                    backgroundColor: "rgba(24, 24, 27, 0.95)",
                     padding: "20px 40px",
                     borderRadius: "12px",
-                    backdropFilter: "blur(10px)", // frosted-glass effect
-                    boxShadow: "0 4px 15px rgba(0, 0, 0, 0.3)", // subtle shadow
+                    backdropFilter: "blur(10px)",
+                    boxShadow: "0 4px 15px rgba(0, 0, 0, 0.3)",
                 }}
             >
 

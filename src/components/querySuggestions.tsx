@@ -181,6 +181,7 @@ export function QueryComponent({
                                     transition: "background 0.15s ease-in-out",
                                     outline: isFocused ? "2px solid #3faffa" : "none",
                                     gap: "12px",
+                                    width:"100%"
                                 }}
                             >
                                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -204,9 +205,7 @@ export function QueryComponent({
 
                                     <Label>{name}</Label>
                                 </div>
-
-                                {type === "file" && path && (
-                                    <Label
+                                 <Label
                                         style={{
                                             marginLeft: "auto",
                                             opacity: 0.7,
@@ -214,13 +213,14 @@ export function QueryComponent({
                                             cursor: "default",
                                         }}
                                     >
-                                        {getParentFolders(path)}
-                                    </Label>
-                                )}
+                                     {type==="file" && path? getParentFolders(path):""}
+                                     {type === "app"?"Application":""}
+                                     {type === "setting"?"Setting":""}
+                                 </Label>
                             </button>
                         </TooltipTrigger>
                         {type === "file" && path && (
-                            <TooltipContent side={"right"}>
+                            <TooltipContent side={"top"}>
                                 <span>{path}</span>
                             </TooltipContent>
                         )}
@@ -441,7 +441,6 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
                     <>
                         {bestMatch && (
                             <>
-                                <div style={styles.label}>Best Match</div>
                                 <QueryComponent
                                     item={bestMatch}
                                     highlighted={focusedIndex === 0}
@@ -454,7 +453,6 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
 
                         {limitedApps.length > 0 && searchFilters[0] && (
                             <>
-                                <div style={styles.label}>Applications</div>
                                 {limitedApps.map((app, index) => (
                                     <QueryComponent
                                         key={app.name}
@@ -471,7 +469,6 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
 
                         {limitedSettings.length > 0 && searchFilters[3] &&(
                             <>
-                                <div style={styles.label}>Settings</div>
                                 {limitedSettings.map((file, index) => (
                                     <QueryComponent
                                         key={file.name}
@@ -485,7 +482,6 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
 
                         {limitedFiles.length > 0 && searchFilters[1] &&  (
                             <>
-                                <div style={styles.label}>Files</div>
                                 {limitedFiles.map((file, index) => (
                                     <QueryComponent
                                         key={file.name}
@@ -499,7 +495,6 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
 
                         {limitedFolders.length > 0 && searchFilters[2] &&  (
                             <>
-                                <div style={styles.label}>Folders</div>
                                 {limitedFolders.map((folder, index) => (
                                     <QueryComponent
                                         key={folder.name}

@@ -15,7 +15,7 @@ import os from "os";
 import {fetchFavicon} from "./utils/linkFavicon.js";
 import {loadAppData, loadFileData} from "./utils/startup.js";
 import fs from "fs";
-import sharp from "sharp";
+import {Jimp} from "jimp";
 
 if (!app.requestSingleInstanceLock()) {
     app.quit();
@@ -25,6 +25,7 @@ const store = new Store();
 // store.delete("cachedFoldersData")
 // store.delete("cachedFolders")
 // store.delete("firstTimeExperience")
+// store.clear()
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const startMenuPaths = [
@@ -246,11 +247,12 @@ ipcMain.handle('get-image-b64', async (event, imgPath, width = 50) => {
         const resolvedPath = path.resolve(imgPath);
         if (!fs.existsSync(resolvedPath)) {
             return null
-        }const buffer = await sharp(resolvedPath)
-            .resize({ width })
-            .jpeg({ quality: 30 })
-            .toBuffer();
-        return `data:image/jpeg;base64,${buffer.toString('base64')}`
+        }
+        const image = await Jimp.read(resolvedPath);
+        image.resize(width, Jimp.AUTO).quality(30);
+
+        const buffer = await image.getBufferAsync(Jimp.MIME_JPEG);
+        return `data:image/jpeg;base64,${buffer.toString('base64')}`;
     } catch (error) {
         return null;
     }

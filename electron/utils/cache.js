@@ -2,16 +2,14 @@ import os from "os";
 import path from "path";
 import fs from "fs";
 import { readdir } from 'fs/promises';
-import {exec} from "child_process";
+import {exec, execFile} from "child_process";
 import {extractAppLogo} from "./appLogo.js";
-import {fileURLToPath} from "url";
 import {promisify} from "node:util";
 import xml2js from "xml2js";
-import sharp from "sharp";
 import Store from "electron-store";
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const appDataPath = path.join(__dirname, 'appData/icons');
+import {app} from "electron";
+import {Jimp} from "jimp";
+const appDataPath = path.join(app.getPath('userData'), 'icons');
 const parseString = promisify(xml2js.parseString)
 
 const validImageExtensions = [".png", ".jpg", ".jpeg"];
@@ -76,8 +74,28 @@ const excludedFolders = [
     // Containers / infra
     ".docker", ".vagrant", ".terraform"
 ];
+function resolveLnk(lnkPath) {
+    return new Promise((resolve, reject) => {
+        execFile(
+            "powershell.exe",
+            [
+                "-NoProfile",
+                "-Command",
+                `
+        $s = (New-Object -ComObject WScript.Shell).CreateShortcut('${lnkPath}');
+        $s.TargetPath
+        `
+            ],
+            { windowsHide: true },
+            (err, stdout) => {
+                if (err) return reject(err);
+                resolve(stdout.trim());
+            }
+        );
+    });
+}
 export async function loadApps() {
-
+    console.log(startMenuPaths)
     const results = [];
     async function collectShortcuts(dir) {
         if (!fs.existsSync(dir)) return;
@@ -88,6 +106,10 @@ export async function loadApps() {
             if (stat.isDirectory()) {
                 await collectShortcuts(fullPath);
             } else if ([".lnk"].some(ext => fullPath.toLowerCase().endsWith(ext))) {
+                // const target = await resolveLnk(fullPath);
+                // console.log(`[${target}] ${fullPath}`);
+                // if (!target.toLowerCase().endsWith(".exe"))
+                //     return;
                 results.push({
                     name: path.basename(fullPath, ".lnk"),
                     source: "StartMenu",
@@ -159,15 +181,10 @@ export async function cacheAppIcon(app, appIconsCache) {
 async function copyAppLogo(targetPath, endPath) {
     try {
         // Resize the image and get it as a Buffer
-        const buffer = await sharp(targetPath)
-            .resize(64, 64, {
-                fit: "inside",
-                withoutEnlargement: true
-            })
-            .toFormat("png")
-            .toBuffer();
+        const image = await Jimp.read(resolvedPath);
+        image.resize(width, Jimp.AUTO).quality(30);
 
-        // Convert buffer to base64
+        const buffer = await image.getBufferAsync(Jimp.MIME_JPEG);
         const base64 = buffer.toString("base64");
 
         // Convert base64 back to binary buffer

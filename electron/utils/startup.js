@@ -24,6 +24,7 @@ export async function loadFileData(cache){
 
 export async function loadAppData(webContents,cache) {
     try {
+        console.log("collecting")
         cache.appCache = await loadApps();
         setTimeout(async ()=>{
             await validateCache(webContents,cache.appCache);
@@ -38,7 +39,9 @@ async function validateCache(webContents,appCache){
         let appLaunchStack = JSON.parse((await store.get("appLaunchStack")) ?? "[]");
         let pApps = JSON.parse((await store.get("pinnedApps")) ?? "[]")
         pApps = pApps.filter(app => appCache.some(aCache=>aCache.name===app.name));
+        console.log("appLaunchStack = ", appLaunchStack);
         appLaunchStack = appLaunchStack.filter(app => appCache.some(aCache=>aCache.name===app));
+        console.log("appLaunchStack = ", appLaunchStack);
         store.set("appLaunchStack", JSON.stringify(appLaunchStack));
         store.set("pinnedApps", JSON.stringify(pApps));
         webContents.send('reloaded-app-cache')

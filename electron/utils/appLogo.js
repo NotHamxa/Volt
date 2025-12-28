@@ -1,6 +1,6 @@
 import extractIcon from 'extract-file-icon';
-import sharp from 'sharp';
 import fs from "fs";
+import {Jimp} from "jimp";
 
 
 export async function extractAppLogo(filePath){
@@ -10,17 +10,11 @@ export async function extractAppLogo(filePath){
     try {
         const iconBuffer = extractIcon(filePath, rawSize);
         if (!iconBuffer) throw new Error("No icon found for file");
+        const image = await Jimp.read(resolvedPath);
+        image.resize(width, Jimp.AUTO).quality(30);
 
-        const resizedBuffer = await sharp(iconBuffer)
-            .trim()
-            .resize(targetSize, targetSize, {
-                fit: 'contain',
-                background: { r: 0, g: 0, b: 0, alpha: 0 },
-            })
-            .png()
-            .toBuffer();
-
-        return `data:image/png;base64,${resizedBuffer.toString("base64")}`;
+        const buffer = await image.getBufferAsync(Jimp.MIME_JPEG);
+        return `data:image/jpeg;base64,${buffer.toString('base64')}`;
     } catch (err) {
         throw new Error(`Failed to extract or resize icon: ${err.message}`);
     }

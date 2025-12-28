@@ -9,7 +9,7 @@ import {
     FileVideo,
     FileAudio,
     FileArchive,
-    FileCode, FileSpreadsheet, PinOff, Pin, Download, Monitor, Bolt
+    FileCode, FileSpreadsheet, PinOff, Pin, Download, Monitor, Bolt, ArrowDownToLine
 } from "lucide-react";
 import { FaRegFilePdf, FaRegFileWord,FaRegFilePowerpoint,FaFolderOpen  } from "react-icons/fa6";
 import {
@@ -39,7 +39,8 @@ type QueryComponentProps = {
 };
 
 const getFileIcon = (path: string) => {
-    const extension = path.split(".")[1];
+    const spilt = path.split(".");
+    const extension = spilt[spilt.length - 1];
     switch (extension.toLowerCase()) {
         case "txt":
         case "md":
@@ -80,6 +81,8 @@ const getFileIcon = (path: string) => {
             return <FaRegFilePowerpoint size={24} />;
         case "pdf":
             return <FaRegFilePdf size={24}/> ;
+        case "msi":
+            return <ArrowDownToLine size={24} />
         default:
             return <File size={24} />;
     }

@@ -14,12 +14,12 @@ export default function App() {
     const [currentCacheStep, setCurrentCacheStep] = useState<number>(0);
     const [totalCacheSteps, setTotalCacheSteps] = useState<number>(0);
 
+    const [query, setQuery] = useState<string>("");
     const inputRef = useRef<HTMLInputElement>(null);
     const [stage, setStage] = useState<number>(1);
     const [currentPage, setCurrentPage] = useState<"main" | "settings">("main");
     const [prevPage, setPrevPage] = useState<"main" | "settings">("main");
 
-    // Refs to track latest state values in event listeners
     const currentPageRef = useRef(currentPage);
     const prevPageRef = useRef(prevPage);
 
@@ -33,7 +33,6 @@ export default function App() {
         console.error(msg, url, line, col, error);
     };
 
-    // Keep refs in sync with state
     useEffect(() => {
         currentPageRef.current = currentPage;
     }, [currentPage]);
@@ -46,8 +45,12 @@ export default function App() {
         document.documentElement.classList.add("dark");
 
         const handleBlur = () => {
-            inputRef.current?.focus();
-            if (currentPageRef.current !== "settings") {
+            if (inputRef.current){
+                setQuery("");
+                setStage(1)
+                inputRef.current.focus();
+            }
+            if (currentPageRef.current === "settings") {
                 setCurrentPage("main");
             }
         };
@@ -132,7 +135,7 @@ export default function App() {
             window.removeEventListener("shortcutModalOpen", handleShortcutModalOpen);
             window.removeEventListener("shortcutModalClose", handleShortcutModalClose);
         };
-    }, []); // Empty dependency array - event listeners never recreated
+    }, []);
 
     if (cacheLoadingStatus) {
         return (
@@ -147,7 +150,7 @@ export default function App() {
     }
 
     return (
-        <div style={styles.wrapper}>
+        <div className="w-screen h-screen overflow-hidden bg-[rgba(24,24,27,0.99)] flex flex-col rounded-xl">
             <Toaster />
             {(showUnlockedIcon || showLockedIcon) &&
                 <div
@@ -173,12 +176,13 @@ export default function App() {
                 </div>
             }
 
-            {/* Conditional rendering: MainPage or Settings or other pages */}
             <div className="grow flex flex-col">
                 {currentPage === "main" &&
                     <MainPage
                         inputRef={inputRef}
                         stage={stage}
+                        query={query}
+                        setQuery={setQuery}
                     />
                 }
                 {currentPage === "settings" && <SettingsPage />}
@@ -209,7 +213,8 @@ export default function App() {
                     <button
                         onClick={() => {
                             setPrevPage(currentPage);
-                            setCurrentPage("settings");
+                            if (currentPage === "main") setCurrentPage("settings");
+                            else setCurrentPage(prevPage);
                         }}
                         className="hover:underline cursor-pointer"
                     >
@@ -225,14 +230,6 @@ export default function App() {
 }
 
 const styles: { [key: string]: CSSProperties } = {
-    wrapper: {
-        width: '800px',
-        height: '550px',
-        overflow: 'hidden',
-        background: "rgba(24, 24, 27,.99)",
-        display: 'flex',
-        flexDirection: 'column'
-    },
     cacheLoading: {
         width: '800px',
         height: '550px',

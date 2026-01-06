@@ -12,10 +12,11 @@ import { BangData } from "@/interfaces/bang.ts";
 interface MainPageProps {
     inputRef: React.RefObject<HTMLInputElement | null>;
     stage: number;
+    query: string;
+    setQuery:React.Dispatch<React.SetStateAction<string>>;
 }
 
-export default function MainPage({ inputRef, stage }: MainPageProps) {
-    const [query, setQuery] = useState('');
+export default function MainPage({ inputRef, stage, query, setQuery }: MainPageProps) {
     const [bangData, setBangData] = useState<BangData | null>(null);
     const [selfQueryChanged, setSelfQueryChanged] = useState<boolean>(false);
     const [homePageStage, setHomePageStage] = useState<number>(1);

@@ -1,6 +1,6 @@
-import { useState } from "react";
+import {ReactNode, useState} from "react";
 import { Button } from "@/components/ui/button.tsx";
-import { AlertTriangle } from "lucide-react";
+import {AlertTriangle, LucideIcon} from "lucide-react";
 import { showToast } from "@/components/toast.tsx";
 import {
     DropdownMenu,
@@ -9,16 +9,23 @@ import {
     DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu.tsx";
 
-export const SettingCard = ({ title, description, children, icon: Icon, isDestructive = false }: any) => (
+interface SettingCardProps {
+    title: string;
+    description: string;
+    children: ReactNode;
+    icon?: LucideIcon;
+    isDestructive?: boolean;
+}
+export const SettingCard = ({ title, description, children, icon: Icon, isDestructive = false }: SettingCardProps) => (
     <div className={`p-5 rounded-xl border transition-all duration-200 bg-white/3 ${
         isDestructive
             ? 'border-red-500/20 hover:bg-red-500/5'
             : 'border-white/10 hover:border-white/20 hover:bg-white/5'
     }`}>
         <div className="flex items-start justify-between gap-6">
-            <div className="flex gap-4">
+            <div className="flex gap-4 items-center">
                 {Icon && (
-                    <div className={`p-2.5 rounded-lg mt-0.5 ${
+                    <div className={`p-2.5 rounded-lg shrink-0 inline-flex ${
                         isDestructive ? 'bg-red-500/10 text-red-400' : 'bg-white/10 text-gray-400'
                     }`}>
                         <Icon size={20} />
@@ -39,7 +46,6 @@ export const SettingCard = ({ title, description, children, icon: Icon, isDestru
         </div>
     </div>
 );
-
 export function DeleteHistorySection() {
     const [isDeleting, setIsDeleting] = useState(false);
 

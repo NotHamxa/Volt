@@ -1,53 +1,57 @@
-import {CSSProperties, useEffect, useRef, useState} from 'react';
-import {Search, Unlock,Lock} from "lucide-react";
+import { CSSProperties, useEffect, useRef, useState } from 'react';
+import { Unlock, Lock } from "lucide-react";
 import { FaGithub } from "react-icons/fa6";
 
-import {Input} from "@/components/ui/input.tsx";
-import SearchQueryFilter from "@/components/searchQueryFilter.tsx";
-import {getBangData} from "@/scripts/bangs.ts";
-import {BangData} from "@/interfaces/bang.ts";
-import QuerySuggestions from "@/components/querySuggestions.tsx";
-import BangSuggestions from "@/components/bangSuggestions.tsx";
-import HomePageComponent from "@/pages/homePageComponent.tsx";
-import { motion } from 'framer-motion';
-import HelpPage from "@/pages/helpPage.tsx";
-import {Toaster} from "@/components/ui/sonner.tsx";
-import {Label} from "@/components/ui/label.tsx";
-import {Progress} from "@/components/ui/progress.tsx";
+import SettingsPage from "@/pages/settingsPage.tsx";
+import { Toaster } from "@/components/ui/sonner.tsx";
+import { Label } from "@/components/ui/label.tsx";
+import { Progress } from "@/components/ui/progress.tsx";
+import MainPage from "@/pages/mainPage.tsx";
+
 
 export default function App() {
-
     const [cacheLoadingStatus, setCacheLoadingStatus] = useState<boolean>(false);
-    const [currentCacheStep,setCurrentCacheStep] = useState<number>(0);
-    const [totalCacheSteps,setTotalCacheSteps] = useState<number>(0);
+    const [currentCacheStep, setCurrentCacheStep] = useState<number>(0);
+    const [totalCacheSteps, setTotalCacheSteps] = useState<number>(0);
 
-    const [query, setQuery] = useState('');
-    const [bangData, setBangData] = useState<BangData | null>(null);
-    const [selfQueryChanged,setSelfQueryChanged] = useState<boolean>(false);
     const inputRef = useRef<HTMLInputElement>(null);
-    const [stage,setStage] = useState<number>(1);
-    const [homePageStage,setHomePageStage] = useState<number>(1);
-    const [helpModalOpen,setHelpModalOpen] = useState(false);
+    const [stage, setStage] = useState<number>(1);
+    const [currentPage, setCurrentPage] = useState<"main" | "settings">("main");
+    const [prevPage, setPrevPage] = useState<"main" | "settings">("main");
 
-    const [searchQueryFilters,setSearchQueryFilters] = useState<boolean[]>([true, true, true, true]);
-    const [showLockedIcon,setShowLockedIcon] = useState<boolean>(false);
-    const [showUnlockedIcon,setShowUnlockedIcon] = useState<boolean>(false);
+    // Refs to track latest state values in event listeners
+    const currentPageRef = useRef(currentPage);
+    const prevPageRef = useRef(prevPage);
+
+    const [showLockedIcon, setShowLockedIcon] = useState<boolean>(false);
+    const [showUnlockedIcon, setShowUnlockedIcon] = useState<boolean>(false);
     const lockTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const unlockTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
     window.onerror = function (msg, url, line, col, error) {
         console.error("GLOBAL ERROR CAUGHT:");
         console.error(msg, url, line, col, error);
     };
 
+    // Keep refs in sync with state
+    useEffect(() => {
+        currentPageRef.current = currentPage;
+    }, [currentPage]);
+
+    useEffect(() => {
+        prevPageRef.current = prevPage;
+    }, [prevPage]);
+
     useEffect(() => {
         document.documentElement.classList.add("dark");
+
         const handleBlur = () => {
-            setQuery("");
-            setSelfQueryChanged(false);
             inputRef.current?.focus();
-            setBangData(null);
-            setHelpModalOpen(false);
+            if (currentPageRef.current !== "settings") {
+                setCurrentPage("main");
+            }
         };
+
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === "Tab") {
                 e.preventDefault();
@@ -57,31 +61,40 @@ export default function App() {
 
             if (e.ctrlKey && e.key.toLowerCase() === "h") {
                 e.preventDefault();
-                setHelpModalOpen(!helpModalOpen);
+                const current = currentPageRef.current;
+                const previous = prevPageRef.current;
+                if (current === "main") {
+                    setPrevPage(current);
+                    setCurrentPage("settings");
+                } else {
+                    setCurrentPage(previous);
+                }
             }
         };
-        const handleCacheLoadedEvent = ()=>{
+
+        const handleCacheLoadedEvent = () => {
             setCacheLoadingStatus(false);
         }
-        const getCacheLoadingStatus = async ()=>{
+
+        const getCacheLoadingStatus = async () => {
             const status = await window.electron.getCacheLoadingStatus()
-            if (status){
+            if (status) {
                 window.electron.onCacheLoaded(handleCacheLoadedEvent)
-                window.electron.setCacheLoadingBar((currentStep,totalSteps)=>{
+                window.electron.setCacheLoadingBar((currentStep, totalSteps) => {
                     setCurrentCacheStep(currentStep)
                     setTotalCacheSteps(totalSteps)
                 })
             }
             setCacheLoadingStatus(status);
         }
-        const handleShortcutModalOpen = ()=>{
-            window.removeEventListener("keydown", handleKeyDown);
 
+        const handleShortcutModalOpen = () => {
+            window.removeEventListener("keydown", handleKeyDown);
         }
-        const handleShortcutModalClose = ()=>{
+
+        const handleShortcutModalClose = () => {
             window.addEventListener("keydown", handleKeyDown);
         }
-
 
         const handleWindowLock = () => {
             if (lockTimeoutRef.current) clearTimeout(lockTimeoutRef.current);
@@ -109,62 +122,25 @@ export default function App() {
         window.electron.onWindowUnlocked(handleWindowUnlock)
 
         window.addEventListener("keydown", handleKeyDown);
-        window.addEventListener("shortcutModalOpen",handleShortcutModalOpen)
-        window.addEventListener("shortcutModalClose",handleShortcutModalClose)
-
+        window.addEventListener("shortcutModalOpen", handleShortcutModalOpen)
+        window.addEventListener("shortcutModalClose", handleShortcutModalClose)
 
         getCacheLoadingStatus();
+
         return () => {
             window.removeEventListener("keydown", handleKeyDown);
             window.removeEventListener("shortcutModalOpen", handleShortcutModalOpen);
             window.removeEventListener("shortcutModalClose", handleShortcutModalClose);
         };
-    }, []);
-
-    useEffect(() => {
-        const getData = async () => {
-            if (query === "") {
-                return;
-            }
-            if (query.includes("!") && stage===2) {
-                const bangData = await getBangData(query);
-                setBangData(bangData);
-                return;
-            }
-        };
-        getData();
-    }, [query]);
-    useEffect(()=>{
-        if (stage===1 && selfQueryChanged){
-            setSelfQueryChanged(false);
-        }
-    },[stage])
-
-    function SwitchModes() {
-        return (
-            <div className="flex items-center space-x-2 text-gray-400 text-sm">
-                <span>{stage === 1 ? "Web" : "Files"}</span>
-                <span className="px-2 py-0.5 text-xs border border-gray-500 rounded-sm">
-        Tab
-      </span>
-            </div>
-        );
-    }
-    const faviconUrl = bangData?.d
-        ? `https://www.google.com/s2/favicons?sz=24&domain_url=${encodeURIComponent(bangData.d)}`
-        : null;
-    function setQueryInput(value: string) {
-        setSelfQueryChanged(true)
-        setQuery(value);
-    }
+    }, []); // Empty dependency array - event listeners never recreated
 
     if (cacheLoadingStatus) {
         return (
             <div style={styles.cacheLoading}>
                 <Label style={styles.cacheLabel}>App data loading, please wait...</Label>
                 <Progress
-                    value={Math.trunc((currentCacheStep/totalCacheSteps)*100)}
-                    style={{width:"60%"}}
+                    value={Math.trunc((currentCacheStep / totalCacheSteps) * 100)}
+                    style={{ width: "60%" }}
                 />
             </div>
         );
@@ -172,88 +148,41 @@ export default function App() {
 
     return (
         <div style={styles.wrapper}>
-            <Toaster/>
-            { (showUnlockedIcon || showLockedIcon) &&
-            <div
-                style={{
-                    position: "absolute",
-                    top: "50%",
-                    left: "50%",
-                    transform: "translate(-50%, -50%)",
-                    display: "flex",
-                    gap: "20px",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    zIndex: 50,
-                    backgroundColor: "rgba(24, 24, 27, 0.95)",
-                    padding: "20px 40px",
-                    borderRadius: "12px",
-                    backdropFilter: "blur(10px)",
-                    boxShadow: "0 4px 15px rgba(0, 0, 0, 0.3)",
-                }}
-            >
-
-                {showLockedIcon && <Lock size={48} className="text-white" />}
-                {showUnlockedIcon && <Unlock size={48} className="text-white" />}
-            </div>
+            <Toaster />
+            {(showUnlockedIcon || showLockedIcon) &&
+                <div
+                    style={{
+                        position: "absolute",
+                        top: "50%",
+                        left: "50%",
+                        transform: "translate(-50%, -50%)",
+                        display: "flex",
+                        gap: "20px",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        zIndex: 50,
+                        backgroundColor: "rgba(24, 24, 27, 0.95)",
+                        padding: "20px 40px",
+                        borderRadius: "12px",
+                        backdropFilter: "blur(10px)",
+                        boxShadow: "0 4px 15px rgba(0, 0, 0, 0.3)",
+                    }}
+                >
+                    {showLockedIcon && <Lock size={48} className="text-white" />}
+                    {showUnlockedIcon && <Unlock size={48} className="text-white" />}
+                </div>
             }
-            <HelpPage helpModalOpen={helpModalOpen} setHelpModalOpen={setHelpModalOpen}/>
-            <div style={styles.inputContainer}>
-                {faviconUrl && stage === 2 ? <img src={faviconUrl} style={styles.favicon}/> : <Search size={24}/>}
-                <Input
-                    ref={inputRef}
-                    value={query}
-                    onChange={(e) => {
-                        setQuery(e.target.value);
-                        setSelfQueryChanged(false);
-                    }}
-                    onKeyDown={(e) => {
-                        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-                            e.preventDefault();
-                        }
-                    }}
-                    placeholder={stage === 1 ? "Search apps and documents" : "Search the web"}
-                    style={styles.input}
-                    autoFocus
 
-                />
-                {!query && <SwitchModes/>}
-                {query && stage === 1 ? <SearchQueryFilter
-                    filters={searchQueryFilters}
-                    setFilters={setSearchQueryFilters}
-                /> : null}
+            {/* Conditional rendering: MainPage or Settings or other pages */}
+            <div className="grow flex flex-col">
+                {currentPage === "main" &&
+                    <MainPage
+                        inputRef={inputRef}
+                        stage={stage}
+                    />
+                }
+                {currentPage === "settings" && <SettingsPage />}
             </div>
-            <motion.div
-                key={stage}
-                initial={{opacity: 0, x: stage === 1 ? -50 : 50}}
-                animate={{opacity: 1, x: 0}}
-                exit={{opacity: 0, x: stage === 1 ? 50 : -50}}
-                transition={{duration: 0.3, ease: "easeInOut"}}
-                style={{ flexGrow: 1}}
-            >
-                {query && stage === 1 && homePageStage===1? (
-                    <QuerySuggestions
-                        query={query}
-                        searchFilters={searchQueryFilters}
-                    />
-                ) : null}
-
-                {stage === 2 ? <BangSuggestions
-                    bang={query}
-                    setQuery={setQueryInput}
-                    selfQueryChanged={selfQueryChanged}
-                /> : null}
-                {(
-                    (query === "" && stage === 1) ||
-                    (query !== "" && stage === 1 && homePageStage === 2)
-                ) ? (
-                    <HomePageComponent
-                        stage={homePageStage}
-                        setStage={setHomePageStage}
-                        query={query}
-                    />
-                ) : null}
-            </motion.div>
             <div
                 style={{
                     borderTopStyle: "solid",
@@ -270,7 +199,7 @@ export default function App() {
             >
                 <button
                     className="text-gray-400 hover:text-white"
-                    onClick={async ()=>{
+                    onClick={async () => {
                         window.electron.openExternal("https://github.com/NotHamxa")
                     }}
                 >
@@ -279,7 +208,8 @@ export default function App() {
                 <div className="flex items-center space-x-2 text-gray-400 text-sm">
                     <button
                         onClick={() => {
-                            setHelpModalOpen(true);
+                            setPrevPage(currentPage);
+                            setCurrentPage("settings");
                         }}
                         className="hover:underline cursor-pointer"
                     >
@@ -290,7 +220,6 @@ export default function App() {
                     <span className="px-2 py-0.5 text-xs border border-gray-500 rounded-sm">H</span>
                 </div>
             </div>
-
         </div>
     );
 }
@@ -304,34 +233,6 @@ const styles: { [key: string]: CSSProperties } = {
         display: 'flex',
         flexDirection: 'column'
     },
-    mainContainer: {
-        width: '800px',
-        maxWidth: '800px',
-        height: '500px',
-    },
-    input: {
-        width: '100%',
-        margin: '10px auto',
-        display: 'block',
-        borderWidth: '0px',
-        backgroundColor: 'transparent',
-
-    },
-    inputContainer: {
-        display: "flex",
-        flexDirection: "row",
-        gap: 10,
-        alignItems: "center",
-        padding: "0px 20px",
-        borderBottomWidth:"1px",
-        borderBottomStyle: "solid",
-        borderBottomColor: 'white',
-        marginBottom: "5px",
-    },
-    favicon: {
-        width: 24,
-        height: 24,
-    },
     cacheLoading: {
         width: '800px',
         height: '550px',
@@ -342,11 +243,9 @@ const styles: { [key: string]: CSSProperties } = {
         justifyContent: 'center',
         gap: '16px',
     },
-
     cacheLabel: {
         fontSize: '18px',
         color: '#ffffff',
         fontWeight: '500',
     },
 };
-

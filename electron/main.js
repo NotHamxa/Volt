@@ -1,4 +1,6 @@
 import {app, BrowserWindow, dialog, globalShortcut, ipcMain, Menu, shell, Tray} from "electron";
+import pkg from "electron-updater"
+const {autoUpdater} = pkg;
 import Store from "electron-store";
 import path from "path";
 import {fileURLToPath} from "url";

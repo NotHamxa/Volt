@@ -5,8 +5,6 @@ import {Jimp} from "jimp";
 
 export async function extractAppLogo(filePath){
     const rawSize = 48;
-    const targetSize = 64;
-
     try {
         const iconBuffer = extractIcon(filePath, rawSize);
         if (!iconBuffer) throw new Error("No icon found for file");

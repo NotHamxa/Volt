@@ -7,7 +7,6 @@ interface QueryData {
     searchQueryFilters: boolean[]
 
 }
-
 async function getQueryData({ query, setBestMatch,searchQueryFilters }: QueryData) {
     let apps: SearchQueryT[] = await window.apps.searchApps(query);
     const start = performance.now();
@@ -18,6 +17,17 @@ async function getQueryData({ query, setBestMatch,searchQueryFilters }: QueryDat
     let downloadFolders = downloadFileFolders.filter(item => item.type === "folder");
     if (apps.length > 0) {
         const appLaunchStack:string[] = JSON.parse((await window.electronStore.get("appLaunchStack")) ?? "[]");
+
+        // Sorting apps on the basis of recent app launches
+        apps = apps.sort((a, b) => {
+            const indexA = appLaunchStack.indexOf(a.name);
+            const indexB = appLaunchStack.indexOf(b.name);
+
+            if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+            if (indexA !== -1) return -1;
+            if (indexB !== -1) return 1;
+            return 0;
+        });
         const bestMatches:SearchQueryT[]  = apps.filter(item=>item.name.toLowerCase().startsWith(query.toLowerCase()));
         const filteredAppLaunchStack:string[] = appLaunchStack.filter(item=>item.toLowerCase().startsWith(query.toLowerCase()))
 

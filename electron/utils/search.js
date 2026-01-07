@@ -1,6 +1,7 @@
 import path from "path";
 import os from "os";
-import settings from "./settings.json" with { type: 'json' };
+import settings from "../data/settings.json" with { type: 'json' };
+import commands from "../data/commands.json" with { type: 'json' };
 const normaliseString = (str) => {
     return str.toLowerCase().replace(/\s+/g, "");
 }
@@ -28,7 +29,17 @@ export async function searchSettings(query) {
     }
     return Array.from(resultsMap.values());
 }
-
+export async function searchCommands(query) {
+    if (!commands) return [];
+    const lowerQuery = normaliseString(query).trim();
+    const resultsMap = new Map();
+    for (const command of commands){
+        if (normaliseString(command.name).includes(lowerQuery)) {
+            resultsMap.set(command.name, command);
+        }
+    }
+    return Array.from(resultsMap.values());
+}
 export async function searchFilesAndFolders(baseDir, query, cachedFolderData) {
     const lowerQuery = normaliseString(query).trim();
     const userHome = os.homedir();

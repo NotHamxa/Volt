@@ -4,30 +4,16 @@ const {autoUpdater} = pkg;
 import Store from "electron-store";
 import path from "path";
 import {fileURLToPath} from "url";
-import {cacheFolder, deleteFolder} from "./utils/cache.js";
-import {searchApps, searchFilesAndFolders, searchSettings} from "./utils/search.js";
-import {getGoogleSuggestions} from "./utils/autoSuggestion.js";
-import {launchApp} from "./utils/launchApp.js";
-import {getAppLogo} from "./utils/appLogo.js";
-import {openFileWith} from "./utils/openFileWith.js";
-import {getUwpAppIcon} from "./utils/uwpAppLogo.js";
+import {deleteFolder} from "./utils/cache.js";
 import chokidar from "chokidar";
-import {executeUserCommand} from "./utils/cmd.js";
 import os from "os";
-import {fetchFavicon} from "./utils/linkFavicon.js";
 import {loadAppData, loadFileData} from "./utils/startup.js";
-import fs from "fs";
-import {Jimp} from "jimp";
 
 if (!app.requestSingleInstanceLock()) {
     app.quit();
     process.exit(0);
 }
 const store = new Store();
-// store.delete("cachedFoldersData")
-// store.delete("cachedFolders")
-// store.delete("firstTimeExperience")
-// store.clear()
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const startMenuPaths = [
@@ -144,121 +130,19 @@ const handleEsc = () => {
         hideMainWindow();
     }
 };
+import { registerIpc } from "./ipc/index.js";
 
-ipcMain.on("log",async (_,data)=>{
-    console.log(data)
-})
-ipcMain.handle('set-open-bind',async (_,binding)=>{
-    return await changeOpenBind(binding);
-})
-ipcMain.handle('get-google-suggestions', async (_, query) => {
-    return await getGoogleSuggestions(query);
+registerIpc({
+    mainWindow,
+    hideMainWindow,
+    cache,
+    folderWatcher,
+    store,
 });
-ipcMain.handle('get-app-logo', async (_, app) => {
-    return await getAppLogo(app,cache.appIconsCache);
+ipcMain.handle("set-open-bind", (_, binding) => {
+    return changeOpenBind(binding);
 });
-ipcMain.handle('get-uwp-app-logo', async (_, app) => {
-    return await getUwpAppIcon(app,cache.appIconsCache);
-})
-ipcMain.handle('get-link-favicon', async (_, link) => {
-    return await fetchFavicon(link);
-})
-ipcMain.on('set-store', (_, { key, value }) => store.set(key, value));
-ipcMain.handle('get-store', (_, key) => store.get(key));
-ipcMain.on("clear-store", (_) => {
-    store.clear();
-    app.relaunch();
-    app.exit(0);
-});
-ipcMain.on('open-external', (_, url) => {
-    shell.openExternal(url).then(() => hideMainWindow());
-});
-ipcMain.handle('search-files', async (_, dir, pattern) => {
-    return await searchFilesAndFolders(dir, pattern,cache.cachedFoldersData);
-});
-ipcMain.handle('search-apps', async (_, pattern) => {
-    return await searchApps(cache.appCache, pattern);
-});
-ipcMain.handle('search-settings',async (_, pattern) => {
-    return await searchSettings(pattern);
-})
-ipcMain.on('open-setting',async (_,setting) => {
-   await shell.openExternal(setting);
 
-})
-ipcMain.on('open-path', async (_, filePath) => {
-    try {
-        await shell.openPath(filePath);
-        hideMainWindow();
-    } catch {}
-});
-ipcMain.on('open-uninstall',async (_) => {
-    try{
-        await shell.openExternal('ms-settings:appsfeatures');
-        return true
-    }
-    catch{
-        return false;
-    }
-})
-ipcMain.handle('launch-app', async (_, app, admin = false) => {
-    const opened = await launchApp(app,admin)
-    if (opened){
-        hideMainWindow();
-    }
-
-});
-ipcMain.on('open-in-explorer', (_, path) => {
-    try {
-        shell.showItemInFolder(path);
-        hideMainWindow();
-    } catch {}
-});
-ipcMain.on('open-file-with',async (_, path) => {
-    await openFileWith(path);
-})
-ipcMain.handle('get-loading-cache-status',(_)=>{
-    return cache.loadingAppCache;
-})
-ipcMain.on("execute-cmd",async (_,cmd)=>{
-    await executeUserCommand(cmd);
-})
-ipcMain.handle("select-folder", async () => {
-    fixWindowOpen = true;
-    const result = await dialog.showOpenDialog(mainWindow,{
-        title: "Select Folder",
-        properties: ["openDirectory"],
-    });
-    const dirPath = result.filePaths?.[0];
-    mainWindow.focus()
-    fixWindowOpen = false;
-    if (!dirPath) return null;
-    return dirPath;
-});
-ipcMain.handle("cache-folder",async (_, path) => {
-    const result = await cacheFolder(path,cache);
-    if (!result) return false;
-    folderWatcher.add(path);
-    return true;
-})
-ipcMain.handle("delete-folder", async (_, path) => {
-    return await deleteFolder(path,cache)
-});
-ipcMain.handle('get-image-b64', async (event, imgPath, width = 50) => {
-    try {
-        const resolvedPath = path.resolve(imgPath);
-        if (!fs.existsSync(resolvedPath)) {
-            return null
-        }
-        const image = await Jimp.read(resolvedPath);
-        image.resize(width, Jimp.AUTO).quality(30);
-
-        const buffer = await image.getBufferAsync(Jimp.MIME_JPEG);
-        return `data:image/jpeg;base64,${buffer.toString('base64')}`;
-    } catch (error) {
-        return null;
-    }
-});
 
 
 const createWindow = async () => {

@@ -1,4 +1,4 @@
-import { CSSProperties, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Unlock, Lock } from "lucide-react";
 import { FaGithub } from "react-icons/fa6";
 
@@ -139,11 +139,13 @@ export default function App() {
 
     if (cacheLoadingStatus) {
         return (
-            <div style={styles.cacheLoading}>
-                <Label style={styles.cacheLabel}>App data loading, please wait...</Label>
+            <div className="w-screen h-screen bg-[rgba(24,24,27,0.99)] flex flex-col items-center justify-center gap-4 rounded-xl">
+                <Label className="text-lg text-white font-medium">
+                    App data loading, please wait...
+                </Label>
                 <Progress
                     value={Math.trunc((currentCacheStep / totalCacheSteps) * 100)}
-                    style={{ width: "60%" }}
+                    className="w-3/5"
                 />
             </div>
         );
@@ -228,21 +230,3 @@ export default function App() {
         </div>
     );
 }
-
-const styles: { [key: string]: CSSProperties } = {
-    cacheLoading: {
-        width: '800px',
-        height: '550px',
-        background: "rgba(24, 24, 27, .99)",
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '16px',
-    },
-    cacheLabel: {
-        fontSize: '18px',
-        color: '#ffffff',
-        fontWeight: '500',
-    },
-};

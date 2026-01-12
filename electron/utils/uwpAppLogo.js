@@ -1,7 +1,7 @@
 import path from "path";
 import {execFile} from "node:child_process";
 import fs from "fs";
-
+import {app} from "electron";
 
 export async function getUwpAppIcon(uwpApp, appIconsCache) {
     try {

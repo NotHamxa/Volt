@@ -98,7 +98,6 @@
     "depcheck": "^1.4.7",
     "electron": "^35.7.5",
     "electron-builder": "^26.0.12",
-    "electron-rebuild": "^3.2.9",
     "electronmon": "^2.0.4",
     "eslint": "^9.22.0",
     "eslint-plugin-react-hooks": "^5.2.0",

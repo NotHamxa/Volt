@@ -95,7 +95,6 @@ function resolveLnk(lnkPath) {
     });
 }
 export async function loadApps() {
-    console.log(startMenuPaths)
     const results = [];
     async function collectShortcuts(dir) {
         if (!fs.existsSync(dir)) return;
@@ -159,24 +158,26 @@ export async function loadApps() {
     return Array.from(deduped.values());
 }
 export async function cacheAppIcon(app, appIconsCache) {
-    if (app.path) {
-        try {
-            const appIcon = await extractAppLogo(app.path);
-            if (!appIcon || !appIcon.startsWith('data:image')) {
-                return;
-            }
-            const base64Data = appIcon.split(',')[1];
-            const iconPath = path.join(appDataPath, `${app.name}.png`);
-            if (!fs.existsSync(appDataPath)) {
-                fs.mkdirSync(appDataPath, { recursive: true });
-            }
-            fs.writeFileSync(iconPath, Buffer.from(base64Data, 'base64'));
-            appIconsCache[app.name] = iconPath;
-            return appIconsCache
-        } catch (error) {
+    if (!app.path)
+        return appIconsCache;
+    try {
+        const appIcon = await extractAppLogo(app.path);
+        if (!appIcon || !appIcon.startsWith('data:image')) {
             return appIconsCache;
         }
+        const base64Data = appIcon.split(',')[1];
+        const iconPath = path.join(appDataPath, `${app.name}.png`);
+        if (!fs.existsSync(appDataPath)) {
+            fs.mkdirSync(appDataPath, { recursive: true });
+        }
+        fs.writeFileSync(iconPath, Buffer.from(base64Data, 'base64'));
+        appIconsCache[app.name] = iconPath;
+        return appIconsCache
+    } catch (error) {
+        console.log(error);
+        return appIconsCache;
     }
+
 }
 async function copyAppLogo(targetPath, endPath) {
     try {

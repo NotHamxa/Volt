@@ -63,7 +63,9 @@ async function loadAppIconsCache(webContents,cache) {
     let currentNumber = 0;
     for (const appData of cache.appCache) {
         if (!(appData.name in cache.appIconsCache) && appData.path) {
+            console.log("Caching")
             cache.appIconsCache = await cacheAppIcon(appData, cache.appIconsCache);
+            console.log("App Icons Cache = ", cache.appIconsCache);
             currentNumber = currentNumber+1
             webContents.send("set-cache-loading-bar",currentNumber,totalApps)
         }
@@ -78,11 +80,13 @@ async function loadAppIconsCache(webContents,cache) {
         webContents.send("set-cache-loading-bar",currentNumber,totalApps)
         for (const uwpApp of uwpIconsInstallPath) {
             if (uwpApp.installLocation){
+                console.log("Caching")
                 cache.appIconsCache = await cacheUwpIcon(uwpApp.installLocation,uwpApp.name,cache.appIconsCache)
                 currentNumber = currentNumber+1
                 webContents.send("set-cache-loading-bar",currentNumber,totalApps)
             }
         }
     }
+    console.log("appIconsCache = ", cache.appIconsCache);
     store.set("appIconsCache", JSON.stringify(cache.appIconsCache));
 }

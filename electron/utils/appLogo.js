@@ -3,21 +3,31 @@ import fs from "fs";
 import {Jimp} from "jimp";
 
 
-export async function extractAppLogo(filePath){
+
+export async function extractAppLogo(filePath) {
     const rawSize = 48;
+    const targetSize = 64;
+
     try {
         const iconBuffer = extractIcon(filePath, rawSize);
-        if (!iconBuffer) throw new Error("No icon found for file");
-        const image = await Jimp.read(resolvedPath);
-        image.resize(width, Jimp.AUTO).quality(30);
+        if (!iconBuffer) {
+            throw new Error("No icon found for file");
+        }
 
-        const buffer = await image.getBufferAsync(Jimp.MIME_JPEG);
-        return `data:image/jpeg;base64,${buffer.toString('base64')}`;
+        const image = await Jimp.read(iconBuffer);
+
+        image.resize({
+            w: targetSize,
+            h: targetSize
+        });
+
+        const buffer = await image.getBuffer("image/png");
+
+        return `data:image/png;base64,${buffer.toString("base64")}`;
     } catch (err) {
         throw new Error(`Failed to extract or resize icon: ${err.message}`);
     }
 }
-
 
 export async function getAppLogo(app, appIconsCache) {
     try {

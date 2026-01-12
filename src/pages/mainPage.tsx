@@ -70,7 +70,7 @@ export default function MainPage({ inputRef, stage, query, setQuery }: MainPageP
                     ref={inputRef}
                     value={query}
                     onChange={(e) => {
-                        setQuery(e.target.value);
+                        setQuery(e.target.value.trim());
                         setSelfQueryChanged(false);
                     }}
                     onKeyDown={(e) => {

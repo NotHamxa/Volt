@@ -179,21 +179,18 @@ export async function cacheAppIcon(app, appIconsCache) {
     }
 
 }
-async function copyAppLogo(targetPath, endPath) {
+async function copyAppLogo(targetPath, endPath, width = 64) {
     try {
-        // Resize the image and get it as a Buffer
-        const image = await Jimp.read(resolvedPath);
-        image.resize(width, Jimp.AUTO).quality(30);
+        const image = await Jimp.read(targetPath);
 
-        const buffer = await image.getBufferAsync(Jimp.MIME_JPEG);
-        const base64 = buffer.toString("base64");
-
-        // Convert base64 back to binary buffer
-        const binaryBuffer = Buffer.from(base64, "base64");
-        await fs.writeFileSync(endPath, binaryBuffer);
-
+        image.resize({
+            w: width
+        });
+        const buffer = await image.getBuffer("image/png");
+        fs.writeFileSync(endPath, buffer);
         return true;
     } catch (error) {
+        console.error("copyAppLogo failed:", error);
         return false;
     }
 }

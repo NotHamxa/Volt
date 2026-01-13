@@ -8,7 +8,8 @@ import {deleteFolder} from "./utils/cache.js";
 import chokidar from "chokidar";
 import os from "os";
 import {loadAppData, loadFileData} from "./utils/startup.js";
-
+import { registerIpc } from "./ipc/index.js";
+import {setupAutoUpdater} from "./utils/updater.js";
 if (!app.requestSingleInstanceLock()) {
     app.quit();
     process.exit(0);
@@ -130,7 +131,7 @@ const handleEsc = () => {
         hideMainWindow();
     }
 };
-import { registerIpc } from "./ipc/index.js";
+
 
 registerIpc({
     mainWindow,
@@ -211,6 +212,9 @@ app.whenReady().then(async () => {
     await createWindow();
     await loadAppData(mainWindow.webContents,cache);
     await loadFileData(cache)
+    if (process.env.NODE_ENV !== "development") {
+        setupAutoUpdater(mainWindow);
+    }
     folderWatcher.add(cache.cachedFolders)
     cache.loadingAppCache = false;
     mainWindow.webContents.send('cache-loaded');

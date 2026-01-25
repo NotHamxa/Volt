@@ -5,7 +5,7 @@
   Goto done
 
   addStartup:
-    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "YourApp" "$INSTDIR\Volt.exe"
+    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "Volt" "$INSTDIR\Volt.exe"
 
   done:
 !macroend

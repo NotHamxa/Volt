@@ -4,7 +4,6 @@ import Store from "electron-store";
 import {getUwpInstallLocations} from "./uwpAppLogo.js";
 
 const store = new Store();
-
 export async function loadFileData(cache){
     cache.firstTimeExperience = store.get("firstTimeExperience") ?? true;
 

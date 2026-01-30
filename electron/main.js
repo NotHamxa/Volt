@@ -1,4 +1,4 @@
-import {app, BrowserWindow, dialog, globalShortcut, ipcMain, Menu, shell, Tray} from "electron";
+import {app, BrowserWindow, globalShortcut, ipcMain, Menu, Tray} from "electron";
 import pkg from "electron-updater"
 const {autoUpdater} = pkg;
 import Store from "electron-store";
@@ -37,8 +37,11 @@ const cache = {
     loadingAppCache:true,
     firstTimeExperience:false
 }
-let fixWindowOpen = false;
-let windowLocked = false;
+const appStates = {
+    fixWindowOpen:false,
+    windowLocked:false
+}
+
 const folderWatcher = chokidar.watch([],{
     persistent: true,
     ignoreInitial: true
@@ -94,8 +97,7 @@ const showMainWindow = () => {
     globalShortcut.register("Esc", handleEsc);
 };
 const hideMainWindow = () => {
-    if (!mainWindow || fixWindowOpen || windowLocked) return;
-    console.log(fixWindowOpen)
+    if (!mainWindow || appStates.fixWindowOpen || appStates.windowLocked) return;
     mainWindow.hide();
     globalShortcut.unregister("Esc");
     mainWindow.webContents.send('window-blurred');
@@ -104,8 +106,8 @@ const hideMainWindow = () => {
     }
 };
 const handleWindowLock = ()=>{
-    windowLocked = !windowLocked;
-    if (windowLocked) mainWindow.webContents.send('window-locked')
+    appStates.windowLocked = !appStates.windowLocked;
+    if (appStates.windowLocked) mainWindow.webContents.send('window-locked')
     else mainWindow.webContents.send('window-unlocked');
     console.log(process.memoryUsage().heapUsed/8/1024/1024)
 }
@@ -133,13 +135,6 @@ const handleEsc = () => {
 };
 
 
-registerIpc({
-    mainWindow,
-    hideMainWindow,
-    cache,
-    folderWatcher,
-    store,
-});
 ipcMain.handle("set-open-bind", (_, binding) => {
     return changeOpenBind(binding);
 });
@@ -210,6 +205,14 @@ const createWindow = async () => {
 
 app.whenReady().then(async () => {
     await createWindow();
+    registerIpc({
+        mainWindow,
+        hideMainWindow,
+        cache,
+        appStates,
+        folderWatcher,
+        store,
+    });
     await loadAppData(mainWindow.webContents,cache);
     await loadFileData(cache)
     if (process.env.NODE_ENV !== "development") {

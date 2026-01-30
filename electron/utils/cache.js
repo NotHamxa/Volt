@@ -105,10 +105,6 @@ export async function loadApps() {
             if (stat.isDirectory()) {
                 await collectShortcuts(fullPath);
             } else if ([".lnk"].some(ext => fullPath.toLowerCase().endsWith(ext))) {
-                // const target = await resolveLnk(fullPath);
-                // console.log(`[${target}] ${fullPath}`);
-                // if (!target.toLowerCase().endsWith(".exe"))
-                //     return;
                 results.push({
                     name: path.basename(fullPath, ".lnk"),
                     source: "StartMenu",
@@ -275,7 +271,6 @@ export async function cacheFolder(dirPath,cache,newFolder=true) {
         for (const entry of entries) {
             const fullPath = path.join(currentPath, entry.name);
             if (entry.isDirectory()) {
-                console.log(entry.name);
                 if (excludedFolders.includes(entry.name)) continue;
                 await readDirRecursive(fullPath);
             } else if (entry.isFile()) {
@@ -295,7 +290,6 @@ export async function cacheFolder(dirPath,cache,newFolder=true) {
     }
     await readDirRecursive(dirPath);
     cache.cachedFoldersData[dirPath] = filesArray;
-    console.log(extL);
     if (newFolder) {
         cache.cachedFolders.push(dirPath);
         store.set("cachedFolders",JSON.stringify(cache.cachedFolders))

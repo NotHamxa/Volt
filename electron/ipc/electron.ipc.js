@@ -22,7 +22,7 @@ export function registerElectronIpc({
     });
 
     ipcMain.on("execute-cmd", async (_, cmd) => {
-        await executeUserCommand(cmd);
+        executeUserCommand(cmd);
     });
 
     ipcMain.on("open-uninstall", async () => {

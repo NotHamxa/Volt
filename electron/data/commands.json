@@ -211,20 +211,6 @@
     "source": "predefined"
   },
   {
-    "name": "Open Command Prompt",
-    "type": "Command",
-    "appId": null,
-    "path": "cmd",
-    "source": "predefined"
-  },
-  {
-    "name": "Open PowerShell",
-    "type": "Command",
-    "appId": null,
-    "path": "powershell",
-    "source": "predefined"
-  },
-  {
     "name": "Open Windows Terminal",
     "type": "Command",
     "appId": null,
@@ -238,42 +224,7 @@
     "path": "sysdm.cpl",
     "source": "predefined"
   },
-  {
-    "name": "Open Calculator",
-    "type": "Command",
-    "appId": null,
-    "path": "calc",
-    "source": "predefined"
-  },
-  {
-    "name": "Open Notepad",
-    "type": "Command",
-    "appId": null,
-    "path": "notepad",
-    "source": "predefined"
-  },
-  {
-    "name": "Open Paint",
-    "type": "Command",
-    "appId": null,
-    "path": "mspaint",
-    "source": "predefined"
-  },
-  {
-    "name": "Open Snipping Tool",
-    "type": "Command",
-    "appId": null,
-    "path": "snippingtool",
-    "source": "predefined"
-  },
-  {
-    "name": "Open Disk Cleanup",
-    "type": "Command",
-    "appId": null,
-    "path": "cleanmgr",
-    "source": "predefined"
-  },
-  {
+   {
     "name": "Open System Restore",
     "type": "Command",
     "appId": null,

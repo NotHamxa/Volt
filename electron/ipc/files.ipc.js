@@ -9,6 +9,7 @@ import {openFileWith} from "../utils/openFileWith.js";
 export function registerFilesIpc({
                                      mainWindow,
                                      cache,
+                                     appStates,
                                      folderWatcher,
                                      hideMainWindow,
                                  }) {
@@ -27,14 +28,20 @@ export function registerFilesIpc({
     });
 
     ipcMain.on("open-file-with", async (_, filePath) => {
-        await openFileWith(filePath);
+        openFileWith(filePath);
     });
 
     ipcMain.handle("select-folder", async () => {
-        const result = await dialog.showOpenDialog(mainWindow, {
+        appStates.fixWindowOpen = true;
+        const result = await dialog.showOpenDialog(mainWindow,{
+            title: "Select Folder",
             properties: ["openDirectory"],
         });
-        return result.filePaths?.[0] ?? null;
+        const dirPath = result.filePaths?.[0];
+        mainWindow.focus()
+        appStates.fixWindowOpen = false;
+        if (!dirPath) return null;
+        return dirPath;
     });
 
     ipcMain.handle("cache-folder", async (_, folderPath) => {

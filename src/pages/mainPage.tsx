@@ -70,7 +70,7 @@ export default function MainPage({ inputRef, stage, query, setQuery }: MainPageP
                     ref={inputRef}
                     value={query}
                     onChange={(e) => {
-                        setQuery(e.target.value.trim());
+                        setQuery(e.target.value);
                         setSelfQueryChanged(false);
                     }}
                     onKeyDown={(e) => {
@@ -96,26 +96,26 @@ export default function MainPage({ inputRef, stage, query, setQuery }: MainPageP
                 transition={{ duration: 0.3, ease: "easeInOut" }}
                 style={{ flexGrow: 1 }}
             >
-                {query && stage === 1 && homePageStage === 1 ? (
+                {query.trim() && stage === 1 && homePageStage === 1 ? (
                     <QuerySuggestions
-                        query={query}
+                        query={query.trim()}
                         searchFilters={searchQueryFilters}
                     />
                 ) : null}
 
                 {stage === 2 ? <BangSuggestions
-                    bang={query}
+                    bang={query.trim()}
                     setQuery={setQueryInput}
                     selfQueryChanged={selfQueryChanged}
                 /> : null}
                 {(
-                    (query === "" && stage === 1) ||
-                    (query !== "" && stage === 1 && homePageStage === 2)
+                    (query.trim() === "" && stage === 1) ||
+                    (query.trim() !== "" && stage === 1 && homePageStage === 2)
                 ) ? (
                     <HomePageComponent
                         stage={homePageStage}
                         setStage={setHomePageStage}
-                        query={query}
+                        query={query.trim()}
                     />
                 ) : null}
             </motion.div>

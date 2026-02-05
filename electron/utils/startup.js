@@ -64,7 +64,6 @@ async function loadAppIconsCache(webContents,cache) {
         if (!(appData.name in cache.appIconsCache) && appData.path) {
             console.log("Caching")
             cache.appIconsCache = await cacheAppIcon(appData, cache.appIconsCache);
-            console.log("App Icons Cache = ", cache.appIconsCache);
             currentNumber = currentNumber+1
             webContents.send("set-cache-loading-bar",currentNumber,totalApps)
         }
@@ -86,6 +85,5 @@ async function loadAppIconsCache(webContents,cache) {
             }
         }
     }
-    console.log("appIconsCache = ", cache.appIconsCache);
     store.set("appIconsCache", JSON.stringify(cache.appIconsCache));
 }

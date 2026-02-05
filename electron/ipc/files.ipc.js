@@ -13,8 +13,8 @@ export function registerFilesIpc({
                                      folderWatcher,
                                      hideMainWindow,
                                  }) {
-    ipcMain.handle("search-files", (_, dir, pattern) => {
-        return searchFilesAndFolders(dir, pattern, cache.cachedFoldersData);
+    ipcMain.handle("search-files", (_,query) => {
+        return searchFilesAndFolders(query, cache.cachedFoldersData);
     });
 
     ipcMain.on("open-path", async (_, filePath) => {

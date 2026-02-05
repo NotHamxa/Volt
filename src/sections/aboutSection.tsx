@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button.tsx";
 import { Github, Mail, Globe, ExternalLink } from "lucide-react";
 
 export default function AboutSection() {
-    const appVersion = "1.0.0";
+    const appVersion = "1.0.2";
 
     const socialLinks = [
         {
@@ -10,6 +10,12 @@ export default function AboutSection() {
             icon: Github,
             url: "https://github.com/NotHamxa",
             label: "@NotHamxa"
+        },
+        {
+            name: "LinkedIn",
+            icon: Globe,
+            url: "https://www.linkedin.com/in/hamzahmed07",
+            label: "Hamza Ahmed"
         },
         {
             name: "Email",
@@ -93,23 +99,16 @@ export default function AboutSection() {
                 <div className="p-6 rounded-xl border border-white/10 bg-white/3">
                     <h3 className="font-medium text-white mb-3">License & Credits</h3>
                     <p className="text-sm text-gray-400 leading-relaxed mb-4">
-                        This application is built with modern web technologies and designed to provide
-                        a fast, intuitive search experience. Add any licensing information or credits here.
+
                     </p>
                     <div className="flex gap-3">
                         <Button
                             variant="outline"
                             className="rounded-lg border-white/10 hover:bg-white/10"
-                            onClick={() => window.open("https://github.com/yourusername/yourrepo", "_blank")}
+                            onClick={() => window.open("https://github.com/NotHamxa/volt", "_blank")}
                         >
-                            View Source Code
-                        </Button>
-                        <Button
-                            variant="outline"
-                            className="rounded-lg border-white/10 hover:bg-white/10"
-                            onClick={() => window.open("https://github.com/yourusername/yourrepo/issues", "_blank")}
-                        >
-                            Report Issue
+                            <Github/>
+                            View Repository
                         </Button>
                     </div>
                 </div>

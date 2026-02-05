@@ -21,7 +21,7 @@ contextBridge.exposeInMainWorld("electron", {
     executeCmd:(cmd)=>ipcRenderer.send('execute-cmd', cmd),
     selectFolder:()=>ipcRenderer.invoke('select-folder'),
     deleteFolder:(path)=>ipcRenderer.invoke('delete-folder',path),
-
+    searchQuery:(query)=>ipcRenderer.invoke('search-query',query),
 });
 contextBridge.exposeInMainWorld("file",{
     searchFilesAndFolders: (baseDir, query) => ipcRenderer.invoke('search-files', baseDir, query),
@@ -35,6 +35,8 @@ contextBridge.exposeInMainWorld("file",{
 contextBridge.exposeInMainWorld("apps",{
     searchApps: (query) => ipcRenderer.invoke('search-apps', query),
     searchSettings: (query) => ipcRenderer.invoke('search-settings', query),
+    searchCommands: (query) => ipcRenderer.invoke('search-commands', query),
+
     openApp:(app,admin=false) => ipcRenderer.invoke('launch-app', app,admin),
     openSetting:(setting)=>ipcRenderer.invoke('open-setting', setting),
     launchCommand:(path)=>ipcRenderer.send('launch-command', path),

@@ -1,97 +1,186 @@
 import {SearchQueryT} from "@/interfaces/searchQuery.ts";
 
-
 interface QueryData {
     query: string;
     setBestMatch: React.Dispatch<React.SetStateAction<SearchQueryT | null>>;
     searchQueryFilters: boolean[]
-
 }
-async function getQueryData({ query, setBestMatch,searchQueryFilters }: QueryData) {
-    let apps: SearchQueryT[] = await window.apps.searchApps(query);
-    const start = performance.now();
-    const downloadFileFolders = await window.file.searchFilesAndFolders("", query);
-    window.electron.log("Search End: "+(performance.now()-start).toString()+"ms");
-    const settings = await window.apps.searchSettings(query);
-    let downloadFiles = downloadFileFolders.filter(item => item.type === "file");
-    let downloadFolders = downloadFileFolders.filter(item => item.type === "folder");
-    if (apps.length > 0) {
-        const appLaunchStack:string[] = JSON.parse((await window.electronStore.get("appLaunchStack")) ?? "[]");
 
-        // Sorting apps on the basis of recent app launches
-        apps = apps.sort((a, b) => {
-            const indexA = appLaunchStack.indexOf(a.name);
-            const indexB = appLaunchStack.indexOf(b.name);
+// Cache for app launch stack to avoid repeated parsing
+let cachedAppLaunchStack: string[] | null = null;
+let lastAppLaunchStackFetch = 0;
+const APP_LAUNCH_CACHE_DURATION = 5000; // 5 seconds
 
-            if (indexA !== -1 && indexB !== -1) return indexA - indexB;
-            if (indexA !== -1) return -1;
-            if (indexB !== -1) return 1;
-            return 0;
-        });
-        const bestMatches:SearchQueryT[]  = apps.filter(item=>item.name.toLowerCase().startsWith(query.toLowerCase()));
-        const filteredAppLaunchStack:string[] = appLaunchStack.filter(item=>item.toLowerCase().startsWith(query.toLowerCase()))
+async function getAppLaunchStack(): Promise<string[]> {
+    const now = Date.now();
+    if (cachedAppLaunchStack && (now - lastAppLaunchStackFetch) < APP_LAUNCH_CACHE_DURATION) {
+        return cachedAppLaunchStack;
+    }
 
-        let best:SearchQueryT | undefined = undefined;
-        for (const match of bestMatches) {
-            const index = filteredAppLaunchStack.lastIndexOf(match.name);
-            if (index !== -1) {
-                if (!best || appLaunchStack.lastIndexOf(match.name) < appLaunchStack.lastIndexOf(best.name)) {
+    const stack = JSON.parse((await window.electronStore.get("appLaunchStack")) ?? "[]");
+    cachedAppLaunchStack = stack;
+    lastAppLaunchStackFetch = now;
+    return stack;
+}
+
+// Optimized sorting function
+function sortAppsByLaunchHistory(apps: SearchQueryT[], appLaunchStack: string[]): SearchQueryT[] {
+    // Create a map for O(1) lookup instead of indexOf which is O(n)
+    const stackIndexMap = new Map<string, number>();
+    appLaunchStack.forEach((name, index) => {
+        stackIndexMap.set(name, index);
+    });
+
+    return apps.sort((a, b) => {
+        const indexA = stackIndexMap.get(a.name);
+        const indexB = stackIndexMap.get(b.name);
+
+        if (indexA !== undefined && indexB !== undefined) return indexA - indexB;
+        if (indexA !== undefined) return -1;
+        if (indexB !== undefined) return 1;
+        return 0;
+    });
+}
+
+// Optimized best match finder
+function findBestMatch(
+    items: SearchQueryT[],
+    query: string,
+    launchStack?: string[]
+): SearchQueryT | undefined {
+    const lowerQuery = query.toLowerCase();
+    const matches = items.filter(item => item.name.toLowerCase().startsWith(lowerQuery));
+
+    if (matches.length === 0) return undefined;
+    if (matches.length === 1) return matches[0];
+
+    // If we have launch history, use it
+    if (launchStack && launchStack.length > 0) {
+        const filteredStack = launchStack.filter(name =>
+            name.toLowerCase().startsWith(lowerQuery)
+        );
+
+        if (filteredStack.length > 0) {
+            // Find the most recently used match
+            let best = matches[0];
+            let bestIndex = launchStack.lastIndexOf(best.name);
+
+            for (const match of matches.slice(1)) {
+                const index = launchStack.lastIndexOf(match.name);
+                if (index !== -1 && (bestIndex === -1 || index > bestIndex)) {
                     best = match;
+                    bestIndex = index;
                 }
             }
+
+            return bestIndex !== -1 ? best : matches[0];
+        }
+    }
+
+    return matches[0];
+}
+
+async function getQueryData({ query, setBestMatch, searchQueryFilters }: QueryData) {
+    const start = performance.now();
+
+    // Fetch data
+    const queryData = await window.electron.searchQuery(query);
+
+    const fetchTime = performance.now();
+    console.log(`Data fetch: ${(fetchTime - start).toFixed(2)}ms`);
+
+    let apps: SearchQueryT[] = queryData.apps;
+    const allFilesAndFolders = queryData.files;
+    const settings = queryData.settings;
+    const commands = queryData.commands;
+
+    // Split files and folders once
+    const downloadFiles = allFilesAndFolders.filter(item => item.type === "file");
+    const downloadFolders = allFilesAndFolders.filter(item => item.type === "folder");
+
+    const splitTime = performance.now();
+    console.log(`Split files/folders: ${(splitTime - fetchTime).toFixed(2)}ms`);
+
+    let bestMatch: SearchQueryT | null = null;
+    let filteredCommands = commands;
+    let filteredSettings = settings;
+
+    // Process apps if available
+    if (apps.length > 0 && searchQueryFilters[0]) {
+        const appLaunchStack = await getAppLaunchStack();
+        apps = sortAppsByLaunchHistory(apps, appLaunchStack);
+
+        const best = findBestMatch(apps, query, appLaunchStack);
+        if (best) {
+            bestMatch = best;
+            // Remove best match from apps list
+            apps = apps.filter(app => app !== best);
         }
 
-        if (best && searchQueryFilters[0]) {
-            setBestMatch(best);
-            apps = apps.filter(app=>JSON.stringify(app) !== JSON.stringify(best));
-        } else {
-            setBestMatch(null);
+        const appProcessTime = performance.now();
+        console.log(`App processing: ${(appProcessTime - splitTime).toFixed(2)}ms`);
+    }
+    // Process commands if no app match
+    else if (filteredCommands.length > 0 && searchQueryFilters[3]) {
+        const best = findBestMatch(filteredCommands, query);
+        if (best) {
+            bestMatch = best;
+            filteredCommands = filteredCommands.filter(cmd => cmd !== best);
         }
     }
-    else if (settings.length > 0) {
-        const best:SearchQueryT | undefined = settings.find(setting =>{
-            return setting.name.toLowerCase().startsWith(query.toLowerCase())
-        })
-        if (best && searchQueryFilters[3]) {
-            setBestMatch(best);
-        }
-        else {
-            setBestMatch(null);
+    // Process settings if no command match
+    else if (filteredSettings.length > 0 && searchQueryFilters[3]) {
+        const best = findBestMatch(filteredSettings, query);
+        if (best) {
+            bestMatch = best;
+            filteredSettings = filteredSettings.filter(setting => setting !== best);
         }
     }
-    else if (downloadFolders.length > 0) {
-        const best = downloadFolders.find(folder => {
-            return folder.name.toLowerCase().startsWith(query.toLowerCase());
-        });
-        if (best && searchQueryFilters[1]) {
-            setBestMatch(best);
-            downloadFolders = downloadFolders.filter(folder=>JSON.stringify(folder) !== JSON.stringify(best));
-        } else {
-            setBestMatch(null);
+    // Process folders if no setting match
+    else if (downloadFolders.length > 0 && searchQueryFilters[2]) {
+        const best = findBestMatch(downloadFolders, query);
+        if (best) {
+            bestMatch = best;
+            const index = downloadFolders.indexOf(best);
+            if (index > -1) {
+                downloadFolders.splice(index, 1);
+            }
         }
-    } else if (downloadFiles.length > 0) {
-        const best = downloadFiles.find(file => {
-            return file.name.toLowerCase().startsWith(query.toLowerCase());
-        });
-        if (best && searchQueryFilters[2]) {
-            setBestMatch(best);
-            downloadFiles = downloadFiles.filter(files => JSON.stringify(files) !== JSON.stringify(best));
-        } else {
-            setBestMatch(null);
-        }
-    } else {
-        setBestMatch(null);
     }
-    window.electron.log("Function End: "+(performance.now()-start).toString()+"ms");
+    // Process files if no folder match
+    else if (downloadFiles.length > 0 && searchQueryFilters[1]) {
+        const best = findBestMatch(downloadFiles, query);
+        if (best) {
+            bestMatch = best;
+            const index = downloadFiles.indexOf(best);
+            if (index > -1) {
+                downloadFiles.splice(index, 1);
+            }
+        }
+    }
+
+    setBestMatch(bestMatch);
+
+    const totalTime = performance.now() - start;
+    window.electron.log(`Query processing: ${totalTime.toFixed(2)}ms`);
+
     return {
-        apps:apps,
+        apps,
         folders: downloadFolders,
         files: downloadFiles,
-        settings: settings,
+        commands: filteredCommands,
+        settings: filteredSettings,
     };
 }
+
 function getNameFromPath(path: string): string {
-    const segments = path.split(/[\\/]/);
-    return segments[segments.length - 1];
+    const lastSlashIndex = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+    return lastSlashIndex === -1 ? path : path.substring(lastSlashIndex + 1);
 }
-export {getQueryData,getNameFromPath};
+
+// Utility to clear cache if needed (call when app launch stack updates)
+export function clearAppLaunchCache() {
+    cachedAppLaunchStack = null;
+}
+
+export { getQueryData, getNameFromPath };

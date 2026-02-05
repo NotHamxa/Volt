@@ -3,6 +3,13 @@ import {SearchQueryT} from "@/interfaces/searchQuery.ts";
 
 export {};
 
+type CombinedQuery = {
+    apps: SearchQueryT[];
+    settings: SearchQueryT[];
+    commands: SearchQueryT[];
+    files: SearchQueryT[];
+}
+
 declare global {
     interface Window {
         electron: {
@@ -22,6 +29,9 @@ declare global {
             executeCmd: (command: string) => void;
             selectFolder:()=>Promise<string | null>;
             deleteFolder:(path:string)=>Promise<boolean>;
+
+            searchQuery:(query:string) => Promise<CombinedQuery>;
+            runCommand:(command:SearchQueryT) => void;
         };
         electronStore: {
             set: (key: string, value: any) => void;
@@ -31,6 +41,7 @@ declare global {
         apps:{
             searchApps: (query: string) => Promise<SearchQueryT[]>;
             searchSettings: (query: string) => Promise<SearchQueryT[]>;
+            searchCommands: (query: string) => Promise<SearchQueryT[]>;
             openApp: (app: SearchQueryT,admin=false) => Promise<boolean>;
             openSettings: (settings: string) => Promise<boolean>;
             getAppLogo:(app: SearchQueryT) => Promise<string>;
@@ -38,7 +49,7 @@ declare global {
             getLinkFavicon:(link:string)=>Promise<string | null>
         };
         file:{
-            searchFilesAndFolders: (baseDir: string, query: string) => Promise<SearchQueryT[]>;
+            searchFilesAndFolders: (query: string) => Promise<SearchQueryT[]>;
             openPath: (path: string) => void;
             openInExplorer:(path: string) => void;
             openFileWith:(path: string) => void;

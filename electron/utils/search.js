@@ -40,7 +40,7 @@ export async function searchCommands(query) {
     }
     return Array.from(resultsMap.values());
 }
-export async function searchFilesAndFolders(baseDir, query, cachedFolderData) {
+export async function searchFilesAndFolders(query, cachedFolderData) {
     const lowerQuery = normaliseString(query).trim();
     const userHome = os.homedir();
     const folderMap = {
@@ -80,5 +80,19 @@ export async function searchFilesAndFolders(baseDir, query, cachedFolderData) {
         }
     }
     return [...suggestedFolders,...Array.from(resultsMap.values()),...Array.from(secondMap.values())];
+}
+
+export async function searchQuery(appCache, cachedFolderData, query) {
+    const apps = await searchApps(appCache,query);
+    const settings = await searchSettings(query);
+    const commands = await searchCommands(query);
+    const files = await searchFilesAndFolders(query, cachedFolderData);
+    console.log(apps.length, settings.length, files.length, commands.length);
+    return {
+        apps,
+        settings,
+        commands,
+        files,
+    }
 }
 

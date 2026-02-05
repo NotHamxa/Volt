@@ -213,6 +213,9 @@ app.whenReady().then(async () => {
         folderWatcher,
         store,
     });
+
+
+
     await loadAppData(mainWindow.webContents,cache);
     await loadFileData(cache)
     if (process.env.NODE_ENV !== "development") {
@@ -225,6 +228,17 @@ app.whenReady().then(async () => {
     const appsWatcher = chokidar.watch(startMenuPaths,{
         persistent: true,
         ignoreInitial: true
+    });
+    globalShortcut.register(openShortcut, () => {
+        if (!mainWindow) return;
+        if (mainWindow.isVisible()) {
+            hideMainWindow();
+        } else {
+            showMainWindow();
+            if (process.env.NODE_ENV !== "development") {
+                mainWindow.webContents.reloadIgnoringCache();
+            }
+        }
     });
     appsWatcher.on("add",async _=>{
         console.log("Adding...");
@@ -239,17 +253,7 @@ app.whenReady().then(async () => {
         await loadAppData(mainWindow.webContents,cache);
     })
 
-    globalShortcut.register(openShortcut, () => {
-        if (!mainWindow) return;
-        if (mainWindow.isVisible()) {
-            hideMainWindow();
-        } else {
-            showMainWindow();
-            if (process.env.NODE_ENV !== "development") {
-                mainWindow.webContents.reloadIgnoringCache();
-            }
-        }
-    });
+
     globalShortcut.register("Ctrl+L",handleWindowLock)
 
     app.on("activate", () => {

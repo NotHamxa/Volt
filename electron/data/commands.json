@@ -1,232 +1,146 @@
 [
-  { "name": "Shutdown", "type": "CommandConfirm", "appId": null, "path": "shutdown /s /t 0", "source": "predefined" },
+  { "name": "Shutdown", 
+    "type": "commandConfirm", 
+    "appId": null, 
+    "path": "shutdown /s /t 0", 
+    "source": "predefined"
+  },
   {
     "name": "Restart",
-    "type": "CommandConfirm",
+    "type": "commandConfirm",
     "appId": null,
     "path": "shutdown /r /t 0",
     "source": "predefined"
   },
   {
     "name": "Sleep",
-    "type": "CommandConfirm",
+    "type": "commandConfirm",
     "appId": null,
     "path": "rundll32.exe powrprof.dll,SetSuspendState 0,1,0",
     "source": "predefined"
   },
   {
     "name": "Hibernate",
-    "type": "CommandConfirm",
+    "type": "commandConfirm",
     "appId": null,
     "path": "shutdown /h",
     "source": "predefined"
   },
   {
     "name": "Lock Screen",
-    "type": "Command",
+    "type": "command",
     "appId": null,
     "path": "rundll32.exe user32.dll,LockWorkStation",
     "source": "predefined"
   },
   {
     "name": "Sign Out",
-    "type": "CommandConfirm",
+    "type": "commandConfirm",
     "appId": null,
     "path": "shutdown /l",
     "source": "predefined"
   },
   {
     "name": "Open Recycle Bin",
-    "type": "Command",
+    "type": "command",
     "appId": null,
     "path": "start shell:RecycleBinFolder",
     "source": "predefined"
   },
   {
     "name": "Empty Recycle Bin",
-    "type": "CommandConfirm",
+    "type": "commandConfirm",
     "appId": null,
     "path": "PowerShell.exe -Command \"Clear-RecycleBin -Force\"",
     "source": "predefined"
   },
   {
     "name": "Display - PC Screen Only",
-    "type": "Command",
+    "type": "command",
     "appId": null,
     "path": "DisplaySwitch.exe /internal",
     "source": "predefined"
   },
   {
     "name": "Display - Duplicate",
-    "type": "Command",
+    "type": "command",
     "appId": null,
     "path": "DisplaySwitch.exe /clone",
     "source": "predefined"
   },
   {
     "name": "Display - Extend",
-    "type": "Command",
+    "type": "command",
     "appId": null,
     "path": "DisplaySwitch.exe /extend",
     "source": "predefined"
   },
   {
     "name": "Display - Second Screen Only",
-    "type": "Command",
+    "type": "command",
     "appId": null,
     "path": "DisplaySwitch.exe /external",
     "source": "predefined"
   },
   {
-    "name": "Open Control Panel",
-    "type": "Command",
-    "appId": null,
-    "path": "control",
-    "source": "predefined"
-  },
-  {
-    "name": "Open Windows Settings",
-    "type": "Command",
-    "appId": null,
-    "path": "start ms-settings:",
-    "source": "predefined"
-  },
-  {
-    "name": "Open Device Manager",
-    "type": "Command",
-    "appId": null,
-    "path": "devmgmt.msc",
-    "source": "predefined"
-  },
-  {
-    "name": "Open Disk Management",
-    "type": "Command",
-    "appId": null,
-    "path": "diskmgmt.msc",
-    "source": "predefined"
-  },
-  {
-    "name": "Open System Information",
-    "type": "Command",
-    "appId": null,
-    "path": "msinfo32",
-    "source": "predefined"
-  },
-  {
-    "name": "Open Network Connections",
-    "type": "Command",
-    "appId": null,
-    "path": "ncpa.cpl",
-    "source": "predefined"
-  },
-  {
-    "name": "Open Programs and Features",
-    "type": "Command",
-    "appId": null,
-    "path": "appwiz.cpl",
-    "source": "predefined"
-  },
-  {
-    "name": "Open Task Manager",
-    "type": "Command",
-    "appId": null,
-    "path": "taskmgr",
-    "source": "predefined"
-  },
-  {
-    "name": "Open Registry Editor",
-    "type": "Command",
-    "appId": null,
-    "path": "regedit",
-    "source": "predefined"
-  },
-  {
-    "name": "Open Downloads Folder",
-    "type": "Command",
-    "appId": null,
-    "path": "explorer %USERPROFILE%\\Downloads",
-    "source": "predefined"
-  },
-  {
-    "name": "Open Documents Folder",
-    "type": "Command",
-    "appId": null,
-    "path": "explorer %USERPROFILE%\\Documents",
-    "source": "predefined"
-  },
-  {
-    "name": "Open Desktop Folder",
-    "type": "Command",
-    "appId": null,
-    "path": "explorer %USERPROFILE%\\Desktop",
-    "source": "predefined"
-  },
-  {
-    "name": "Open Temp Folder",
-    "type": "Command",
-    "appId": null,
-    "path": "explorer %TEMP%",
-    "source": "predefined"
-  },
-  {
     "name": "Minimize All Windows",
-    "type": "Command",
+    "type": "command",
     "appId": null,
     "path": "PowerShell.exe -Command \"(New-Object -ComObject Shell.Application).MinimizeAll()\"",
     "source": "predefined"
   },
   {
     "name": "Restart Windows Explorer",
-    "type": "CommandConfirm",
+    "type": "commandConfirm",
     "appId": null,
     "path": "taskkill /F /IM explorer.exe && start explorer.exe",
     "source": "predefined"
   },
   {
     "name": "Flush DNS Cache",
-    "type": "Command",
+    "type": "command",
     "appId": null,
     "path": "ipconfig /flushdns",
     "source": "predefined"
   },
   {
     "name": "Show IP Configuration",
-    "type": "Command",
+    "type": "command",
     "appId": null,
     "path": "cmd /k ipconfig",
     "source": "predefined"
   },
   {
     "name": "Open Network Settings",
-    "type": "Command",
+    "type": "command",
     "appId": null,
     "path": "start ms-settings:network",
     "source": "predefined"
   },
   {
     "name": "Show WiFi Profiles",
-    "type": "Command",
+    "type": "command",
     "appId": null,
     "path": "cmd /k netsh wlan show profiles",
     "source": "predefined"
   },
   {
     "name": "Open Windows Terminal",
-    "type": "Command",
+    "type": "command",
     "appId": null,
     "path": "wt",
     "source": "predefined"
   },
   {
     "name": "Open System Properties",
-    "type": "Command",
+    "type": "command",
     "appId": null,
     "path": "sysdm.cpl",
     "source": "predefined"
   },
    {
     "name": "Open System Restore",
-    "type": "Command",
+    "type": "command",
     "appId": null,
     "path": "%windir%\\system32\\restore\\rstrui.exe",
     "source": "predefined"

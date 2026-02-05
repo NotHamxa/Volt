@@ -1,5 +1,5 @@
 import { ipcMain, shell } from "electron";
-import {searchApps, searchSettings} from "../utils/search.js";
+import {searchApps, searchCommands, searchSettings} from "../utils/search.js";
 import {launchApp} from "../utils/launchApp.js";
 import {getAppLogo} from "../utils/appLogo.js";
 import {getUwpAppIcon} from "../utils/uwpAppLogo.js";
@@ -16,6 +16,10 @@ export function registerAppsIpc({
     ipcMain.handle("search-settings", (_, query) => {
         return searchSettings(query);
     });
+
+    ipcMain.handle("search-commands", (_, query) => {
+        return searchCommands(query);
+    })
 
     ipcMain.handle("launch-app", async (_, app, admin = false) => {
         const opened = await launchApp(app, admin);

@@ -15,7 +15,6 @@ export function setupAutoUpdater(mainWindow) {
 
     autoUpdater.on("update-available", () => {
         console.log("Update available");
-
         dialog.showMessageBox(mainWindow, {
             type: "info",
             title: "Update Available",
@@ -32,6 +31,7 @@ export function setupAutoUpdater(mainWindow) {
     });
 
     autoUpdater.on("update-not-available", () => {
+        mainWindow.webContents.send("update-not-available");
         console.log("No updates found");
     });
 
@@ -53,7 +53,7 @@ export function setupAutoUpdater(mainWindow) {
             message: "Update downloaded. Restart to apply it?",
             buttons: ["Restart Now"],
         }).then(() => {
-            autoUpdater.quitAndInstall();
+            autoUpdater.quitAndInstall(true, true);
         });
     });
     autoUpdater.checkForUpdates();

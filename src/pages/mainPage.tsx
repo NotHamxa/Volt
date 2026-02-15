@@ -89,12 +89,12 @@ export default function MainPage({ inputRef, stage, query, setQuery }: MainPageP
                 /> : null}
             </div>
             <motion.div
-                key={stage}
-                initial={{ opacity: 0, x: stage === 1 ? -50 : 50 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: stage === 1 ? 50 : -50 }}
-                transition={{ duration: 0.3, ease: "easeInOut" }}
-                style={{ flexGrow: 1 }}
+                // key={stage}
+                // initial={{ opacity: 0, x: stage === 1 ? -50 : 50 }}
+                // animate={{ opacity: 1, x: 0 }}
+                // exit={{ opacity: 0, x: stage === 1 ? 50 : -50 }}
+                // transition={{ duration: 0.3, ease: "easeInOut" }}
+                // style={{ flexGrow: 1 }}
             >
                 {query.trim() && stage === 1 && homePageStage === 1 ? (
                     <QuerySuggestions

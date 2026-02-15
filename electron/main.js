@@ -92,8 +92,15 @@ folderWatcher.on("unlinkDir", async (dirPath) => {
 const showMainWindow = () => {
     if (!mainWindow) return;
     lastFocusedWindow = BrowserWindow.getFocusedWindow();
+
+    mainWindow.setOpacity(0);
     mainWindow.show();
     mainWindow.focus();
+
+    setTimeout(() => {
+        mainWindow.setOpacity(1);
+    }, 50);
+
     globalShortcut.register("Esc", handleEsc);
 };
 const hideMainWindow = () => {
@@ -119,9 +126,9 @@ const changeOpenBind = async (binding)=>{
             hideMainWindow();
         } else {
             showMainWindow();
-            if (process.env.NODE_ENV !== "development") {
-                mainWindow.webContents.reloadIgnoringCache();
-            }
+            // if (process.env.NODE_ENV !== "development") {
+            //     mainWindow.webContents.reloadIgnoringCache();
+            // }
         }
     });
     openShortcut = binding;

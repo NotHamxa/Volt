@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button.tsx";
 import { Github, Mail, Globe, ExternalLink } from "lucide-react";
 
 export default function AboutSection() {
-    const appVersion = "1.0.2";
+    const appVersion = "1.0.3";
 
     const socialLinks = [
         {

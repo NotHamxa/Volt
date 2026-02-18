@@ -2,97 +2,79 @@ import path from "path";
 import os from "os";
 import settings from "../data/settings.json" with { type: 'json' };
 import commands from "../data/commands.json" with { type: 'json' };
-const normaliseString = (str) => {
-    return str.toLowerCase().replace(/\s+/g, "");
-}
 
-export async function searchApps(appCache,query) {
-    if (!appCache || !Array.isArray(appCache)) return [];
-    const lowerQuery = normaliseString(query).trim();
-    const resultsMap = new Map();
+const normaliseString = (str) => str.toLowerCase().replace(/\s+/g, "");
+
+const settingsIndex = settings.map(s => ({
+    item: s,
+    normalized: normaliseString(s.name)
+}));
+
+const commandsIndex = commands.map(c => ({
+    item: c,
+    normalized: normaliseString(c.name)
+}));
+
+const userHome = os.homedir();
+const SUGGESTED_FOLDERS = [
+    { name: "Downloads", type: "folder", path: path.join(userHome, "Downloads"), source: "PreDefined", normalized: "downloads" },
+    { name: "Documents", type: "folder", path: path.join(userHome, "Documents"), source: "PreDefined", normalized: "documents" },
+    { name: "Desktop",   type: "folder", path: path.join(userHome, "Desktop"),   source: "PreDefined", normalized: "desktop"   },
+];
+
+export function searchApps(appCache, query) {
+    if (!appCache?.length) return [];
+    const results = [];
     for (const app of appCache) {
-        if (normaliseString(app.name).includes(lowerQuery)) {
-            resultsMap.set(app.name, app);
-        }
+        if (!app._normalized) app._normalized = normaliseString(app.name);
+        if (app._normalized.includes(query)) results.push(app);
     }
-    return Array.from(resultsMap.values());
+    return results;
 }
 
-export async function searchSettings(query) {
-    if (!settings) return [];
-    const lowerQuery = normaliseString(query).trim();
-    const resultsMap = new Map();
-    for (const setting of settings){
-        if (normaliseString(setting.name).includes(lowerQuery)) {
-            resultsMap.set(setting.name, setting);
-        }
+export function searchSettings(query) {
+    const results = [];
+    for (const { item, normalized } of settingsIndex) {
+        if (normalized.includes(query)) results.push(item);
     }
-    return Array.from(resultsMap.values());
+    return results;
 }
-export async function searchCommands(query) {
-    if (!commands) return [];
-    const lowerQuery = normaliseString(query).trim();
-    const resultsMap = new Map();
-    for (const command of commands){
-        if (normaliseString(command.name).includes(lowerQuery)) {
-            resultsMap.set(command.name, command);
-        }
+
+export function searchCommands(query) {
+    const results = [];
+    for (const { item, normalized } of commandsIndex) {
+        if (normalized.includes(query)) results.push(item);
     }
-    return Array.from(resultsMap.values());
+    return results;
 }
-export async function searchFilesAndFolders(query, cachedFolderData) {
-    const lowerQuery = normaliseString(query).trim();
-    const userHome = os.homedir();
-    const folderMap = {
-        Downloads: path.join(userHome, "Downloads"),
-        Documents: path.join(userHome, "Documents"),
-        Desktop: path.join(userHome, "Desktop")
-    };
-    const suggestedFolders = []
-    for (const key in folderMap) {
-        if (normaliseString(key).startsWith(lowerQuery)) {
-            suggestedFolders.push({
-                name:key,
-                type: "folder",
-                path: folderMap[key],
-                source: "PreDefined"
-            })
-        }
+
+export function searchFilesAndFolders(query, cachedFolderData) {
+    const startMatches = [];
+    const includeMatches = [];
+
+    for (const { normalized } of SUGGESTED_FOLDERS) {
+        if (normalized.startsWith(query)) startMatches.push({ ...SUGGESTED_FOLDERS.find(f => f.normalized === normalized) });
     }
-    const resultsMap = new Map();
-    const secondMap = new Map();
+
     for (const list of Object.values(cachedFolderData)) {
         for (const item of list) {
-            if (!item._normalizedName) {
-                item._normalizedName = normaliseString(item.name);
-            }
-
-            if (item._normalizedName.startsWith(lowerQuery)) {
-                if (!resultsMap.has(item.name)) {
-                    resultsMap.set(item.name, item);
-                }
-            }
-            else if (item._normalizedName.includes(lowerQuery)) {
-                if (!secondMap.has(item.name)) {
-                    secondMap.set(item.name, item);
-                }
-            }
+            if (!item._normalized) item._normalized = normaliseString(item.name);
+            if (item._normalized.startsWith(query)) startMatches.push(item);
+            else if (item._normalized.includes(query)) includeMatches.push(item);
         }
     }
-    return [...suggestedFolders,...Array.from(resultsMap.values()),...Array.from(secondMap.values())];
+
+    return [...startMatches, ...includeMatches];
 }
 
-export async function searchQuery(appCache, cachedFolderData, query) {
-    const apps = await searchApps(appCache,query);
-    const settings = await searchSettings(query);
-    const commands = await searchCommands(query);
-    const files = await searchFilesAndFolders(query, cachedFolderData);
-    console.log(apps.length, settings.length, files.length, commands.length);
+export function searchQuery(appCache, cachedFolderData, query) {
+    const q = normaliseString(query).trim();
+    if (!q) return { apps: [], settings: [], commands: [], files: [] };
+
     return {
-        apps,
-        settings,
-        commands,
-        files,
-    }
+        apps:     searchApps(appCache, q),
+        settings: searchSettings(q),
+        commands: searchCommands(q),
+        files:    searchFilesAndFolders(q, cachedFolderData),
+    };
 }
-

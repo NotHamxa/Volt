@@ -17,6 +17,7 @@ export default function App() {
 
     const [showIntroModal, setShowIntroModal] = useState(true);
 
+
     const [query, setQuery] = useState<string>("");
     const inputRef = useRef<HTMLInputElement>(null);
     const [stage, setStage] = useState<number>(1);

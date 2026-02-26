@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, ReactNode, Dispatch, SetStateAction } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronRight, ChevronLeft, Zap, Search, Pin, Folder, Globe, Hash, Command } from "lucide-react";
+import {ChevronRight, ChevronLeft, Search, Pin, Folder, Globe, Hash, Command, Link} from "lucide-react";
 
+import logo from "@/assets/icon.png";
 function ScrollIndicator({ visible }: { visible: boolean }) {
     return (
         <AnimatePresence>
@@ -158,19 +159,23 @@ const PAGES: ReactNode[] = [
             </h2>
         </div>
         <p className="text-[13px] text-white/40 leading-relaxed">
-            Pin your favourite apps and they'll always appear at the top of your results — no searching needed.
+            Pin your favourite apps and links — they'll always appear at the top of your results.
         </p>
         <FeatureRow
             icon={Pin}
             title="Right-click to pin"
             desc="Right-click any app in the results list and select Pin to Start."
         />
+        <FeatureRow
+            icon={Link}
+            title="Pin links"
+            desc="Give a URL and a name — open your most-visited sites straight from Volt."
+        />
         <Callout>
             <Pin size={13} className="mt-0.5 shrink-0 text-white/30" strokeWidth={1.5} />
-            <span>You can pin up to <span className="text-white/60">21 apps</span>. Right-click again to unpin.</span>
+            <span>You can pin up to <span className="text-white/60">21 apps and 7 links</span>. Right-click to unpin.</span>
         </Callout>
     </IntroPage>,
-
     <IntroPage>
         <div>
             <p className="text-[11px] uppercase tracking-widest text-white/20 mb-2">Files</p>
@@ -346,37 +351,33 @@ export function IntroModal({ open, setOpen }: IntroModalProps) {
                                     animate="center"
                                     exit="exit"
                                     transition={{ duration: 0.28, ease: EASE }}
-                                    className="flex flex-col items-center justify-center flex-1 gap-7 px-10 py-14"
+                                    className="flex flex-col items-center justify-center flex-1 gap-6 px-10 py-14"
                                 >
-                                    <motion.div
-                                        initial={{ scale: 0.6, opacity: 0 }}
-                                        animate={{ scale: 1, opacity: 1 }}
-                                        transition={{ delay: 0.08, duration: 0.5, ease: EASE }}
-                                        className="flex items-center justify-center w-[60px] h-[60px] rounded-[18px]"
-                                        style={{
-                                            background: "rgba(255,255,255,0.04)",
-                                            border: "1px solid rgba(255,255,255,0.09)",
-                                        }}
-                                    >
-                                        <Zap size={26} className="text-white" strokeWidth={1.5} />
-                                    </motion.div>
-
                                     <motion.div
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: 0.18, duration: 0.4 }}
+                                        transition={{ delay: 0.08, duration: 0.4 }}
                                         className="text-center"
                                     >
                                         <h1
                                             className="text-[42px] font-semibold text-white leading-none mb-2.5"
                                             style={{ letterSpacing: "-0.04em" }}
                                         >
-                                            volt
+                                            Volt
                                         </h1>
                                         <p className="text-[13px] text-white/35 tracking-wide">
                                             Your system, at your fingertips.
                                         </p>
                                     </motion.div>
+
+                                    <motion.img
+                                        src={logo}
+                                        alt="logo"
+                                        className="w-32 h-32 object-contain"
+                                        initial={{ scale: 0.8, opacity: 0 }}
+                                        animate={{ scale: 1, opacity: 1 }}
+                                        transition={{ delay: 0.18, duration: 0.5, ease: EASE }}
+                                    />
 
                                     <motion.div
                                         initial={{ opacity: 0, y: 10 }}
@@ -400,7 +401,6 @@ export function IntroModal({ open, setOpen }: IntroModalProps) {
                                     </motion.div>
                                 </motion.div>
                             )}
-
                             {!isLanding && (
                                 <motion.div
                                     key={`page-${step}`}
@@ -433,13 +433,13 @@ export function IntroModal({ open, setOpen }: IntroModalProps) {
                                             disabled={step === 0}
                                             className="flex items-center gap-1.5 text-[12px] text-white/30 hover:text-white/55 disabled:opacity-0 disabled:pointer-events-none transition-all duration-150"
                                         >
-        <span
-            className="inline-flex items-center justify-center w-5 h-5 rounded-md text-[10px]"
-            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
-        >
-            <ChevronLeft/>
-        </span>
-                                            Back
+                                            <span
+                                                className="inline-flex items-center justify-center w-5 h-5 rounded-md text-[10px]"
+                                                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+                                            >
+                                                <ChevronLeft/>
+                                            </span>
+                                                Back
                                         </button>
 
                                         <button
@@ -459,8 +459,8 @@ export function IntroModal({ open, setOpen }: IntroModalProps) {
                                                     className="inline-flex items-center justify-center w-5 h-5 rounded-md text-[10px]"
                                                     style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
                                                 >
-                <ChevronRight/>
-            </span>
+                                                    <ChevronRight/>
+                                                </span>
                                             )}
                                         </button>
                                     </div>

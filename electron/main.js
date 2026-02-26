@@ -39,7 +39,8 @@ const cache = {
 }
 const appStates = {
     fixWindowOpen:false,
-    windowLocked:false
+    windowLocked:false,
+    pauseEscape:false,
 }
 
 const folderWatcher = chokidar.watch([],{
@@ -108,6 +109,7 @@ const hideMainWindow = () => {
     mainWindow.hide();
     globalShortcut.unregister("Esc");
     mainWindow.webContents.send('window-blurred');
+    appStates.pauseEscape = false;
     if (lastFocusedWindow) {
         lastFocusedWindow.focus();
     }
@@ -189,6 +191,7 @@ const createWindow = async () => {
     const devServerURL = "http://localhost:5173";
 
     mainWindow.on('blur', () => {
+        if (appStates.fixWindowOpen) mainWindow.focus();
         if (mainWindow?.isVisible()) hideMainWindow();
     });
 

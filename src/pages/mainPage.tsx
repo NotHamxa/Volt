@@ -20,7 +20,7 @@ export default function MainPage({ inputRef, stage, query, setQuery }: MainPageP
     const [bangData, setBangData] = useState<BangData | null>(null);
     const [selfQueryChanged, setSelfQueryChanged] = useState<boolean>(false);
     const [homePageStage, setHomePageStage] = useState<number>(1);
-    const [searchQueryFilters, setSearchQueryFilters] = useState<boolean[]>([true, true, true, true]);
+    const [searchQueryFilters, setSearchQueryFilters] = useState<boolean[]>([true, true, true, true, true]);
 
     useEffect(() => {
         const getData = async () => {

@@ -5,7 +5,7 @@ import {
     DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu.tsx";
 import {Check, SlidersHorizontal} from "lucide-react";
-import React from "react";
+import React, {useEffect} from "react";
 
 interface SearchQueryFilterT{
     filters: boolean[],
@@ -19,6 +19,10 @@ function SearchQueryFilter({filters,setFilters}:SearchQueryFilterT) {
             prev.map((value, i) => (i === index ? !value : value))
         );
     }
+
+    useEffect(() => {
+        console.log(filters);
+    }, [filters]);
 
     function MenuItem({ text, index }: { text: string; index: number }) {
         return (
@@ -51,7 +55,7 @@ function SearchQueryFilter({filters,setFilters}:SearchQueryFilterT) {
                     <MenuItem index={1} text={"Files"}/>
                     <MenuItem index={2} text={"Folders"}/>
                     <MenuItem index={3} text={"Settings"}/>
-                    <MenuItem index={3} text={"Commands"}/>
+                    <MenuItem index={4} text={"Commands"}/>
                 </DropdownMenuContent>
             </DropdownMenu>
         </div>

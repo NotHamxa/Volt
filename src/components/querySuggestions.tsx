@@ -1,5 +1,5 @@
 import { Label } from "@/components/ui/label.tsx";
-import { CSSProperties, useEffect, useState, useMemo, useCallback, memo } from "react";
+import { CSSProperties, useEffect, useState, useMemo, useCallback, memo, useRef } from "react";
 import {
     Folder,
     File,
@@ -54,9 +54,10 @@ type QueryComponentProps = {
     unPinApp?: (app: SearchQueryT) => void;
     isAppPinned?: boolean;
     triggerAction?: boolean;
+    triggerContextMenu?: boolean;
+    onContextMenuOpenChange?: (open: boolean) => void;
 };
 
-// File icon getter function
 const getFileIcon = (path: string) => {
     const extension = path.split(".").pop()?.toLowerCase() || "";
 
@@ -140,7 +141,6 @@ const isSameApp = (a: SearchQueryT, b: SearchQueryT) => {
     );
 };
 
-// Memoized QueryComponent
 const QueryComponent = memo(({
                                  item,
                                  highlighted = false,
@@ -148,6 +148,8 @@ const QueryComponent = memo(({
                                  pinApp = () => { },
                                  unPinApp = () => { },
                                  triggerAction = false,
+                                 triggerContextMenu = false,
+                                 onContextMenuOpenChange,
                              }: QueryComponentProps) => {
     const { name, type, path } = item;
 
@@ -155,6 +157,8 @@ const QueryComponent = memo(({
     const [isFocused, setIsFocused] = useState(false);
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [logo, setLogo] = useState<string>();
+
+    const triggerRef = useRef<HTMLSpanElement>(null);
 
     const isHighlighted = hovered || highlighted || isFocused;
 
@@ -167,8 +171,7 @@ const QueryComponent = memo(({
         if (item.path) {
             const appLogo = await window.apps.getAppLogo(item);
             setLogo(appLogo);
-        }
-        else if (item.source === "UWP") {
+        } else if (item.source === "UWP") {
             const appLogo = await window.apps.getUwpAppLogo(item)
             setLogo(appLogo);
         }
@@ -178,16 +181,29 @@ const QueryComponent = memo(({
         getLogo()
     }, [getLogo]);
 
-    // Handle external trigger (e.g., Enter key press)
     useEffect(() => {
         if (triggerAction && type === "commandConfirm") {
             setShowConfirmation(true);
         }
     }, [triggerAction, type]);
 
+    useEffect(() => {
+        if (triggerContextMenu && triggerRef.current) {
+            const el = triggerRef.current;
+            const rect = el.getBoundingClientRect();
+            const event = new MouseEvent("contextmenu", {
+                bubbles: true,
+                cancelable: true,
+                clientX: rect.left + rect.width / 2,
+                clientY: rect.top + rect.height / 2,
+            });
+            el.dispatchEvent(event);
+        }
+    }, [triggerContextMenu]);
+
     const handleClick = useCallback(async () => {
         if (type === "command") {
-            await window.electron.runCommand(item);
+            await window.apps.executeCommand(item);
         } else if (type === "commandConfirm") {
             setShowConfirmation(true);
         } else if (type === "app") {
@@ -198,7 +214,7 @@ const QueryComponent = memo(({
     }, [type, item, path]);
 
     const handleConfirm = useCallback(async () => {
-        await window.electron.runCommand(item);
+        await window.apps.executeCommand(item);
         setShowConfirmation(false);
     }, [item]);
 
@@ -230,7 +246,6 @@ const QueryComponent = memo(({
         if (path) window.file.openFileWith(path);
     }, [path]);
 
-    // Handle Enter key for confirmation
     useEffect(() => {
         if (showConfirmation && highlighted) {
             const handleEnter = (e: KeyboardEvent) => {
@@ -247,7 +262,6 @@ const QueryComponent = memo(({
         }
     }, [showConfirmation, highlighted, handleConfirm, handleCancel]);
 
-    // Memoize icon rendering
     const icon = useMemo(() => {
         if (type === "app") {
             return logo ? (
@@ -275,7 +289,6 @@ const QueryComponent = memo(({
         return null;
     }, [type, logo, path, item.source, item.name]);
 
-    // Memoize label text
     const labelText = useMemo(() => {
         if (type === "file" && path) return getParentFolders(path);
         if (type === "app") return "Application";
@@ -326,8 +339,8 @@ const QueryComponent = memo(({
 
     return (
         <>
-            <ContextMenu>
-                <ContextMenuTrigger>
+            <ContextMenu onOpenChange={onContextMenuOpenChange}>
+                <ContextMenuTrigger ref={triggerRef}>
                     <TooltipProvider>
                         <Tooltip delayDuration={300}>
                             <TooltipTrigger asChild>
@@ -420,12 +433,12 @@ const QueryComponent = memo(({
         </>
     );
 }, (prevProps, nextProps) => {
-    // Custom comparison for memo - return true if props are equal (no re-render needed)
     return (
         prevProps.highlighted === nextProps.highlighted &&
         isSameApp(prevProps.item, nextProps.item) &&
         prevProps.isAppPinned === nextProps.isAppPinned &&
-        prevProps.triggerAction === nextProps.triggerAction
+        prevProps.triggerAction === nextProps.triggerAction &&
+        prevProps.triggerContextMenu === nextProps.triggerContextMenu
     );
 });
 
@@ -435,6 +448,8 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
     const [cmdCommand, setCmdCommand] = useState<string>("")
     const [focusedIndex, setFocusedIndex] = useState<number>(0);
     const [triggeredIndex, setTriggeredIndex] = useState<number>(-1);
+    const [triggeredContextMenuIndex, setTriggeredContextMenuIndex] = useState<number>(-1);
+    const [isContextMenuOpen, setIsContextMenuOpen] = useState<boolean>(false);
     const [bestMatch, setBestMatch] = useState<SearchQueryT | null>(null);
     const [apps, setApps] = useState<SearchQueryT[]>([]);
     const [folders, setFolders] = useState<SearchQueryT[]>([]);
@@ -450,13 +465,12 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
         getAppData()
     }, []);
 
-    // Memoize limit calculation
     const limit = useMemo(() => {
         const searchOptionsSelected = searchFilters.filter(Boolean).length;
         const categories = [apps, folders, files, settings, commands];
         const nullSets = categories.filter(cat => cat.length === 0).length;
 
-        if (searchOptionsSelected === 3 || nullSets === 1) return 5;
+        if ((searchOptionsSelected === 4 || searchOptionsSelected === 3) || nullSets === 1) return 5;
         if (searchOptionsSelected === 2 || nullSets === 2) return 7;
         if (searchOptionsSelected === 1 || nullSets === 3) {
             const max = Math.max(apps.length, folders.length, files.length, settings.length);
@@ -465,7 +479,6 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
         return 3;
     }, [searchFilters, apps.length, folders.length, files.length, settings.length, commands.length]);
 
-    // Memoize limited results
     const limitedApps = useMemo(() => apps.slice(0, limit), [apps, limit]);
     const limitedFiles = useMemo(() => files.slice(0, limit), [files, limit]);
     const limitedFolders = useMemo(() => folders.slice(0, limit), [folders, limit]);
@@ -500,7 +513,6 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
         }
     }, [query, searchFilters]);
 
-    // Memoize all results array
     const allResults = useMemo<SearchQueryT[]>(() => [
         ...(bestMatch ? [bestMatch] : []),
         ...limitedApps,
@@ -511,34 +523,34 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
     ], [bestMatch, limitedApps, limitedSettings, limitedFiles, limitedFolders, limitedCommands]);
 
     const handleKeyDown = useCallback(async (e: KeyboardEvent) => {
+        console.log(isContextMenuOpen)
+        if (isContextMenuOpen) return;
+
         if (e.key === "ArrowDown" && focusedIndex < allResults.length - 1) {
             setFocusedIndex(prev => prev + 1);
         } else if (e.key === "ArrowUp" && focusedIndex > 0) {
             setFocusedIndex(prev => prev - 1);
-        }
-        else if (e.key === "Enter" && isCmdCommand) {
+        } else if (e.key === "Enter" && e.shiftKey && allResults[focusedIndex]) {
+            e.preventDefault();
+            setTriggeredContextMenuIndex(focusedIndex);
+            setTimeout(() => setTriggeredContextMenuIndex(-1), 100);
+        } else if (e.key === "Enter" && isCmdCommand) {
             window.electron.executeCmd(cmdCommand);
-        }
-        else if (e.key === "Enter" && allResults[focusedIndex]) {
+        } else if (e.key === "Enter" && allResults[focusedIndex]) {
             const item = allResults[focusedIndex];
             if (item.type === "command") {
-                await window.electron.runCommand(item);
-            }
-            else if (item.type === "commandConfirm") {
-                // Trigger the dialog by setting the triggered index
+                await window.apps.executeCommand(item);
+            } else if (item.type === "commandConfirm") {
                 e.preventDefault();
                 setTriggeredIndex(focusedIndex);
-                // Reset after a short delay
                 setTimeout(() => setTriggeredIndex(-1), 100);
-            }
-            else if (item.type === "app") {
+            } else if (item.type === "app") {
                 await window.apps.openApp(item);
-            }
-            else if (item.path) {
+            } else if (item.path) {
                 window.file.openPath(item.path);
             }
         }
-    }, [focusedIndex, allResults, isCmdCommand, cmdCommand]);
+    }, [isContextMenuOpen, focusedIndex, allResults, isCmdCommand, cmdCommand]);
 
     useEffect(() => {
         window.addEventListener("keydown", handleKeyDown);
@@ -595,6 +607,8 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
                                 unPinApp={unPinApp}
                                 isAppPinned={bestMatch.type === "app" ? isAppPinned(bestMatch) : false}
                                 triggerAction={triggeredIndex === 0}
+                                triggerContextMenu={triggeredContextMenuIndex === 0}
+                                onContextMenuOpenChange={setIsContextMenuOpen}
                             />
                         )}
 
@@ -611,12 +625,14 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
                                             pinApp={pinApp}
                                             unPinApp={unPinApp}
                                             triggerAction={triggeredIndex === itemIndex}
+                                            triggerContextMenu={triggeredContextMenuIndex === itemIndex}
+                                            onContextMenuOpenChange={setIsContextMenuOpen}
                                         />
                                     );
                                 })}
                             </>
                         )}
-                        {limitedCommands.length > 0 && searchFilters[3] && (
+                        {limitedCommands.length > 0 && searchFilters[4] && (
                             <>
                                 {limitedCommands.map((command, index) => {
                                     const itemIndex = index + (bestMatch ? 1 : 0) + limitedApps.length;
@@ -626,6 +642,8 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
                                             item={command}
                                             highlighted={focusedIndex === itemIndex}
                                             triggerAction={triggeredIndex === itemIndex}
+                                            triggerContextMenu={triggeredContextMenuIndex === itemIndex}
+                                            onContextMenuOpenChange={setIsContextMenuOpen}
                                         />
                                     );
                                 })}
@@ -641,6 +659,8 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
                                             item={file}
                                             highlighted={focusedIndex === itemIndex}
                                             triggerAction={triggeredIndex === itemIndex}
+                                            triggerContextMenu={triggeredContextMenuIndex === itemIndex}
+                                            onContextMenuOpenChange={setIsContextMenuOpen}
                                         />
                                     );
                                 })}
@@ -657,6 +677,8 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
                                             item={file}
                                             highlighted={focusedIndex === itemIndex}
                                             triggerAction={triggeredIndex === itemIndex}
+                                            triggerContextMenu={triggeredContextMenuIndex === itemIndex}
+                                            onContextMenuOpenChange={setIsContextMenuOpen}
                                         />
                                     );
                                 })}
@@ -673,6 +695,8 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
                                             item={folder}
                                             highlighted={focusedIndex === itemIndex}
                                             triggerAction={triggeredIndex === itemIndex}
+                                            triggerContextMenu={triggeredContextMenuIndex === itemIndex}
+                                            onContextMenuOpenChange={setIsContextMenuOpen}
                                         />
                                     );
                                 })}

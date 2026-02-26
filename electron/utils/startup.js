@@ -1,7 +1,7 @@
 import {cacheAppIcon, cacheFolder, cacheUwpIcon, loadApps} from "./cache.js";
 import {app} from "electron";
 import Store from "electron-store";
-import {getUwpInstallLocations} from "./uwpAppLogo.js";
+import {getUwpInstallLocations} from "./apps/uwpAppLogo.js";
 
 const store = new Store();
 export async function loadFileData(cache){

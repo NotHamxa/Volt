@@ -3,7 +3,7 @@ import path from "path";
 import fs from "fs";
 import { readdir } from 'fs/promises';
 import {exec, execFile} from "child_process";
-import {extractAppLogo} from "./appLogo.js";
+import {extractAppLogo} from "./apps/appLogo.js";
 import {promisify} from "node:util";
 import xml2js from "xml2js";
 import Store from "electron-store";

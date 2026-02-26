@@ -31,7 +31,6 @@ declare global {
             deleteFolder:(path:string)=>Promise<boolean>;
 
             searchQuery:(query:string) => Promise<CombinedQuery>;
-            runCommand:(command:SearchQueryT) => void;
         };
         electronStore: {
             set: (key: string, value: any) => void;
@@ -47,6 +46,7 @@ declare global {
             getAppLogo:(app: SearchQueryT) => Promise<string>;
             getUwpAppLogo:(app:SearchQueryT) => Promise<string>;
             getLinkFavicon:(link:string)=>Promise<string | null>
+            executeCommand:(command:SearchQueryT) => void;
         };
         file:{
             searchFilesAndFolders: (query: string) => Promise<SearchQueryT[]>;

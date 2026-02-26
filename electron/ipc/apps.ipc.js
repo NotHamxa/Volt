@@ -1,9 +1,10 @@
 import { ipcMain, shell } from "electron";
 import {searchApps, searchCommands, searchSettings} from "../utils/search.js";
-import {launchApp} from "../utils/launchApp.js";
-import {getAppLogo} from "../utils/appLogo.js";
-import {getUwpAppIcon} from "../utils/uwpAppLogo.js";
+import {launchApp} from "../utils/apps/launchApp.js";
+import {getAppLogo} from "../utils/apps/appLogo.js";
+import {getUwpAppIcon} from "../utils/apps/uwpAppLogo.js";
 import {fetchFavicon} from "../utils/linkFavicon.js";
+import {executeCommand} from "../utils/runCommand.js";
 
 export function registerAppsIpc({
                                     cache,
@@ -31,8 +32,8 @@ export function registerAppsIpc({
         shell.openExternal(setting);
     });
 
-    ipcMain.on("launch-command", async (_, command) => {
-
+    ipcMain.on("execute-command", async (_, command) => {
+        return await executeCommand(command);
     });
 
     ipcMain.handle("get-app-logo", (_, app) => {

@@ -7,12 +7,15 @@ import { Toaster } from "@/components/ui/sonner.tsx";
 import { Label } from "@/components/ui/label.tsx";
 import { Progress } from "@/components/ui/progress.tsx";
 import MainPage from "@/pages/mainPage.tsx";
+import {IntroModal} from "@/components/modal/introModal.tsx";
 
 
 export default function App() {
     const [cacheLoadingStatus, setCacheLoadingStatus] = useState<boolean>(false);
     const [currentCacheStep, setCurrentCacheStep] = useState<number>(0);
     const [totalCacheSteps, setTotalCacheSteps] = useState<number>(0);
+
+    const [showIntroModal, setShowIntroModal] = useState(true);
 
     const [query, setQuery] = useState<string>("");
     const inputRef = useRef<HTMLInputElement>(null);
@@ -154,6 +157,7 @@ export default function App() {
     return (
         <div className="w-screen h-screen overflow-hidden bg-[rgba(24,24,27,0.99)] flex flex-col rounded-xl">
             <Toaster />
+            <IntroModal open={showIntroModal} setOpen={setShowIntroModal}/>
             {(showUnlockedIcon || showLockedIcon) &&
                 <div
                     style={{

@@ -400,7 +400,7 @@ const QueryComponent = memo(({
 
             {type === "commandConfirm" && (
                 <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
-                    <DialogContent className="sm:max-w-[425px] bg-white text-black">
+                    <DialogContent className="sm:max-w-[425px] ">
                         <DialogHeader>
                             <DialogTitle>Confirm Command</DialogTitle>
                             <DialogDescription className="text-gray-600">
@@ -408,7 +408,7 @@ const QueryComponent = memo(({
                             </DialogDescription>
                         </DialogHeader>
                         <div className="py-4">
-                            <code className="block w-full p-3 bg-gray-100 rounded text-sm font-mono break-all">
+                            <code className="block w-full p-3 rounded text-sm font-mono break-all">
                                 {name}
                             </code>
                         </div>
@@ -416,13 +416,12 @@ const QueryComponent = memo(({
                             <Button
                                 variant="outline"
                                 onClick={handleCancel}
-                                className="bg-white text-black border-gray-300 hover:bg-gray-100"
                             >
                                 Cancel (Esc)
                             </Button>
                             <Button
                                 onClick={handleConfirm}
-                                className="bg-black text-white hover:bg-gray-800"
+                                variant="destructive"
                             >
                                 Run Command (Enter)
                             </Button>

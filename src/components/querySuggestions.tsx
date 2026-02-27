@@ -400,7 +400,7 @@ const QueryComponent = memo(({
 
             {type === "commandConfirm" && (
                 <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
-                    <DialogContent className="sm:max-w-[425px] ">
+                    <DialogContent className="sm:max-w-106.25">
                         <DialogHeader>
                             <DialogTitle>Confirm Command</DialogTitle>
                             <DialogDescription className="text-gray-600">

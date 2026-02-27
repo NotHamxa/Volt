@@ -14,12 +14,12 @@ function ScrollIndicator({ visible }: { visible: boolean }) {
                     transition={{ duration: 0.3 }}
                     className="absolute bottom-0 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 pb-3 pointer-events-none"
                 >
-                    <div className="w-px h-5 bg-gradient-to-b from-transparent to-white/15" />
-                    <div className="flex gap-[3px]">
+                    <div className="w-px h-5 bg-linear-to-b from-transparent to-white/15" />
+                    <div className="flex gap-0.75">
                         {[0, 1, 2].map((i) => (
                             <motion.div
                                 key={i}
-                                className="w-[3px] h-[3px] rounded-full bg-white/25"
+                                className="w-0.75 h-0.75 rounded-full bg-white/25"
                                 animate={{ opacity: [0.25, 0.8, 0.25] }}
                                 transition={{ duration: 1.4, repeat: Infinity, delay: i * 0.2 }}
                             />
@@ -33,7 +33,7 @@ function ScrollIndicator({ visible }: { visible: boolean }) {
 
 function PageDots({ total, current }: { total: number; current: number }) {
     return (
-        <div className="flex flex-col items-center gap-[6px]">
+        <div className="flex flex-col items-center gap-1.5">
             {Array.from({ length: total }).map((_, i) => (
                 <motion.div
                     key={i}
@@ -42,7 +42,7 @@ function PageDots({ total, current }: { total: number; current: number }) {
                         opacity: i === current ? 1 : i < current ? 0.3 : 0.15,
                     }}
                     transition={{ duration: 0.3, ease: "easeInOut" }}
-                    className="w-[3px] rounded-full bg-white"
+                    className="w-0.75 rounded-full bg-white"
                 />
             ))}
         </div>
@@ -118,9 +118,10 @@ const PAGES: ReactNode[] = [
         </div>
         <Callout>
             <Command size={13} className="mt-0.5 shrink-0 text-white/30" strokeWidth={1.5} />
-            <span>You can change this shortcut at any time in <span className="text-white/60">Settings → Hotkey</span>.</span>
+            <span>You can change this shortcut at any time in <span className="text-white/60">Settings → General</span>.</span>
         </Callout>
     </IntroPage>,
+
 
     <IntroPage>
         <div>
@@ -281,10 +282,11 @@ export function IntroModal({ open, setOpen }: IntroModalProps) {
     }
 
     useEffect(() => {
-        if (!open || isLanding) return;
+         if (!open) return;
         function handleKey(e: KeyboardEvent) {
-            if (e.key === "ArrowRight") go(Math.min(step + 1, PAGES.length - 1));
-            if (e.key === "ArrowLeft") go(Math.max(step - 1, 0));
+            if (isLanding && e.key === "Enter") go(0);
+            if (!isLanding && e.key === "ArrowRight") go(Math.min(step + 1, PAGES.length - 1));
+            if (!isLanding && e.key === "ArrowLeft") go(Math.max(step - 1, 0));
         }
         window.addEventListener("keydown", handleKey);
         return () => window.removeEventListener("keydown", handleKey);
@@ -324,7 +326,7 @@ export function IntroModal({ open, setOpen }: IntroModalProps) {
                     animate={{ scale: 1, opacity: 1, y: 0 }}
                     exit={{ scale: 0.93, opacity: 0, y: 16 }}
                     transition={{ duration: 0.38, ease: EASE }}
-                    className="relative flex w-[460px] overflow-hidden rounded-2xl"
+                    className="relative flex w-115 overflow-hidden rounded-2xl"
                     style={{
                         background: "rgba(12, 12, 12, 0.98)",
                         border: "1px solid rgba(255,255,255,0.07)",
@@ -387,10 +389,10 @@ export function IntroModal({ open, setOpen }: IntroModalProps) {
                                     >
                                         <button
                                             onClick={() => go(0)}
-                                            className="w-full py-[10px] rounded-xl text-[13px] font-medium text-black transition-all duration-150 hover:opacity-90 active:scale-[0.98]"
+                                            className="w-full py-2.5 rounded-xl text-[13px] font-medium text-black transition-all duration-150 hover:opacity-90 active:scale-[0.98]"
                                             style={{ background: "#fff" }}
                                         >
-                                            Get started
+                                            Get started [Enter]
                                         </button>
                                         <button
                                             onClick={close}
@@ -425,7 +427,7 @@ export function IntroModal({ open, setOpen }: IntroModalProps) {
                                     </div>
 
                                     <div
-                                        className="flex items-center justify-between px-7 py-[18px]"
+                                        className="flex items-center justify-between px-7 py-4.5"
                                         style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
                                     >
                                         <button

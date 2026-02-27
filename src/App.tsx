@@ -36,7 +36,6 @@ export default function App() {
         console.error("GLOBAL ERROR CAUGHT:");
         console.error(msg, url, line, col, error);
     };
-
     useEffect(() => {
         currentPageRef.current = currentPage;
     }, [currentPage]);

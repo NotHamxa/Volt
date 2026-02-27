@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld("electron", {
     selectFolder:()=>ipcRenderer.invoke('select-folder'),
     deleteFolder:(path)=>ipcRenderer.invoke('delete-folder',path),
     searchQuery:(query)=>ipcRenderer.invoke('search-query',query),
+    toggleEscape:(state)=>ipcRenderer.send("toggle-esc-pause",state)
 });
 contextBridge.exposeInMainWorld("file",{
     searchFilesAndFolders: (baseDir, query) => ipcRenderer.invoke('search-files', baseDir, query),
@@ -51,3 +52,8 @@ contextBridge.exposeInMainWorld('electronStore', {
     get: (key) => ipcRenderer.invoke('get-store', key),
     clear:()=>ipcRenderer.send("clear-store")
 });
+
+contextBridge.exposeInMainWorld('notifAPI', {
+    onNotify: (cb) => ipcRenderer.on('notify', (_, data) => cb(data)),
+    onHide:   (cb) => ipcRenderer.on('notify-hide', () => cb()),
+})

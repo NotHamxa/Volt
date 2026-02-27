@@ -28,8 +28,9 @@ export function registerAppsIpc({
         return opened;
     });
 
-    ipcMain.on("open-setting", (_, setting) => {
-        shell.openExternal(setting);
+    ipcMain.handle("open-setting", async (_, setting) => {
+        await shell.openExternal(setting);
+        return true;
     });
 
     ipcMain.on("execute-command", async (_, command) => {

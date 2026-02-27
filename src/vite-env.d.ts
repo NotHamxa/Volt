@@ -31,6 +31,7 @@ declare global {
             deleteFolder:(path:string)=>Promise<boolean>;
 
             searchQuery:(query:string) => Promise<CombinedQuery>;
+            toggleEscape:(state:boolean)=>Promise<void>;
         };
         electronStore: {
             set: (key: string, value: any) => void;

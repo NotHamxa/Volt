@@ -13,7 +13,7 @@ export function registerFilesIpc({
                                      folderWatcher,
                                      hideMainWindow,
                                  }) {
-    ipcMain.handle("search-files", (_,query) => {
+    ipcMain.handle("search-files", (_, baseDir, query) => {
         return searchFilesAndFolders(query, cache.cachedFoldersData);
     });
 

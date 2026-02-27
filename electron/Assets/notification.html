@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px 12px 12px;
+        }
+
+        /* ── Toast card ── */
+        .toast {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            width: 100%;
+            padding: 0 16px;
+            height: 52px;
+            border-radius: 14px;
+
+            /* Glassmorphism */
+            background: rgba(28, 28, 30, 0.78);
+            backdrop-filter: blur(28px) saturate(180%);
+            -webkit-backdrop-filter: blur(28px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+            box-shadow:
+                    0 2px 0 0 rgba(255,255,255,0.06) inset,
+                    0 12px 40px rgba(0, 0, 0, 0.55),
+                    0 2px 8px rgba(0, 0, 0, 0.3);
+
+            /* Animation state */
+            opacity: 0;
+            transform: translateY(14px) scale(0.97);
+            transition:
+                    opacity 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+                    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+
+            will-change: opacity, transform;
+        }
+
+        .toast.visible {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+
+        .toast.hiding {
+            opacity: 0;
+            transform: translateY(6px) scale(0.98);
+            transition:
+                    opacity 0.35s ease-in,
+                    transform 0.35s ease-in;
+        }
+
+        /* Reset pulse — brief brightness flash when timer resets */
+        .toast.reset-pulse {
+            animation: pulse 0.3s ease-out;
+        }
+
+        @keyframes pulse {
+            0%   { filter: brightness(1); }
+            40%  { filter: brightness(1.18); }
+            100% { filter: brightness(1); }
+        }
+
+        /* ── Icon ── */
+        .icon-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            flex-shrink: 0;
+            font-size: 15px;
+            line-height: 1;
+            user-select: none;
+        }
+
+        /* ── Text ── */
+        .text {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .title {
+            font-size: 13px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.95);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            letter-spacing: -0.01em;
+        }
+
+        /* When there's no message, vertically center the title */
+        .text.no-message {
+            justify-content: center;
+        }
+
+        .message {
+            font-size: 11.5px;
+            font-weight: 400;
+            color: rgba(255, 255, 255, 0.42);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            letter-spacing: 0.01em;
+        }
+
+        .message.hidden {
+            display: none;
+        }
+
+        /* ── Progress bar ── */
+        .progress-track {
+            position: absolute;
+            bottom: 0;
+            left: 14px;
+            right: 14px;
+            height: 2px;
+            border-radius: 0 0 14px 14px;
+            overflow: hidden;
+            opacity: 0.35;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 100%;
+            border-radius: 2px;
+            background: rgba(255, 255, 255, 0.55);
+            transform-origin: left center;
+            transform: scaleX(1);
+            transition: transform linear;
+        }
+
+        .toast {
+            position: relative; /* needed for progress absolute positioning */
+        }
+    </style>
+</head>
+<body>
+
+<div class="toast" id="toast">
+    <div class="icon-wrap" id="icon">✦</div>
+    <div class="text" id="text-wrap">
+        <div class="title" id="title">Notification</div>
+        <div class="message hidden" id="message"></div>
+    </div>
+    <div class="progress-track">
+        <div class="progress-bar" id="progress-bar"></div>
+    </div>
+</div>
+
+<script>
+    const toast      = document.getElementById('toast')
+    const iconEl     = document.getElementById('icon')
+    const titleEl    = document.getElementById('title')
+    const messageEl  = document.getElementById('message')
+    const textWrap   = document.getElementById('text-wrap')
+    const progressEl = document.getElementById('progress-bar')
+
+    let progressRaf  = null
+
+    function setContent({ title, message, icon }) {
+        iconEl.textContent    = icon    || '✦'
+        titleEl.textContent   = title   || ''
+        messageEl.textContent = message || ''
+
+        if (message) {
+            messageEl.classList.remove('hidden')
+            textWrap.classList.remove('no-message')
+        } else {
+            messageEl.classList.add('hidden')
+            textWrap.classList.add('no-message')
+        }
+    }
+
+    function startProgress(duration) {
+        // Cancel existing progress animation
+        if (progressRaf) cancelAnimationFrame(progressRaf)
+        progressEl.style.transition = 'none'
+        progressEl.style.transform  = 'scaleX(1)'
+
+        // Force reflow then animate
+        progressEl.getBoundingClientRect()
+        progressEl.style.transition = `transform ${duration}ms linear`
+        progressEl.style.transform  = 'scaleX(0)'
+    }
+
+    function showToast() {
+        toast.classList.remove('hiding')
+        // Force reflow so removing 'hiding' takes effect before adding 'visible'
+        toast.getBoundingClientRect()
+        toast.classList.add('visible')
+    }
+
+    function hideToast() {
+        toast.classList.remove('visible', 'reset-pulse')
+        toast.classList.add('hiding')
+        if (progressRaf) cancelAnimationFrame(progressRaf)
+        progressEl.style.transition = 'none'
+        progressEl.style.transform  = 'scaleX(0)'
+    }
+
+    function triggerResetPulse() {
+        toast.classList.remove('reset-pulse')
+        toast.getBoundingClientRect() // reflow
+        toast.classList.add('reset-pulse')
+        toast.addEventListener('animationend', () => {
+            toast.classList.remove('reset-pulse')
+        }, { once: true })
+    }
+
+    // ── IPC listeners ──
+
+    window.notifAPI.onNotify(({ title, message, icon, isReset, duration = 3500 }) => {
+        setContent({ title, message, icon })
+
+        if (isReset) {
+            // Already visible — flash and restart progress
+            triggerResetPulse()
+            startProgress(duration)
+        } else {
+            showToast()
+            startProgress(duration)
+        }
+    })
+
+    window.notifAPI.onHide(() => {
+        hideToast()
+    })
+</script>
+</body>
+</html>

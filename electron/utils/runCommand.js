@@ -1,5 +1,5 @@
-import { Notification } from "electron";
 import {exec} from "child_process";
+import {showNotification} from "./notification.js";
 
 function getCommandSuccessMessage(commandName) {
     switch (commandName) {
@@ -29,17 +29,8 @@ function getCommandSuccessMessage(commandName) {
 }
 
 export function sendCommandNotification(commandName, success) {
-    console.log(Notification.isSupported());
-    if (!Notification.isSupported()) return;
-
-    const notification = new Notification({
-        title: success ? commandName : "Command Failed",
-        body: success ? getCommandSuccessMessage(commandName) : `Failed to run: ${commandName}`,
-        silent: true,
-    });
-
-    notification.show();
-    console.log("Showed")
+    console.log("showing"+commandName);
+    showNotification({ icon: '🗑️', title: getCommandSuccessMessage(commandName), message: '2.4 GB freed' })
 }
 
 export async function executeCommand(item){

@@ -1,9 +1,37 @@
 import {SearchQueryT} from "@/interfaces/searchQuery.ts";
 
+type CombinedQuery = Awaited<ReturnType<typeof window.electron.searchQuery>>;
+
 interface QueryData {
     query: string;
     setBestMatch: React.Dispatch<React.SetStateAction<SearchQueryT | null>>;
     searchQueryFilters: boolean[]
+}
+
+let _ipcInFlight = false;
+let _pendingRun: (() => void) | null = null;
+let _pendingCancel: (() => void) | null = null;
+
+async function searchQuerySerialized(query: string): Promise<CombinedQuery | null> {
+    if (_ipcInFlight) {
+        _pendingCancel?.();
+        return new Promise<CombinedQuery | null>(resolve => {
+            _pendingRun = () => searchQuerySerialized(query).then(resolve);
+            _pendingCancel = () => resolve(null);
+        });
+    }
+    _ipcInFlight = true;
+    try {
+        return await window.electron.searchQuery(query);
+    } finally {
+        _ipcInFlight = false;
+        if (_pendingRun) {
+            const run = _pendingRun;
+            _pendingRun = null;
+            _pendingCancel = null;
+            run();
+        }
+    }
 }
 
 // Cache for app launch stack to avoid repeated parsing
@@ -81,10 +109,12 @@ function findBestMatch(
 }
 
 async function getQueryData({ query, setBestMatch, searchQueryFilters }: QueryData) {
+    window.electron.log(`Querying : ${query}`);
+
     const start = performance.now();
 
-    // Fetch data
-    const queryData = await window.electron.searchQuery(query);
+    const queryData = await searchQuerySerialized(query);
+    if (!queryData) return null; // superseded by a newer query
 
     const fetchTime = performance.now();
     console.log(`Data fetch: ${(fetchTime - start).toFixed(2)}ms`);

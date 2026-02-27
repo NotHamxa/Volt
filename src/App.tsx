@@ -19,34 +19,43 @@ export default function App() {
     const [cacheLoadingStatus, setCacheLoadingStatus] = useState<boolean>(false);
     const [currentCacheStep, setCurrentCacheStep] = useState<number>(0);
     const [totalCacheSteps, setTotalCacheSteps] = useState<number>(0);
-    const [showIntroModal, setShowIntroModal] = useState(true);
+    const [showIntroModal, setShowIntroModal] = useState(false);
 
     const [query, setQuery] = useState<string>("");
     const inputRef = useRef<HTMLInputElement>(null);
     const [stage, setStage] = useState<number>(1);
+    const [escApp,setEscApp] = useState<boolean>(true);
     const selfQueryChangedRef = useRef<boolean>(false);
 
     const [showLockedIcon, setShowLockedIcon] = useState<boolean>(false);
     const [showUnlockedIcon, setShowUnlockedIcon] = useState<boolean>(false);
     const lockTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const unlockTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const escAppRef = useRef(escApp);
 
     const navigate = useNavigate();
     const location = useLocation();
 
-    // Keep a ref to the current pathname so stable event handlers can read it
     const locationRef = useRef<string>(location.pathname);
-    // Runs after every render — keeps locationRef current
     useEffect(() => {
         locationRef.current = location.pathname;
     });
 
+    useEffect(() => {
+        window.electron.toggleEscape(location.pathname !== "/");
+        setEscApp(location.pathname === "/");
+        escAppRef.current = location.pathname === "/";
+
+    }, [location.pathname]);
+
+    useEffect(()=>{
+        window.electron.log(escApp)
+    },[escApp]);
     function setQueryFromBang(value: string) {
         selfQueryChangedRef.current = true;
         setQuery(value);
     }
 
-    // Drive URL from query + stage state
     useEffect(() => {
         const path = locationRef.current;
         if (path === '/settings') return;
@@ -62,7 +71,6 @@ export default function App() {
         }
     }, [query, stage]);
 
-    // Reset selfQueryChanged when switching to local mode
     useEffect(() => {
         if (stage === 1) selfQueryChangedRef.current = false;
     }, [stage]);
@@ -85,6 +93,11 @@ export default function App() {
         };
 
         const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "Escape" && !escAppRef.current){
+                inputRef.current?.focus();
+                setQuery("");
+                navigate('/', { replace: true });
+            }
             if (e.key === "Tab") {
                 e.preventDefault();
                 setStage(prev => (prev === 1 ? 2 : 1));
@@ -98,6 +111,7 @@ export default function App() {
                     navigate('/settings');
                 }
             }
+
         };
 
         const handleCacheLoadedEvent = () => {

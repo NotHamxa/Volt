@@ -485,31 +485,39 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
     const limitedCommands = useMemo(() => commands.slice(0, limit), [commands, limit]);
 
     useEffect(() => {
+        let cancelled = false;
+
         const words = query.trim().split(" ");
         const lastWord = words[words.length - 1];
         const hasBang = lastWord.startsWith("!cmd");
         const searchTerm = hasBang ? words.slice(0, -1).join(" ") : query;
         setIsCmdCommand(hasBang);
 
+        if (hasBang) {
+            setCmdCommand(searchTerm);
+            return;
+        }
+
         const getData = async () => {
             const queryData = await getQueryData({
                 query: query.trim(),
-                setBestMatch,
+                setBestMatch: (match) => { if (!cancelled) setBestMatch(match); },
                 searchQueryFilters: searchFilters
             });
+            if (cancelled || !queryData) return;
             setApps(queryData.apps);
             setFolders(queryData.folders);
             setFiles(queryData.files);
             setSettings(queryData.settings);
-            setCommands(queryData.commands)
-        }
+            setCommands(queryData.commands);
+        };
 
-        if (hasBang) {
-            setCmdCommand(searchTerm)
-            return;
-        } else {
-            getData();
-        }
+        const timer = setTimeout(getData, 80);
+
+        return () => {
+            cancelled = true;
+            clearTimeout(timer);
+        };
     }, [query, searchFilters]);
 
     const allResults = useMemo<SearchQueryT[]>(() => [

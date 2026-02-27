@@ -10,6 +10,7 @@ import os from "os";
 import {loadAppData, loadFileData} from "./utils/startup.js";
 import { registerIpc } from "./ipc/index.js";
 import {setupAutoUpdater} from "./utils/updater.js";
+import {createNotificationWindow} from "./utils/notification.js";
 if (!app.requestSingleInstanceLock()) {
     app.quit();
     process.exit(0);
@@ -138,7 +139,7 @@ const changeOpenBind = async (binding)=>{
     return true
 }
 const handleEsc = () => {
-    if (mainWindow?.isVisible()) {
+    if (mainWindow?.isVisible() && !appStates.pauseEscape) {
         hideMainWindow();
     }
 };
@@ -147,7 +148,15 @@ const handleEsc = () => {
 ipcMain.handle("set-open-bind", (_, binding) => {
     return changeOpenBind(binding);
 });
-
+ipcMain.on("toggle-esc-pause", (_, state) => {
+    appStates.pauseEscape = state;
+    if (state){
+        globalShortcut.unregister("Esc");
+    }
+    else{
+        globalShortcut.register("Esc", handleEsc);
+    }
+})
 
 
 const createWindow = async () => {
@@ -215,6 +224,7 @@ const createWindow = async () => {
 
 app.whenReady().then(async () => {
     await createWindow();
+    createNotificationWindow();
     registerIpc({
         mainWindow,
         hideMainWindow,
@@ -223,9 +233,6 @@ app.whenReady().then(async () => {
         folderWatcher,
         store,
     });
-
-
-
     await loadAppData(mainWindow.webContents,cache);
     await loadFileData(cache)
     if (process.env.NODE_ENV !== "development") {

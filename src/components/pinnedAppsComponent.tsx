@@ -142,17 +142,14 @@ export default function PinnedApps({setStage, unPinApp, apps, pinnedApps,setPinn
             <div style={{height: "325px", display: "flex", flexDirection: "column"}}>
                 <div style={{
                     display: "flex",
-                    color: "#ffffff",
-                    fontWeight: "bold",
-                    fontSize: "16px",
                     alignItems: "center",
                     justifyContent: "space-between",
                     paddingRight: "10px",
                 }}>
-                    <span style={{margin: "0 12px"}}>Pinned Apps</span>
+                    <span style={{margin: "0 12px", fontSize: "11px", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.25)"}}>Pinned Apps</span>
                     <Button
-                        variant="ghost"
-                        className="bg-[#2b2b2b] hover:bg-[#3a3a3a] text-white px-3 py-1 h-auto text-sm rounded-md flex items-center gap-1"
+                        className="text-white/40 hover:text-white/70 px-2.5 py-1 h-auto text-xs rounded-lg flex items-center gap-1 transition-colors duration-150"
+                        style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
                         onClick={() => setStage(2)}
                     >
                         All
@@ -178,23 +175,22 @@ export default function PinnedApps({setStage, unPinApp, apps, pinnedApps,setPinn
                         alignItems: "center",
                         justifyContent: "center",
                     }}>
-                        <label>No Apps Pinned</label>
+                        <label style={{ fontSize: "13px", color: "rgba(255,255,255,0.2)" }}>No Apps Pinned</label>
                     </div>
                 )}
             </div>
             <div style={{height: "100%", display: "flex", flexDirection: "column"}}>
                 <div style={{
                     display: "flex",
-                    color: "#ffffff",
-                    fontWeight: "bold",
-                    fontSize: "16px",
+                    alignItems: "center",
                     justifyContent: "space-between",
                     paddingRight: "10px",
                 }}>
-                    <span style={{margin: "0 12px"}}>Links</span>
+                    <span style={{margin: "0 12px", fontSize: "11px", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.25)"}}>Links</span>
                     <Button
                         variant="ghost"
-                        className="bg-[#2b2b2b] hover:bg-[#3a3a3a] text-white px-3 py-1 h-auto text-sm rounded-md flex items-center gap-1"
+                        className="text-white/40 hover:text-white/70 px-2.5 py-1 h-auto text-xs rounded-lg flex items-center gap-1 transition-colors duration-150"
+                        style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
                         onClick={()=>{
                             if (linkShortcuts.length >= 8){
                                 showToast("Limit","You can only add 8 shortcuts.");
@@ -227,7 +223,7 @@ export default function PinnedApps({setStage, unPinApp, apps, pinnedApps,setPinn
                         </DndContext>
                     ) : (
                         <div style={{flex: 1, display: "flex", alignItems: "center", justifyContent: "center"}}>
-                            <label>No Links Pinned</label>
+                            <label style={{ fontSize: "13px", color: "rgba(255,255,255,0.2)" }}>No Links Pinned</label>
                         </div>
                     )}
                 </div>

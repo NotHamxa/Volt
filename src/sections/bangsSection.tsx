@@ -12,14 +12,14 @@ export default function QuickBangsSection() {
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
             <div>
-                <h2 className="text-3xl font-semibold text-white tracking-tight mb-2">Quick Bangs</h2>
-                <p className="text-gray-400 text-sm">
-                    Use shortcuts like <code className="text-blue-400">!g</code> or <code className="text-blue-400">!yt</code> to search specific sites.
+                <h2 className="text-[22px] font-semibold text-white tracking-tight mb-1.5" style={{ letterSpacing: "-0.03em" }}>Quick Bangs</h2>
+                <p className="text-white/40 text-[13px]">
+                    Use shortcuts like <code className="text-white/60">!g</code> or <code className="text-white/60">!yt</code> to search specific sites.
                 </p>
             </div>
 
             <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" size={16} />
                 <Input
                     value={bangSearch}
                     placeholder="Search available shortcuts (e.g. Google, GitHub...)"
@@ -31,25 +31,29 @@ export default function QuickBangsSection() {
                             : null
                         );
                     }}
-                    className="pl-10 h-12 bg-white/5 border-white/10 rounded-xl focus:ring-blue-500/50"
+                    className="pl-10 h-10 text-[13px] rounded-xl focus:ring-white/15"
+                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
                 />
             </div>
 
-            <ScrollArea className="rounded-xl border border-white/5 bg-white/1 p-2 max-h-[500px]">
-                <div className="grid grid-cols-1 gap-2">
+            <ScrollArea className="rounded-xl p-2 max-h-[500px]" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
+                <div className="grid grid-cols-1 gap-1">
                     {bangs?.map((bang, i) => (
-                        <div key={i} className="flex items-center justify-between p-3 rounded-lg hover:bg-white/5 transition-colors border border-transparent hover:border-white/5">
-                            <div className="flex flex-col">
-                                <span className="text-sm font-medium text-gray-200">{bang.s}</span>
-                                <span className="text-[10px] text-gray-500 uppercase tracking-tight">{bang.d || 'Search Provider'}</span>
+                        <div key={i} className="flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors" style={{ cursor: "default" }}
+                            onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
+                            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                        >
+                            <div className="flex flex-col gap-0.5">
+                                <span className="text-[13px] font-medium text-white/75">{bang.s}</span>
+                                <span className="text-[10px] text-white/25 uppercase tracking-tight">{bang.d || 'Search Provider'}</span>
                             </div>
-                            <div className="px-2 py-1 rounded bg-blue-500/10 border border-blue-500/20 text-blue-400 font-mono text-xs">
+                            <div className="px-2 py-0.5 rounded-md font-mono text-[11px] text-white/45" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.09)" }}>
                                 !{bang.t}
                             </div>
                         </div>
                     ))}
-                    {!bangs && bangSearch && <div className="p-8 text-center text-gray-500 text-sm">No matching bangs found.</div>}
-                    {!bangSearch && <div className="p-8 text-center text-gray-500 text-sm italic">Type above to search over 10,000 shortcuts.</div>}
+                    {!bangs && bangSearch && <div className="p-8 text-center text-white/25 text-[13px]">No matching bangs found.</div>}
+                    {!bangSearch && <div className="p-8 text-center text-white/20 text-[13px]">Type above to search over 10,000 shortcuts.</div>}
                 </div>
             </ScrollArea>
         </div>

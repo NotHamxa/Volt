@@ -34,31 +34,31 @@ export default function AboutSection() {
     return (
         <div className="space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-500">
             <header>
-                <h2 className="text-3xl font-semibold text-white tracking-tight mb-2">About</h2>
-                <p className="text-gray-400 text-sm">Some more about me</p>
+                <h2 className="text-[22px] font-semibold text-white tracking-tight mb-1.5" style={{ letterSpacing: "-0.03em" }}>About</h2>
+                <p className="text-white/40 text-[13px]">Some more about me</p>
             </header>
 
             <div className="space-y-6">
-                <div className="p-6 rounded-xl border border-white/10 bg-white/3">
+                <div className="px-5 py-4 rounded-xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
                     <div className="flex items-center justify-between">
                         <div>
-                            <h3 className="font-medium text-white mb-1">Application Version</h3>
-                            <p className="text-sm text-gray-400">Current release build</p>
+                            <h3 className="text-[13px] font-medium text-white/80 mb-0.5">Application Version</h3>
+                            <p className="text-[12px] text-white/35">Current release build</p>
                         </div>
-                        <div className="px-4 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                            <span className="text-blue-400 font-mono text-sm">v{appVersion}</span>
+                        <div className="px-3 py-1 rounded-lg" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.09)" }}>
+                            <span className="text-white/55 font-mono text-[12px]">v{appVersion}</span>
                         </div>
                     </div>
                 </div>
 
-                <div className="p-6 rounded-xl border border-white/10 bg-white/3">
-                    <h3 className="font-medium text-white mb-3">Developer</h3>
+                <div className="px-5 py-4 rounded-xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                    <h3 className="text-[13px] font-medium text-white/80 mb-3">Developer</h3>
                     <div className="space-y-3">
                         <div>
-                            <p className="text-white">Hamza Ahmed</p> {/* Replace with your name */}
+                            <p className="text-[13px] text-white/70">Hamza Ahmed</p>
                         </div>
                         <div>
-                            <p className="text-sm text-gray-400 mb-1">About</p>
+                            <p className="text-[12px] text-white/35 mb-1">About</p>
                             {/*<p className="text-gray-300 text-sm leading-relaxed">*/}
                             {/*    Add your bio or description here. This is a brief introduction about yourself*/}
                             {/*    and your work. You can mention your background, interests, and what drives you*/}
@@ -68,9 +68,9 @@ export default function AboutSection() {
                     </div>
                 </div>
 
-                <div className="p-6 rounded-xl border border-white/10 bg-white/3">
-                    <h3 className="font-medium text-white mb-4">Connect</h3>
-                    <div className="space-y-3">
+                <div className="px-5 py-4 rounded-xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                    <h3 className="text-[13px] font-medium text-white/80 mb-3">Connect</h3>
+                    <div className="space-y-1">
                         {socialLinks.map((link, index) => {
                             const Icon = link.icon;
                             return (
@@ -79,32 +79,33 @@ export default function AboutSection() {
                                     href={link.url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="flex items-center justify-between p-3 rounded-lg hover:bg-white/5 transition-all group border border-transparent hover:border-white/10"
+                                    className="flex items-center justify-between px-3 py-2.5 rounded-lg transition-all group"
+                                    style={{ border: "1px solid transparent" }}
+                                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.07)"; }}
+                                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.borderColor = "transparent"; }}
                                 >
                                     <div className="flex items-center gap-3">
-                                        <div className="p-2 rounded-lg bg-white/10 text-gray-400 group-hover:text-white transition-colors">
-                                            <Icon size={18} />
+                                        <div className="p-1.5 rounded-lg text-white/35 group-hover:text-white/60 transition-colors" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                                            <Icon size={15} />
                                         </div>
                                         <div>
-                                            <p className="text-sm font-medium text-white">{link.name}</p>
-                                            <p className="text-xs text-gray-400">{link.label}</p>
+                                            <p className="text-[13px] font-medium text-white/75">{link.name}</p>
+                                            <p className="text-[11px] text-white/30">{link.label}</p>
                                         </div>
                                     </div>
-                                    <ExternalLink size={16} className="text-gray-500 group-hover:text-gray-300 transition-colors" />
+                                    <ExternalLink size={14} className="text-white/20 group-hover:text-white/45 transition-colors" />
                                 </a>
                             );
                         })}
                     </div>
                 </div>
-                <div className="p-6 rounded-xl border border-white/10 bg-white/3">
-                    <h3 className="font-medium text-white mb-3">License & Credits</h3>
-                    <p className="text-sm text-gray-400 leading-relaxed mb-4">
-
-                    </p>
+                <div className="px-5 py-4 rounded-xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                    <h3 className="text-[13px] font-medium text-white/80 mb-3">License & Credits</h3>
                     <div className="flex gap-3">
                         <Button
                             variant="outline"
-                            className="rounded-lg border-white/10 hover:bg-white/10"
+                            className="rounded-lg text-[13px] text-white/50 hover:text-white/75 hover:bg-white/8 transition-colors"
+                            style={{ border: "1px solid rgba(255,255,255,0.1)" }}
                             onClick={() => window.open("https://github.com/NotHamxa/volt", "_blank")}
                         >
                             <Github/>

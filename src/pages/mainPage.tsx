@@ -53,9 +53,9 @@ export default function MainPage({ inputRef, stage, query, setQuery }: MainPageP
 
     function SwitchModes() {
         return (
-            <div className="flex items-center space-x-2 text-gray-400 text-sm">
+            <div className="flex items-center space-x-2 text-white/25 text-sm">
                 <span>{stage === 1 ? "Web" : "Files"}</span>
-                <span className="px-2 py-0.5 text-xs border border-gray-500 rounded-sm">
+                <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md" style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}>
                     Tab
                 </span>
             </div>
@@ -65,7 +65,7 @@ export default function MainPage({ inputRef, stage, query, setQuery }: MainPageP
     return (
         <>
             <div style={styles.inputContainer}>
-                {faviconUrl && stage === 2 ? <img src={faviconUrl} style={styles.favicon} /> : <Search size={24} />}
+                {faviconUrl && stage === 2 ? <img src={faviconUrl} style={styles.favicon} /> : <Search size={20} className="text-white/30 shrink-0" />}
                 <Input
                     ref={inputRef}
                     value={query}
@@ -139,7 +139,7 @@ const styles: { [key: string]: CSSProperties } = {
         padding: "0px 20px",
         borderBottomWidth: "1px",
         borderBottomStyle: "solid",
-        borderBottomColor: 'white',
+        borderBottomColor: 'rgba(255,255,255,0.07)',
         marginBottom: "5px",
     },
     favicon: {

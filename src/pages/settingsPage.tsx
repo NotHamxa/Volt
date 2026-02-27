@@ -103,11 +103,11 @@ export default function SettingsPage() {
     ];
 
     return (
-        <div className="flex w-full h-full text-gray-200">
+        <div className="flex w-full h-full text-white/80">
             {/* Sidebar Navigation */}
-            <div className="w-60 border-r border-white/5 flex flex-col py-8 px-4 gap-1.5">
+            <div className="w-60 border-r border-white/5 flex flex-col py-8 px-4 gap-1">
                 <div className="px-3 mb-8">
-                    <h1 className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500">Settings</h1>
+                    <h1 className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/20">Settings</h1>
                 </div>
                 {navItems.map((item) => {
                     const Icon = item.icon;
@@ -117,19 +117,19 @@ export default function SettingsPage() {
                             onClick={() => setActiveSection(item.id)}
                             className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 ${
                                 activeSection === item.id
-                                    ? "bg-white/10 text-white shadow-lg shadow-black/20"
-                                    : "text-gray-500 hover:bg-white/5 hover:text-gray-300"
+                                    ? "bg-white/8 text-white/90"
+                                    : "text-white/30 hover:bg-white/5 hover:text-white/60"
                             }`}
                         >
-                            <Icon size={18} />
-                            <span className="text-sm font-medium">{item.label}</span>
+                            <Icon size={16} />
+                            <span className="text-[13px] font-medium">{item.label}</span>
                         </button>
                     );
                 })}
             </div>
 
             {/* Main Content Area */}
-            <div className="flex-1 overflow-hidden flex flex-col bg-linear-to-b from-white/2 to-transparent">
+            <div className="flex-1 overflow-hidden flex flex-col">
                 <ScrollArea className="flex-1 max-h-[90vh]">
                     <div className="max-w-3xl mx-auto py-12 px-10">
                         {activeSection === "settings" && (

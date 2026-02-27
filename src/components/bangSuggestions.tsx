@@ -313,8 +313,8 @@ export default function BangSuggestions({bang, setQuery, selfQueryChanged}: IBan
                         alignItems: "center",
                         height: "100%",
                         width: "100%",
-                        color: "#888",
-                        fontSize: "14px"
+                        color: "rgba(255,255,255,0.2)",
+                        fontSize: "13px"
                     }}>
                         No recent searches
                     </div>

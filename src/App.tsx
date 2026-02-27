@@ -196,7 +196,7 @@ export default function App() {
             <div
                 style={{
                     borderTopStyle: "solid",
-                    borderTopColor: "white",
+                    borderTopColor: "rgba(255,255,255,0.07)",
                     borderTopWidth: "1px",
                     height: "40px",
                     display: "flex",
@@ -208,27 +208,27 @@ export default function App() {
                 }}
             >
                 <button
-                    className="text-gray-400 hover:text-white"
+                    className="text-white/25 hover:text-white/60 transition-colors duration-150"
                     onClick={async () => {
                         window.electron.openExternal("https://github.com/NotHamxa")
                     }}
                 >
-                    <FaGithub size={20} />
+                    <FaGithub size={18} />
                 </button>
-                <div className="flex items-center space-x-2 text-gray-400 text-sm">
+                <div className="flex items-center space-x-2 text-white/25 text-sm">
                     <button
                         onClick={() => {
                             setPrevPage(currentPage);
                             if (currentPage === "main") setCurrentPage("settings");
                             else setCurrentPage(prevPage);
                         }}
-                        className="hover:underline cursor-pointer"
+                        className="hover:text-white/55 transition-colors duration-150 cursor-pointer"
                     >
                         Settings
                     </button>
-                    <span className="px-2 py-0.5 text-xs border border-gray-500 rounded-sm">Ctrl</span>
-                    <span>+</span>
-                    <span className="px-2 py-0.5 text-xs border border-gray-500 rounded-sm">H</span>
+                    <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md" style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}>Ctrl</span>
+                    <span className="text-white/15">+</span>
+                    <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md" style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}>H</span>
                 </div>
             </div>
         </div>

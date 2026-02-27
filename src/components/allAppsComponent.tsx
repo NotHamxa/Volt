@@ -167,23 +167,22 @@ export default function AllApps({setStage, apps,pinnedApps,pinApp,unPinApp}:IAll
         <div style={{height: "100%", display: "flex", flexDirection: "column"}}>
             <div style={{
                 display: "flex",
-                color: "#ffffff",
-                fontWeight: "bold",
-                fontSize: "16px",
                 alignItems: "center",
                 justifyContent: "space-between",
                 paddingRight: "10px",
             }}>
-                <span style={{margin: "0 12px"}}>All</span>
+                <span style={{margin: "0 12px", fontSize: "11px", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.25)"}}>All Apps</span>
                 <Button
                     variant="ghost"
-                    className="bg-[#2b2b2b] hover:bg-[#3a3a3a] text-white px-3 py-1 h-auto text-sm rounded-md flex items-center gap-1"
+                    className="text-white/40 hover:text-white/70 px-2.5 py-1 h-auto text-xs rounded-lg flex items-center gap-1 transition-colors duration-150"
+                    style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
                     onClick={() => {
                         setStage(1)
                     }}
                 >
                     <ChevronLeft className="w-3 h-3"/>
-                    Back</Button>
+                    Back
+                </Button>
             </div>
             <ScrollArea style={{width: "100%",
                 height: "400px",
@@ -201,10 +200,13 @@ export default function AllApps({setStage, apps,pinnedApps,pinApp,unPinApp}:IAll
                     .map(([letter, group]) => (
                         <div key={letter} style={{marginBottom: "16px"}}>
                             <div style={{
-                                fontWeight: "bold",
-                                color: "#ffffff",
-                                fontSize: "14px",
-                                marginBottom: "8px"
+                                fontWeight: 600,
+                                color: "rgba(255,255,255,0.2)",
+                                fontSize: "11px",
+                                letterSpacing: "0.08em",
+                                textTransform: "uppercase",
+                                marginBottom: "6px",
+                                paddingLeft: "8px",
                             }}>
                                 {letter}
                             </div>

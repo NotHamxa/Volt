@@ -315,7 +315,7 @@ const QueryComponent = memo(({
                 background: isHighlighted ? "rgba(255, 255, 255, 0.1)" : "transparent",
                 userSelect: "none",
                 transition: "background 0.15s ease-in-out",
-                outline: isFocused ? "2px solid #3faffa" : "none",
+                outline: isFocused ? "1px solid rgba(255,255,255,0.18)" : "none",
                 gap: "12px",
                 width: "100%"
             }}
@@ -584,7 +584,7 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
         <ScrollArea style={styles.mainContainer}>
             {isCmdCommand ? (
                 <div>
-                    <div style={{ ...styles.label, textAlign: "center" }}>CMD Command</div>
+                    <div style={{ textAlign: "center", fontSize: "11px", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.25)", marginBottom: "8px" }}>CMD Command</div>
                     <div style={{
                         padding: "8px",
                         borderRadius: "8px",
@@ -595,7 +595,7 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
                 </div>
             ) : (
                 allResults.length === 0 ? (
-                    <div>No results found</div>
+                    <div style={{ textAlign: "center", padding: "32px 0", fontSize: "13px", color: "rgba(255,255,255,0.2)" }}>No results found</div>
                 ) : (
                     <>
                         {bestMatch && (
@@ -714,11 +714,5 @@ const styles: { [key: string]: CSSProperties } = {
         height: "420px",
         padding: "0 16px",
         boxSizing: "border-box",
-    },
-    label: {
-        fontWeight: "bold",
-        fontSize: "16px",
-        marginBottom: "8px",
-        color: "#333",
     },
 };

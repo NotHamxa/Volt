@@ -17,30 +17,32 @@ interface SettingCardProps {
     isDestructive?: boolean;
 }
 export const SettingCard = ({ title, description, children, icon: Icon, isDestructive = false }: SettingCardProps) => (
-    <div className={`p-5 rounded-xl border transition-all duration-200 bg-white/3 ${
-        isDestructive
-            ? 'border-red-500/20 hover:bg-red-500/5'
-            : 'border-white/10 hover:border-white/20 hover:bg-white/5'
-    }`}>
-        <div className="flex items-start justify-between gap-6">
-            <div className="flex gap-4 items-center">
+    <div
+        className="px-5 py-4 rounded-xl transition-all duration-200"
+        style={{
+            background: "rgba(255,255,255,0.03)",
+            border: isDestructive ? "1px solid rgba(239,68,68,0.15)" : "1px solid rgba(255,255,255,0.07)",
+        }}
+    >
+        <div className="flex items-center justify-between gap-6">
+            <div className="flex gap-3.5 items-center">
                 {Icon && (
-                    <div className={`p-2.5 rounded-lg shrink-0 inline-flex ${
-                        isDestructive ? 'bg-red-500/10 text-red-400' : 'bg-white/10 text-gray-400'
-                    }`}>
-                        <Icon size={20} />
+                    <div className={`p-2 rounded-lg shrink-0 inline-flex ${
+                        isDestructive ? 'bg-red-500/10 text-red-400/70' : ''
+                    }`} style={isDestructive ? {} : { background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                        <Icon size={16} className={isDestructive ? "" : "text-white/40"} />
                     </div>
                 )}
-                <div className="space-y-1">
-                    <h3 className={`font-medium tracking-tight ${isDestructive ? 'text-red-400' : 'text-white'}`}>
+                <div className="space-y-0.5">
+                    <h3 className={`text-[13px] font-medium tracking-tight ${isDestructive ? 'text-red-400/80' : 'text-white/80'}`}>
                         {title}
                     </h3>
-                    <p className="text-sm text-gray-400 max-w-110 leading-relaxed">
+                    <p className="text-[12px] text-white/35 max-w-110 leading-relaxed">
                         {description}
                     </p>
                 </div>
             </div>
-            <div className="shrink-0 pt-1">
+            <div className="shrink-0">
                 {children}
             </div>
         </div>
@@ -64,16 +66,16 @@ export function DeleteHistorySection() {
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="rounded-lg border-white/10 bg-transparent hover:bg-red-500/10 hover:text-red-400">
+                <Button variant="outline" className="rounded-lg text-[13px] text-white/45 hover:text-red-400 hover:bg-red-500/10 transition-colors" style={{ border: "1px solid rgba(255,255,255,0.1)" }}>
                     Clear
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-72 p-4 bg-[#1a1a1a] border-white/10 rounded-xl shadow-2xl">
-                <DropdownMenuLabel className="mb-1 text-white">Delete search history?</DropdownMenuLabel>
-                <p className="text-xs text-gray-400 mb-4">This will clear your recent query suggestions. This cannot be undone.</p>
+            <DropdownMenuContent className="w-72 p-4 rounded-xl shadow-2xl" style={{ background: "rgba(12,12,12,0.98)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                <DropdownMenuLabel className="mb-1 text-[13px] text-white/80">Delete search history?</DropdownMenuLabel>
+                <p className="text-[12px] text-white/35 mb-4">This will clear your recent query suggestions. This cannot be undone.</p>
                 <div className="flex justify-end gap-2">
-                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">Cancel</Button>
-                    <Button variant="destructive" size="sm" onClick={handleDelete} disabled={isDeleting} className="rounded-lg">
+                    <Button variant="ghost" size="sm" className="text-white/35 hover:text-white/65 text-[12px]">Cancel</Button>
+                    <Button variant="destructive" size="sm" onClick={handleDelete} disabled={isDeleting} className="rounded-lg text-[12px]">
                         {isDeleting ? "Deleting..." : "Confirm"}
                     </Button>
                 </div>
@@ -100,20 +102,20 @@ export function ResetAppData() {
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="rounded-lg border-white/10 bg-transparent hover:bg-red-600 hover:text-white transition-colors">
+                <Button variant="outline" className="rounded-lg text-[13px] text-white/45 hover:text-red-400 hover:bg-red-500/10 transition-colors" style={{ border: "1px solid rgba(255,255,255,0.1)" }}>
                     Factory Reset
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-80 p-5 bg-[#1a1a1a] border-white/10 rounded-xl shadow-2xl">
-                <DropdownMenuLabel className="mb-2 text-red-400 flex items-center gap-2">
-                    <AlertTriangle size={16} /> Danger Zone
+            <DropdownMenuContent className="w-80 p-5 rounded-xl shadow-2xl" style={{ background: "rgba(12,12,12,0.98)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                <DropdownMenuLabel className="mb-2 text-[13px] text-red-400/80 flex items-center gap-2">
+                    <AlertTriangle size={14} /> Danger Zone
                 </DropdownMenuLabel>
-                <p className="mb-4 text-sm text-gray-400 leading-relaxed">
+                <p className="mb-4 text-[12px] text-white/35 leading-relaxed">
                     This will delete all indexed folders, custom bangs, and your settings. The app will restart.
                 </p>
                 <div className="flex justify-end gap-2">
-                    <Button variant="ghost" size="sm">Cancel</Button>
-                    <Button variant="destructive" size="sm" onClick={handleReset} disabled={isResetting}>
+                    <Button variant="ghost" size="sm" className="text-white/35 hover:text-white/65 text-[12px]">Cancel</Button>
+                    <Button variant="destructive" size="sm" onClick={handleReset} disabled={isResetting} className="text-[12px]">
                         {isResetting ? "Resetting..." : "Confirm Reset"}
                     </Button>
                 </div>

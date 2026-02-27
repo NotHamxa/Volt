@@ -1,110 +1,131 @@
 import { useEffect, useRef, useState } from 'react';
 import { Unlock, Lock } from "lucide-react";
 import { FaGithub } from "react-icons/fa6";
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 
 import SettingsPage from "@/pages/settingsPage.tsx";
 import { Toaster } from "@/components/ui/sonner.tsx";
 import { Label } from "@/components/ui/label.tsx";
 import { Progress } from "@/components/ui/progress.tsx";
-import MainPage from "@/pages/mainPage.tsx";
-import {IntroModal} from "@/components/modal/introModal.tsx";
+import MainLayout from "@/pages/mainPage.tsx";
+import HomePage from "@/pages/homePage.tsx";
+import AllAppsPage from "@/pages/allAppsPage.tsx";
+import SearchPage from "@/pages/searchPage.tsx";
+import WebPage from "@/pages/webPage.tsx";
+import { IntroModal } from "@/components/modal/introModal.tsx";
 
 
 export default function App() {
     const [cacheLoadingStatus, setCacheLoadingStatus] = useState<boolean>(false);
     const [currentCacheStep, setCurrentCacheStep] = useState<number>(0);
     const [totalCacheSteps, setTotalCacheSteps] = useState<number>(0);
-
     const [showIntroModal, setShowIntroModal] = useState(true);
-
 
     const [query, setQuery] = useState<string>("");
     const inputRef = useRef<HTMLInputElement>(null);
     const [stage, setStage] = useState<number>(1);
-    const [currentPage, setCurrentPage] = useState<"main" | "settings">("main");
-    const [prevPage, setPrevPage] = useState<"main" | "settings">("main");
-
-    const currentPageRef = useRef(currentPage);
-    const prevPageRef = useRef(prevPage);
+    const selfQueryChangedRef = useRef<boolean>(false);
 
     const [showLockedIcon, setShowLockedIcon] = useState<boolean>(false);
     const [showUnlockedIcon, setShowUnlockedIcon] = useState<boolean>(false);
     const lockTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const unlockTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    // Keep a ref to the current pathname so stable event handlers can read it
+    const locationRef = useRef<string>(location.pathname);
+    // Runs after every render — keeps locationRef current
+    useEffect(() => {
+        locationRef.current = location.pathname;
+    });
+
+    function setQueryFromBang(value: string) {
+        selfQueryChangedRef.current = true;
+        setQuery(value);
+    }
+
+    // Drive URL from query + stage state
+    useEffect(() => {
+        const path = locationRef.current;
+        if (path === '/settings') return;
+
+        if (stage === 2) {
+            navigate(`/web?query=${encodeURIComponent(query)}`, { replace: true });
+        } else if (path === '/all') {
+            navigate(`/all?query=${encodeURIComponent(query)}`, { replace: true });
+        } else if (query.trim()) {
+            navigate(`/search?query=${encodeURIComponent(query)}`, { replace: true });
+        } else {
+            navigate('/', { replace: true });
+        }
+    }, [query, stage]);
+
+    // Reset selfQueryChanged when switching to local mode
+    useEffect(() => {
+        if (stage === 1) selfQueryChangedRef.current = false;
+    }, [stage]);
+
     window.onerror = function (msg, url, line, col, error) {
         console.error("GLOBAL ERROR CAUGHT:");
         console.error(msg, url, line, col, error);
     };
-    useEffect(() => {
-        currentPageRef.current = currentPage;
-    }, [currentPage]);
-
-    useEffect(() => {
-        prevPageRef.current = prevPage;
-    }, [prevPage]);
 
     useEffect(() => {
         document.documentElement.classList.add("dark");
 
         const handleBlur = () => {
-            if (inputRef.current){
+            if (inputRef.current) {
                 setQuery("");
-                setStage(1)
+                setStage(1);
                 inputRef.current.focus();
             }
-            if (currentPageRef.current === "settings") {
-                setCurrentPage("main");
-            }
+            navigate('/');
         };
 
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === "Tab") {
                 e.preventDefault();
                 setStage(prev => (prev === 1 ? 2 : 1));
-                inputRef.current?.focus()
+                inputRef.current?.focus();
             }
-
             if (e.ctrlKey && e.key.toLowerCase() === "h") {
                 e.preventDefault();
-                const current = currentPageRef.current;
-                const previous = prevPageRef.current;
-                if (current === "main") {
-                    setPrevPage(current);
-                    setCurrentPage("settings");
+                if (locationRef.current === '/settings') {
+                    navigate('/');
                 } else {
-                    setCurrentPage(previous);
+                    navigate('/settings');
                 }
             }
         };
 
         const handleCacheLoadedEvent = () => {
             setCacheLoadingStatus(false);
-        }
+        };
 
         const getCacheLoadingStatus = async () => {
-            const status = await window.electron.getCacheLoadingStatus()
+            const status = await window.electron.getCacheLoadingStatus();
             if (status) {
-                window.electron.onCacheLoaded(handleCacheLoadedEvent)
+                window.electron.onCacheLoaded(handleCacheLoadedEvent);
                 window.electron.setCacheLoadingBar((currentStep, totalSteps) => {
-                    setCurrentCacheStep(currentStep)
-                    setTotalCacheSteps(totalSteps)
-                })
+                    setCurrentCacheStep(currentStep);
+                    setTotalCacheSteps(totalSteps);
+                });
             }
             setCacheLoadingStatus(status);
-        }
+        };
 
         const handleShortcutModalOpen = () => {
             window.removeEventListener("keydown", handleKeyDown);
-        }
+        };
 
         const handleShortcutModalClose = () => {
             window.addEventListener("keydown", handleKeyDown);
-        }
+        };
 
         const handleWindowLock = () => {
             if (lockTimeoutRef.current) clearTimeout(lockTimeoutRef.current);
-
             setShowLockedIcon(true);
             setShowUnlockedIcon(false);
             lockTimeoutRef.current = setTimeout(() => {
@@ -124,12 +145,11 @@ export default function App() {
         };
 
         window.electron.onWindowBlurred(handleBlur);
-        window.electron.onWindowLocked(handleWindowLock)
-        window.electron.onWindowUnlocked(handleWindowUnlock)
-
+        window.electron.onWindowLocked(handleWindowLock);
+        window.electron.onWindowUnlocked(handleWindowUnlock);
         window.addEventListener("keydown", handleKeyDown);
-        window.addEventListener("shortcutModalOpen", handleShortcutModalOpen)
-        window.addEventListener("shortcutModalClose", handleShortcutModalClose)
+        window.addEventListener("shortcutModalOpen", handleShortcutModalOpen);
+        window.addEventListener("shortcutModalClose", handleShortcutModalClose);
 
         getCacheLoadingStatus();
 
@@ -157,7 +177,7 @@ export default function App() {
     return (
         <div className="w-screen h-screen overflow-hidden bg-[rgba(24,24,27,0.99)] flex flex-col rounded-xl">
             <Toaster />
-            <IntroModal open={showIntroModal} setOpen={setShowIntroModal}/>
+            <IntroModal open={showIntroModal} setOpen={setShowIntroModal} />
             {(showUnlockedIcon || showLockedIcon) &&
                 <div
                     style={{
@@ -183,16 +203,36 @@ export default function App() {
             }
 
             <div className="grow flex flex-col">
-                {currentPage === "main" &&
-                    <MainPage
-                        inputRef={inputRef}
-                        stage={stage}
-                        query={query}
-                        setQuery={setQuery}
-                    />
-                }
-                {currentPage === "settings" && <SettingsPage />}
+                <Routes>
+                    <Route
+                        path="/"
+                        element={
+                            <MainLayout
+                                inputRef={inputRef}
+                                stage={stage}
+                                query={query}
+                                setQuery={setQuery}
+                                selfQueryChangedRef={selfQueryChangedRef}
+                            />
+                        }
+                    >
+                        <Route index element={<HomePage />} />
+                        <Route path="all" element={<AllAppsPage />} />
+                        <Route path="search" element={<SearchPage />} />
+                        <Route
+                            path="web"
+                            element={
+                                <WebPage
+                                    selfQueryChangedRef={selfQueryChangedRef}
+                                    setQueryFromBang={setQueryFromBang}
+                                />
+                            }
+                        />
+                    </Route>
+                    <Route path="/settings" element={<SettingsPage />} />
+                </Routes>
             </div>
+
             <div
                 style={{
                     borderTopStyle: "solid",
@@ -201,7 +241,6 @@ export default function App() {
                     height: "40px",
                     display: "flex",
                     alignItems: "center",
-                    paddingLeft: "16px",
                     justifyContent: "space-between",
                     padding: "0px 16px",
                     width: "800px",
@@ -210,7 +249,7 @@ export default function App() {
                 <button
                     className="text-white/25 hover:text-white/60 transition-colors duration-150"
                     onClick={async () => {
-                        window.electron.openExternal("https://github.com/NotHamxa")
+                        window.electron.openExternal("https://github.com/NotHamxa");
                     }}
                 >
                     <FaGithub size={18} />
@@ -218,9 +257,11 @@ export default function App() {
                 <div className="flex items-center space-x-2 text-white/25 text-sm">
                     <button
                         onClick={() => {
-                            setPrevPage(currentPage);
-                            if (currentPage === "main") setCurrentPage("settings");
-                            else setCurrentPage(prevPage);
+                            if (locationRef.current === '/settings') {
+                                navigate('/');
+                            } else {
+                                navigate('/settings');
+                            }
                         }}
                         className="hover:text-white/55 transition-colors duration-150 cursor-pointer"
                     >

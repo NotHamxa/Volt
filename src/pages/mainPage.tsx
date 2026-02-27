@@ -1,55 +1,84 @@
 import { CSSProperties, useEffect, useState } from 'react';
 import { Search } from "lucide-react";
-import { motion } from 'framer-motion';
+import { Outlet, useLocation } from 'react-router-dom';
 import { Input } from "@/components/ui/input.tsx";
 import SearchQueryFilter from "@/components/searchQueryFilter.tsx";
-import QuerySuggestions from "@/components/querySuggestions.tsx";
-import BangSuggestions from "@/components/bangSuggestions.tsx";
-import HomePageComponent from "@/components/homePageComponent.tsx";
 import { getBangData } from "@/scripts/bangs.ts";
 import { BangData } from "@/interfaces/bang.ts";
+import { SearchQueryT } from "@/interfaces/searchQuery.ts";
+import { showToast } from "@/components/toast.tsx";
 
-interface MainPageProps {
+export type MainLayoutContext = {
+    apps: SearchQueryT[];
+    pinnedApps: SearchQueryT[];
+    setPinnedApps: React.Dispatch<React.SetStateAction<SearchQueryT[]>>;
+    pinApp: (app: SearchQueryT) => void;
+    unPinApp: (app: SearchQueryT) => void;
+    searchFilters: boolean[];
+    setSearchFilters: React.Dispatch<React.SetStateAction<boolean[]>>;
+};
+
+const isSameApp = (a: SearchQueryT, b: SearchQueryT) =>
+    a.appId === b.appId && a.path === b.path && a.name === b.name && a.type === b.type && a.source === b.source;
+
+interface MainLayoutProps {
     inputRef: React.RefObject<HTMLInputElement | null>;
     stage: number;
     query: string;
-    setQuery:React.Dispatch<React.SetStateAction<string>>;
+    setQuery: React.Dispatch<React.SetStateAction<string>>;
+    selfQueryChangedRef: React.MutableRefObject<boolean>;
 }
 
-export default function MainPage({ inputRef, stage, query, setQuery }: MainPageProps) {
+export default function MainLayout({ inputRef, stage, query, setQuery, selfQueryChangedRef }: MainLayoutProps) {
     const [bangData, setBangData] = useState<BangData | null>(null);
-    const [selfQueryChanged, setSelfQueryChanged] = useState<boolean>(false);
-    const [homePageStage, setHomePageStage] = useState<number>(1);
-    const [searchQueryFilters, setSearchQueryFilters] = useState<boolean[]>([true, true, true, true, true]);
+    const [searchFilters, setSearchFilters] = useState<boolean[]>([true, true, true, true, true]);
+    const [apps, setApps] = useState<SearchQueryT[]>([]);
+    const [pinnedApps, setPinnedApps] = useState<SearchQueryT[]>([]);
+    const location = useLocation();
+
+    useEffect(() => {
+        const getAppData = async () => {
+            const appsData = await window.apps.searchApps("");
+            setApps(appsData);
+            const pApps = await window.electronStore.get("pinnedApps");
+            setPinnedApps(pApps ? JSON.parse(pApps) : []);
+        };
+        getAppData();
+        window.electron.onCacheReload(getAppData);
+    }, []);
 
     useEffect(() => {
         const getData = async () => {
-            if (query === "") {
-                return;
-            }
-            if (query.includes("!") && stage === 2) {
-                const bangData = await getBangData(query);
-                setBangData(bangData);
-                return;
-            }
+            if (!query || !query.includes("!") || stage !== 2) return;
+            const result = await getBangData(query);
+            setBangData(result);
         };
         getData();
     }, [query, stage]);
 
-    useEffect(() => {
-        if (stage === 1 && selfQueryChanged) {
-            setSelfQueryChanged(false);
+    const pinApp = async (app: SearchQueryT) => {
+        if (pinnedApps.length === 21) {
+            showToast("Maximum Pins Reached", "You can pin up to 21 apps only.");
+            return;
         }
-    }, [stage, selfQueryChanged]);
+        if (!pinnedApps.find((a) => isSameApp(a, app))) {
+            const updated = [...pinnedApps, app];
+            window.electronStore.set("pinnedApps", JSON.stringify(updated));
+            setPinnedApps(updated);
+        }
+    };
+
+    const unPinApp = async (app: SearchQueryT) => {
+        const updated = pinnedApps.filter((a) => !isSameApp(a, app));
+        window.electronStore.set("pinnedApps", JSON.stringify(updated));
+        setPinnedApps(updated);
+    };
 
     const faviconUrl = bangData?.d
         ? `https://www.google.com/s2/favicons?sz=24&domain_url=${encodeURIComponent(bangData.d)}`
         : null;
 
-    function setQueryInput(value: string) {
-        setSelfQueryChanged(true);
-        setQuery(value);
-    }
+    const isSearchRoute = location.pathname === '/search';
 
     function SwitchModes() {
         return (
@@ -62,16 +91,29 @@ export default function MainPage({ inputRef, stage, query, setQuery }: MainPageP
         );
     }
 
+    const context: MainLayoutContext = {
+        apps,
+        pinnedApps,
+        setPinnedApps,
+        pinApp,
+        unPinApp,
+        searchFilters,
+        setSearchFilters,
+    };
+
     return (
         <>
             <div style={styles.inputContainer}>
-                {faviconUrl && stage === 2 ? <img src={faviconUrl} style={styles.favicon} /> : <Search size={20} className="text-white/30 shrink-0" />}
+                {faviconUrl && stage === 2
+                    ? <img src={faviconUrl} style={styles.favicon} />
+                    : <Search size={20} className="text-white/30 shrink-0" />
+                }
                 <Input
                     ref={inputRef}
                     value={query}
                     onChange={(e) => {
+                        selfQueryChangedRef.current = false;
                         setQuery(e.target.value);
-                        setSelfQueryChanged(false);
                     }}
                     onKeyDown={(e) => {
                         if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
@@ -83,42 +125,11 @@ export default function MainPage({ inputRef, stage, query, setQuery }: MainPageP
                     autoFocus
                 />
                 {!query && <SwitchModes />}
-                {query && stage === 1 ? <SearchQueryFilter
-                    filters={searchQueryFilters}
-                    setFilters={setSearchQueryFilters}
-                /> : null}
+                {isSearchRoute && query && (
+                    <SearchQueryFilter filters={searchFilters} setFilters={setSearchFilters} />
+                )}
             </div>
-            <motion.div
-                // key={stage}
-                // initial={{ opacity: 0, x: stage === 1 ? -50 : 50 }}
-                // animate={{ opacity: 1, x: 0 }}
-                // exit={{ opacity: 0, x: stage === 1 ? 50 : -50 }}
-                // transition={{ duration: 0.3, ease: "easeInOut" }}
-                // style={{ flexGrow: 1 }}
-            >
-                {query.trim() && stage === 1 && homePageStage === 1 ? (
-                    <QuerySuggestions
-                        query={query.trim()}
-                        searchFilters={searchQueryFilters}
-                    />
-                ) : null}
-
-                {stage === 2 ? <BangSuggestions
-                    bang={query.trim()}
-                    setQuery={setQueryInput}
-                    selfQueryChanged={selfQueryChanged}
-                /> : null}
-                {(
-                    (query.trim() === "" && stage === 1) ||
-                    (query.trim() !== "" && stage === 1 && homePageStage === 2)
-                ) ? (
-                    <HomePageComponent
-                        stage={homePageStage}
-                        setStage={setHomePageStage}
-                        query={query.trim()}
-                    />
-                ) : null}
-            </motion.div>
+            <Outlet context={context} />
         </>
     );
 }

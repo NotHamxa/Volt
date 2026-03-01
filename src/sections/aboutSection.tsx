@@ -1,8 +1,13 @@
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button.tsx";
 import { Github, Mail, Globe, ExternalLink } from "lucide-react";
 
 export default function AboutSection() {
-    const appVersion = "1.0.3";
+    const [appVersion, setAppVersion] = useState<string>("");
+
+    useEffect(() => {
+        window.electron.getAppVersion().then(setAppVersion);
+    }, []);
 
     const socialLinks = [
         {

@@ -33,13 +33,14 @@ export function registerFilesIpc({
 
     ipcMain.handle("select-folder", async () => {
         appStates.fixWindowOpen = true;
-        const result = await dialog.showOpenDialog(mainWindow,{
+        mainWindow.setAlwaysOnTop(false);
+        const result = await dialog.showOpenDialog(mainWindow, {
             title: "Select Folder",
             properties: ["openDirectory"],
         });
-        const dirPath = result.filePaths?.[0];
-        mainWindow.focus()
+        mainWindow.setAlwaysOnTop(true);
         appStates.fixWindowOpen = false;
+        const dirPath = result.filePaths?.[0];
         if (!dirPath) return null;
         return dirPath;
     });

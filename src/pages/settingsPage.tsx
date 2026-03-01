@@ -20,6 +20,7 @@ export default function SettingsPage() {
     const [cachedFolders, setCachedFolders] = useState<string[]>([]);
     const [loadingCachedFolders, setLoadingCachedFolders] = useState<string[]>([]);
     const [removingFolder, setRemovingFolder] = useState<string | null>(null);
+    const selectingFolder = useRef(false);
 
     const onLoad = async () => {
         const bind = await window.electronStore.get("openWindowBind");
@@ -82,7 +83,10 @@ export default function SettingsPage() {
     };
 
     const onAddFolder = async () => {
+        if (selectingFolder.current) return;
+        selectingFolder.current = true;
         const folder = await window.electron.selectFolder();
+        selectingFolder.current = false;
         if (!folder) return;
         if (cachedFolders.includes(folder)) {
             showToast("Note", "This folder is already indexed.");

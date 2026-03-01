@@ -83,6 +83,15 @@ export default function App() {
     useEffect(() => {
         document.documentElement.classList.add("dark");
 
+        const checkIntroModal = async ()=>{
+            const check = await window.electronStore.get("showIntroModal")
+            window.electron.log("intro "+check);
+            if (check==="" || check === null) setShowIntroModal(true);
+            else setShowIntroModal(check==="true")
+        }
+
+        checkIntroModal();
+
         const handleBlur = () => {
             if (inputRef.current) {
                 setQuery("");

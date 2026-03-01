@@ -8,13 +8,25 @@ export async function loadFileData(cache){
     cache.firstTimeExperience = store.get("firstTimeExperience") ?? true;
 
     cache.cachedFolders = JSON.parse(await store.get("cachedFolders") ?? "[]");
+
+    if (!store.get("version")) {
+        store.set("version", app.getVersion());
+        store.set("showIntroModal","true")
+    }
+
     if (cache.firstTimeExperience) {
         const desktopPath = app.getPath("desktop");
         const downloadsPath = app.getPath("downloads");
         cache.cachedFolders.push(desktopPath);
         cache.cachedFolders.push(downloadsPath);
         store.set("cachedFolders", JSON.stringify(cache.cachedFolders));
+        store.set("showIntroModal","true")
         store.set("firstTimeExperience", false);
+        store.set("version", app.getVersion())
+        if (process.env.NODE_ENV !== "development") {
+            app.setLoginItemSettings({ openAtLogin: true });
+            store.set("openOnStartup", true);
+        }
     }
     for (const path of cache.cachedFolders){
         await cacheFolder(path, cache,false);

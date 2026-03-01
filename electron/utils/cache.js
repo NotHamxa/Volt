@@ -275,6 +275,14 @@ export async function cacheFolder(dirPath,cache,newFolder=true) {
             const fullPath = path.join(currentPath, entry.name);
             if (entry.isDirectory()) {
                 if (excludedFolders.includes(entry.name)) continue;
+                filesArray.push({
+                    name: entry.name,
+                    normalisedName: normaliseString(entry.name),
+                    source: "",
+                    appId: "",
+                    path: fullPath,
+                    type: "folder"
+                });
                 await readDirRecursive(fullPath);
             } else if (entry.isFile()) {
                 const ext = path.extname(entry.name).replace(".","");

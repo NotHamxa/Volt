@@ -269,6 +269,7 @@ export function IntroModal({ open, setOpen }: IntroModalProps) {
     }, [open, isLanding, step]);
 
     function close() {
+        window.electronStore.set("showIntroModal",false)
         setOpen(false);
         setTimeout(() => setStep(-1), 400);
     }

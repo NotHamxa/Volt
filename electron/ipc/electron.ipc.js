@@ -42,6 +42,10 @@ export function registerElectronIpc({ hideMainWindow, cache, store }) {
         }
     });
 
+    ipcMain.handle("get-app-version", () => {
+        return app.getVersion();
+    });
+
     ipcMain.handle("get-open-on-startup", () => {
         return app.getLoginItemSettings().openAtLogin;
     });

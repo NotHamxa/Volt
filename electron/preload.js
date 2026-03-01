@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld("electron", {
     deleteFolder:(path)=>ipcRenderer.invoke('delete-folder',path),
     searchQuery:(query,filters)=>ipcRenderer.invoke('search-query',query,filters),
     toggleEscape:(state)=>ipcRenderer.send("toggle-esc-pause",state),
+    getAppVersion:()=>ipcRenderer.invoke("get-app-version"),
     getOpenOnStartup:()=>ipcRenderer.invoke("get-open-on-startup"),
     setOpenOnStartup:(enabled)=>ipcRenderer.invoke("set-open-on-startup",enabled)
 });

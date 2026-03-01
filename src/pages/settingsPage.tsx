@@ -15,6 +15,8 @@ export default function SettingsPage() {
     const [currentOpenBind, setCurrentOpenBind] = useState<string>("");
     const pressedKeysRef = useRef<Set<string>>(new Set());
 
+    const [openOnStartup, setOpenOnStartup] = useState<boolean>(false);
+
     const [cachedFolders, setCachedFolders] = useState<string[]>([]);
     const [loadingCachedFolders, setLoadingCachedFolders] = useState<string[]>([]);
     const [removingFolder, setRemovingFolder] = useState<string | null>(null);
@@ -24,6 +26,13 @@ export default function SettingsPage() {
         const folders = await window.electronStore.get("cachedFolders");
         setCurrentOpenBind(bind || "Not Set");
         setCachedFolders(JSON.parse(folders || "[]"));
+        const startup = await window.electron.getOpenOnStartup();
+        setOpenOnStartup(startup ?? false);
+    };
+
+    const toggleOpenOnStartup = async (enabled: boolean) => {
+        setOpenOnStartup(enabled);
+        await window.electron.setOpenOnStartup(enabled);
     };
 
     const formatKey = (code: string, key: string): string => {
@@ -140,6 +149,8 @@ export default function SettingsPage() {
                                 bindLoad={bindLoad}
                                 currentOpenBind={currentOpenBind}
                                 confirmChangeBind={confirmChangeBind}
+                                openOnStartup={openOnStartup}
+                                toggleOpenOnStartup={toggleOpenOnStartup}
                             />
                         )}
 

@@ -22,7 +22,9 @@ contextBridge.exposeInMainWorld("electron", {
     selectFolder:()=>ipcRenderer.invoke('select-folder'),
     deleteFolder:(path)=>ipcRenderer.invoke('delete-folder',path),
     searchQuery:(query,filters)=>ipcRenderer.invoke('search-query',query,filters),
-    toggleEscape:(state)=>ipcRenderer.send("toggle-esc-pause",state)
+    toggleEscape:(state)=>ipcRenderer.send("toggle-esc-pause",state),
+    getOpenOnStartup:()=>ipcRenderer.invoke("get-open-on-startup"),
+    setOpenOnStartup:(enabled)=>ipcRenderer.invoke("set-open-on-startup",enabled)
 });
 contextBridge.exposeInMainWorld("file",{
     searchFilesAndFolders: (baseDir, query) => ipcRenderer.invoke('search-files', baseDir, query),

@@ -1,4 +1,4 @@
-import { ipcMain, shell } from "electron";
+import { app, ipcMain, shell } from "electron";
 import { getGoogleSuggestions } from "../utils/autoSuggestion.js";
 import { executeUserCommand } from "../utils/cmd.js";
 import { processSearchQuery } from "../utils/search.js";
@@ -40,5 +40,15 @@ export function registerElectronIpc({ hideMainWindow, cache, store }) {
         } catch {
             return false;
         }
+    });
+
+    ipcMain.handle("get-open-on-startup", () => {
+        return app.getLoginItemSettings().openAtLogin;
+    });
+
+    ipcMain.handle("set-open-on-startup", (_, enabled) => {
+        app.setLoginItemSettings({ openAtLogin: enabled });
+        store.set("openOnStartup", enabled);
+        return true;
     });
 }

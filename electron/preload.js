@@ -24,6 +24,9 @@ contextBridge.exposeInMainWorld("electron", {
     searchQuery:(query,filters)=>ipcRenderer.invoke('search-query',query,filters),
     toggleEscape:(state)=>ipcRenderer.send("toggle-esc-pause",state),
     getAppVersion:()=>ipcRenderer.invoke("get-app-version"),
+    onUpdateProgress:(cb)=>ipcRenderer.on("update-progress",(_,data)=>cb(data)),
+    onUpdateDownloaded:(cb)=>ipcRenderer.on("update-downloaded",cb),
+    quitAndInstall:()=>ipcRenderer.send("quit-and-install"),
     getOpenOnStartup:()=>ipcRenderer.invoke("get-open-on-startup"),
     setOpenOnStartup:(enabled)=>ipcRenderer.invoke("set-open-on-startup",enabled)
 });

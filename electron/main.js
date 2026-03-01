@@ -218,8 +218,6 @@ const createWindow = async () => {
     mainWindow.on("closed", () => {
         mainWindow = null;
     });
-    mainWindow.hide();
-
 };
 
 app.whenReady().then(async () => {
@@ -235,6 +233,10 @@ app.whenReady().then(async () => {
     });
     await loadAppData(mainWindow.webContents,cache);
     await loadFileData(cache)
+
+    if (!cache.firstTimeExperience)
+        mainWindow.hide()
+
     if (process.env.NODE_ENV !== "development") {
         setupAutoUpdater(mainWindow);
     }

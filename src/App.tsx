@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Unlock, Lock } from "lucide-react";
+import { Unlock, Lock, Loader2, RefreshCw } from "lucide-react";
 import { FaGithub } from "react-icons/fa6";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip.tsx";
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 
 import SettingsPage from "@/pages/settingsPage.tsx";
@@ -20,6 +21,8 @@ export default function App() {
     const [currentCacheStep, setCurrentCacheStep] = useState<number>(0);
     const [totalCacheSteps, setTotalCacheSteps] = useState<number>(0);
     const [showIntroModal, setShowIntroModal] = useState(false);
+    const [updateProgress, setUpdateProgress] = useState<number | null>(null);
+    const [updateReady, setUpdateReady] = useState(false);
 
     const [query, setQuery] = useState<string>("");
     const inputRef = useRef<HTMLInputElement>(null);
@@ -167,6 +170,14 @@ export default function App() {
             }, 1000);
         };
 
+        window.electron.onUpdateProgress((data: { percent: number }) => {
+            setUpdateProgress(Math.round(data.percent));
+        });
+        window.electron.onUpdateDownloaded(() => {
+            setUpdateReady(true);
+            setUpdateProgress(null);
+        });
+
         window.electron.onWindowBlurred(handleBlur);
         window.electron.onWindowLocked(handleWindowLock);
         window.electron.onWindowUnlocked(handleWindowUnlock);
@@ -248,22 +259,47 @@ export default function App() {
                 >
                     <FaGithub size={18} />
                 </button>
-                <div className="flex items-center space-x-2 text-white/25 text-sm">
-                    <button
-                        onClick={() => {
-                            if (locationRef.current === '/settings') {
-                                navigate('/');
-                            } else {
-                                navigate('/settings');
-                            }
-                        }}
-                        className="hover:text-white/55 transition-colors duration-150 cursor-pointer"
-                    >
-                        Settings
-                    </button>
-                    <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-white/[0.07] border border-white/10">Ctrl</span>
-                    <span className="text-white/15">+</span>
-                    <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-white/[0.07] border border-white/10">H</span>
+                <div className="flex items-center gap-3">
+                    <TooltipProvider delayDuration={100}>
+                        {updateReady ? (
+                            <button
+                                onClick={() => window.electron.quitAndInstall()}
+                                className="flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium text-amber-400 bg-amber-400/10 border border-amber-400/20 hover:bg-amber-400/20 transition-colors duration-150"
+                            >
+                                <RefreshCw size={11} />
+                                Restart to update
+                            </button>
+                        ) : updateProgress !== null ? (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <span className="flex items-center text-white/25 cursor-default">
+                                        <Loader2 size={13} className="animate-spin" />
+                                    </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="bg-[rgba(24,24,27,0.98)] border border-white/10 text-white/70 text-[11px]">
+                                    Downloading update… {updateProgress}%
+                                </TooltipContent>
+                            </Tooltip>
+                        ) : null}
+                    </TooltipProvider>
+
+                    <div className="flex items-center space-x-2 text-white/25 text-sm">
+                        <button
+                            onClick={() => {
+                                if (locationRef.current === '/settings') {
+                                    navigate('/');
+                                } else {
+                                    navigate('/settings');
+                                }
+                            }}
+                            className="hover:text-white/55 transition-colors duration-150 cursor-pointer"
+                        >
+                            Settings
+                        </button>
+                        <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-white/[0.07] border border-white/10">Ctrl</span>
+                        <span className="text-white/15">+</span>
+                        <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-white/[0.07] border border-white/10">H</span>
+                    </div>
                 </div>
             </div>
         </div>

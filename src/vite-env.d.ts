@@ -34,6 +34,12 @@ declare global {
 
             searchQuery:(query:string, filters:boolean[]) => Promise<ProcessedSearchResult>;
             toggleEscape:(state:boolean)=>Promise<void>;
+            getAppVersion:()=>Promise<string>;
+            getOpenOnStartup:()=>Promise<boolean>;
+            setOpenOnStartup:(enabled:boolean)=>Promise<boolean>;
+            onUpdateProgress:(callback:(data:{percent:number})=>void)=>void;
+            onUpdateDownloaded:(callback:()=>void)=>void;
+            quitAndInstall:()=>void;
         };
         electronStore: {
             set: (key: string, value: any) => void;

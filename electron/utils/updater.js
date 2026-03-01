@@ -1,4 +1,4 @@
-import { dialog } from "electron";
+import { dialog, ipcMain } from "electron";
 import pkg from "electron-updater";
 
 const { autoUpdater } = pkg;
@@ -6,7 +6,7 @@ const { autoUpdater } = pkg;
 export function setupAutoUpdater(mainWindow) {
     if (!mainWindow) return;
 
-    autoUpdater.autoDownload = false;
+    autoUpdater.autoDownload = true;
     autoUpdater.autoInstallOnAppQuit = true;
 
     autoUpdater.on("checking-for-update", () => {
@@ -14,20 +14,7 @@ export function setupAutoUpdater(mainWindow) {
     });
 
     autoUpdater.on("update-available", () => {
-        console.log("Update available");
-        dialog.showMessageBox(mainWindow, {
-            type: "info",
-            title: "Update Available",
-            message: "A new version of Volt is available.",
-            detail: "Do you want to download it now?",
-            buttons: ["Download", "Later"],
-            defaultId: 0,
-            cancelId: 1,
-        }).then(result => {
-            if (result.response === 0) {
-                autoUpdater.downloadUpdate();
-            }
-        });
+        console.log("Update available, downloading...");
     });
 
     autoUpdater.on("update-not-available", () => {
@@ -47,15 +34,13 @@ export function setupAutoUpdater(mainWindow) {
         });
     });
     autoUpdater.on("update-downloaded", () => {
-        dialog.showMessageBox(mainWindow, {
-            type: "info",
-            title: "Update Ready",
-            message: "Update downloaded. Restart to apply it?",
-            buttons: ["Restart Now"],
-        }).then(() => {
-            autoUpdater.quitAndInstall(true, true);
-        });
+        mainWindow.webContents.send("update-downloaded");
     });
+
+    ipcMain.on("quit-and-install", () => {
+        autoUpdater.quitAndInstall(true, true);
+    });
+
     autoUpdater.checkForUpdates();
 }
 export function checkForUpdates() {

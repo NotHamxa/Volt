@@ -74,6 +74,9 @@ const excludedFolders = [
     // Containers / infra
     ".docker", ".vagrant", ".terraform"
 ];
+const normaliseString = (str) => str.toLowerCase().replace(/\s+/g, "");
+
+
 function resolveLnk(lnkPath) {
     return new Promise((resolve, reject) => {
         execFile(
@@ -280,6 +283,7 @@ export async function cacheFolder(dirPath,cache,newFolder=true) {
                 else extL[ext] = 1;
                 filesArray.push({
                     name: entry.name,
+                    normalisedName: normaliseString(entry.name),
                     source: "",
                     appId: "",
                     path: fullPath,

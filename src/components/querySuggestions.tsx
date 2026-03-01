@@ -30,6 +30,7 @@ import {
 import { SearchQueryT } from "@/interfaces/searchQuery.ts";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { getQueryData } from "@/scripts/query.ts";
+import type { ProcessedQueryResult } from "@/scripts/query.ts";
 import { showToast } from "@/components/toast.tsx";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip.tsx";
 import {
@@ -464,26 +465,6 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
         getAppData()
     }, []);
 
-    const limit = useMemo(() => {
-        const searchOptionsSelected = searchFilters.filter(Boolean).length;
-        const categories = [apps, folders, files, settings, commands];
-        const nullSets = categories.filter(cat => cat.length === 0).length;
-
-        if ((searchOptionsSelected === 4 || searchOptionsSelected === 3) || nullSets === 1) return 5;
-        if (searchOptionsSelected === 2 || nullSets === 2) return 7;
-        if (searchOptionsSelected === 1 || nullSets === 3) {
-            const max = Math.max(apps.length, folders.length, files.length, settings.length);
-            return max > 15 ? 15 : max;
-        }
-        return 3;
-    }, [searchFilters, apps.length, folders.length, files.length, settings.length, commands.length]);
-
-    const limitedApps = useMemo(() => apps.slice(0, limit), [apps, limit]);
-    const limitedFiles = useMemo(() => files.slice(0, limit), [files, limit]);
-    const limitedFolders = useMemo(() => folders.slice(0, limit), [folders, limit]);
-    const limitedSettings = useMemo(() => settings.slice(0, limit), [settings, limit]);
-    const limitedCommands = useMemo(() => commands.slice(0, limit), [commands, limit]);
-
     useEffect(() => {
         let cancelled = false;
 
@@ -499,17 +480,17 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
         }
 
         const getData = async () => {
-            const queryData = await getQueryData({
-                query: query.trim(),
-                setBestMatch: (match) => { if (!cancelled) setBestMatch(match); },
-                searchQueryFilters: searchFilters
-            });
-            if (cancelled || !queryData) return;
-            setApps(queryData.apps);
-            setFolders(queryData.folders);
-            setFiles(queryData.files);
-            setSettings(queryData.settings);
-            setCommands(queryData.commands);
+            const x = performance.now();
+            const result: ProcessedQueryResult | null = await getQueryData(query.trim(), searchFilters);
+            if (cancelled || !result) return;
+            setBestMatch(result.bestMatch);
+            setApps(result.apps);
+            setFolders(result.folders);
+            setFiles(result.files);
+            setSettings(result.settings);
+            setCommands(result.commands);
+            const y = performance.now();
+            window.electron.log("React Call:"+(y-x)+"ms")
         };
 
         const timer = setTimeout(getData, 80);
@@ -522,12 +503,12 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
 
     const allResults = useMemo<SearchQueryT[]>(() => [
         ...(bestMatch ? [bestMatch] : []),
-        ...limitedApps,
-        ...limitedSettings,
-        ...limitedFiles,
-        ...limitedFolders,
-        ...limitedCommands,
-    ], [bestMatch, limitedApps, limitedSettings, limitedFiles, limitedFolders, limitedCommands]);
+        ...apps,
+        ...settings,
+        ...files,
+        ...folders,
+        ...commands,
+    ], [bestMatch, apps, settings, files, folders, commands]);
 
     const handleKeyDown = useCallback(async (e: KeyboardEvent) => {
         console.log(isContextMenuOpen)
@@ -619,9 +600,9 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
                             />
                         )}
 
-                        {limitedApps.length > 0 && searchFilters[0] && (
+                        {apps.length > 0 && searchFilters[0] && (
                             <>
-                                {limitedApps.map((app, index) => {
+                                {apps.map((app, index) => {
                                     const itemIndex = index + (bestMatch ? 1 : 0);
                                     return (
                                         <QueryComponent
@@ -639,10 +620,10 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
                                 })}
                             </>
                         )}
-                        {limitedCommands.length > 0 && searchFilters[4] && (
+                        {commands.length > 0 && searchFilters[4] && (
                             <>
-                                {limitedCommands.map((command, index) => {
-                                    const itemIndex = index + (bestMatch ? 1 : 0) + limitedApps.length;
+                                {commands.map((command, index) => {
+                                    const itemIndex = index + (bestMatch ? 1 : 0) + apps.length;
                                     return (
                                         <QueryComponent
                                             key={`${command.name}-${index}`}
@@ -656,10 +637,10 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
                                 })}
                             </>
                         )}
-                        {limitedSettings.length > 0 && searchFilters[3] && (
+                        {settings.length > 0 && searchFilters[3] && (
                             <>
-                                {limitedSettings.map((file, index) => {
-                                    const itemIndex = index + (bestMatch ? 1 : 0) + limitedCommands.length + limitedApps.length;
+                                {settings.map((file, index) => {
+                                    const itemIndex = index + (bestMatch ? 1 : 0) + commands.length + apps.length;
                                     return (
                                         <QueryComponent
                                             key={`${file.name}-${index}`}
@@ -674,10 +655,10 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
                             </>
                         )}
 
-                        {limitedFiles.length > 0 && searchFilters[1] && (
+                        {files.length > 0 && searchFilters[1] && (
                             <>
-                                {limitedFiles.map((file, index) => {
-                                    const itemIndex = index + (bestMatch ? 1 : 0) + limitedCommands.length + limitedApps.length + limitedSettings.length;
+                                {files.map((file, index) => {
+                                    const itemIndex = index + (bestMatch ? 1 : 0) + commands.length + apps.length + settings.length;
                                     return (
                                         <QueryComponent
                                             key={`${file.name}-${file.path}-${index}`}
@@ -692,10 +673,10 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
                             </>
                         )}
 
-                        {limitedFolders.length > 0 && searchFilters[2] && (
+                        {folders.length > 0 && searchFilters[2] && (
                             <>
-                                {limitedFolders.map((folder, index) => {
-                                    const itemIndex = index + (bestMatch ? 1 : 0) + limitedApps.length + limitedCommands.length + limitedFiles.length + limitedSettings.length;
+                                {folders.map((folder, index) => {
+                                    const itemIndex = index + (bestMatch ? 1 : 0) + apps.length + commands.length + files.length + settings.length;
                                     return (
                                         <QueryComponent
                                             key={`${folder.name}-${folder.path}-${index}`}

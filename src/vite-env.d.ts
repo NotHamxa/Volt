@@ -3,11 +3,13 @@ import {SearchQueryT} from "@/interfaces/searchQuery.ts";
 
 export {};
 
-type CombinedQuery = {
-    apps: SearchQueryT[];
-    settings: SearchQueryT[];
-    commands: SearchQueryT[];
-    files: SearchQueryT[];
+type ProcessedSearchResult = {
+    bestMatch: SearchQueryT | null;
+    apps:      SearchQueryT[];
+    files:     SearchQueryT[];
+    folders:   SearchQueryT[];
+    settings:  SearchQueryT[];
+    commands:  SearchQueryT[];
 }
 
 declare global {
@@ -30,7 +32,7 @@ declare global {
             selectFolder:()=>Promise<string | null>;
             deleteFolder:(path:string)=>Promise<boolean>;
 
-            searchQuery:(query:string) => Promise<CombinedQuery>;
+            searchQuery:(query:string, filters:boolean[]) => Promise<ProcessedSearchResult>;
             toggleEscape:(state:boolean)=>Promise<void>;
         };
         electronStore: {

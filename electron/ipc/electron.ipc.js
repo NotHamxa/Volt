@@ -1,17 +1,20 @@
 import { ipcMain, shell } from "electron";
-import {getGoogleSuggestions} from "../utils/autoSuggestion.js";
-import {executeUserCommand} from "../utils/cmd.js";
-import {searchQuery} from "../utils/search.js";
+import { getGoogleSuggestions } from "../utils/autoSuggestion.js";
+import { executeUserCommand } from "../utils/cmd.js";
+import { processSearchQuery } from "../utils/search.js";
 
-export function registerElectronIpc({
-                                        hideMainWindow,
-                                        cache,
-                                    }) {
+export function registerElectronIpc({ hideMainWindow, cache, store }) {
     ipcMain.on("log", (_, data) => console.log(data));
 
-    ipcMain.handle("search-query",(_,query)=>{
-        return searchQuery(cache.appCache,cache.cachedFoldersData,query);
-    })
+    ipcMain.handle("search-query", (_, query, searchFilters = []) => {
+        return processSearchQuery(
+            cache.appCache,
+            cache.cachedFoldersData,
+            store.get("appLaunchStack"),
+            query,
+            searchFilters,
+        );
+    });
 
     ipcMain.handle("get-google-suggestions", (_, query) => {
         return getGoogleSuggestions(query);

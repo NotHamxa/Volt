@@ -4,4 +4,5 @@ export type SearchQueryT={
     appId?:string
     path?:string
     source?:string
+    normalisedName?:string
 }

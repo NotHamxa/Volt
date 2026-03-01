@@ -21,7 +21,7 @@ contextBridge.exposeInMainWorld("electron", {
     executeCmd:(cmd)=>ipcRenderer.send('execute-cmd', cmd),
     selectFolder:()=>ipcRenderer.invoke('select-folder'),
     deleteFolder:(path)=>ipcRenderer.invoke('delete-folder',path),
-    searchQuery:(query)=>ipcRenderer.invoke('search-query',query),
+    searchQuery:(query,filters)=>ipcRenderer.invoke('search-query',query,filters),
     toggleEscape:(state)=>ipcRenderer.send("toggle-esc-pause",state)
 });
 contextBridge.exposeInMainWorld("file",{

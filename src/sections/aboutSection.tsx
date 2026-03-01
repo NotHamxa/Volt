@@ -74,15 +74,14 @@ export default function AboutSection() {
                         {socialLinks.map((link, index) => {
                             const Icon = link.icon;
                             return (
-                                <a
+                                <div
                                     key={index}
-                                    href={link.url}
-                                    target="_blank"
                                     rel="noopener noreferrer"
                                     className="flex items-center justify-between px-3 py-2.5 rounded-lg transition-all group"
                                     style={{ border: "1px solid transparent" }}
                                     onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.07)"; }}
                                     onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.borderColor = "transparent"; }}
+                                    onClick={()=>window.electron.openExternal(link.url)}
                                 >
                                     <div className="flex items-center gap-3">
                                         <div className="p-1.5 rounded-lg text-white/35 group-hover:text-white/60 transition-colors" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
@@ -94,7 +93,7 @@ export default function AboutSection() {
                                         </div>
                                     </div>
                                     <ExternalLink size={14} className="text-white/20 group-hover:text-white/45 transition-colors" />
-                                </a>
+                                </div>
                             );
                         })}
                     </div>

@@ -1,7 +1,6 @@
 import {ReactNode, useState} from "react";
 import { Button } from "@/components/ui/button.tsx";
 import {AlertTriangle, LucideIcon} from "lucide-react";
-import { showToast } from "@/components/toast.tsx";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -49,22 +48,24 @@ export const SettingCard = ({ title, description, children, icon: Icon, isDestru
     </div>
 );
 export function DeleteHistorySection() {
+    const [open, setOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
 
     const handleDelete = async () => {
         setIsDeleting(true);
         try {
             await window.electronStore.set("searchHistory", "[]");
-            showToast("History Cleared", "Your search history has been removed.");
+            window.electron.notify("History Cleared", "Your search history has been removed.");
         } catch {
-            showToast("Error", "Failed to delete history.");
+            window.electron.notify("Error", "Failed to delete history.");
         } finally {
             setIsDeleting(false);
+            setOpen(false);
         }
     };
 
     return (
-        <DropdownMenu>
+        <DropdownMenu open={open} onOpenChange={setOpen}>
             <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="rounded-lg text-[13px] text-white/45 hover:text-red-400 hover:bg-red-500/10 transition-colors border-white/10">
                     Clear
@@ -74,7 +75,7 @@ export function DeleteHistorySection() {
                 <DropdownMenuLabel className="mb-1 text-[13px] text-white/80">Delete search history?</DropdownMenuLabel>
                 <p className="text-[12px] text-white/35 mb-4">This will clear your recent query suggestions. This cannot be undone.</p>
                 <div className="flex justify-end gap-2">
-                    <Button variant="ghost" size="sm" className="text-white/35 hover:text-white/65 text-[12px]">Cancel</Button>
+                    <Button variant="ghost" size="sm" onClick={() => setOpen(false)} className="text-white/35 hover:text-white/65 text-[12px]">Cancel</Button>
                     <Button variant="destructive" size="sm" onClick={handleDelete} disabled={isDeleting} className="rounded-lg text-[12px]">
                         {isDeleting ? "Deleting..." : "Confirm"}
                     </Button>
@@ -85,22 +86,24 @@ export function DeleteHistorySection() {
 }
 
 export function ResetAppData() {
+    const [open, setOpen] = useState(false);
     const [isResetting, setIsResetting] = useState(false);
 
     const handleReset = async () => {
         setIsResetting(true);
         try {
             await window.electronStore.clear();
-            showToast("App Reset", "All data has been wiped successfully.");
+            window.electron.notify("App Reset", "All data has been wiped successfully.");
         } catch {
-            showToast("Error", "Failed to reset data.");
+            window.electron.notify("Error", "Failed to reset data.");
         } finally {
             setIsResetting(false);
+            setOpen(false);
         }
     };
 
     return (
-        <DropdownMenu>
+        <DropdownMenu open={open} onOpenChange={setOpen}>
             <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="rounded-lg text-[13px] text-white/45 hover:text-red-400 hover:bg-red-500/10 transition-colors border-white/10">
                     Factory Reset
@@ -114,7 +117,7 @@ export function ResetAppData() {
                     This will delete all indexed folders, custom bangs, and your settings. The app will restart.
                 </p>
                 <div className="flex justify-end gap-2">
-                    <Button variant="ghost" size="sm" className="text-white/35 hover:text-white/65 text-[12px]">Cancel</Button>
+                    <Button variant="ghost" size="sm" onClick={() => setOpen(false)} className="text-white/35 hover:text-white/65 text-[12px]">Cancel</Button>
                     <Button variant="destructive" size="sm" onClick={handleReset} disabled={isResetting} className="text-[12px]">
                         {isResetting ? "Resetting..." : "Confirm Reset"}
                     </Button>

@@ -6,7 +6,6 @@ import SearchQueryFilter from "@/components/searchQueryFilter.tsx";
 import { getBangData } from "@/scripts/bangs.ts";
 import { BangData } from "@/interfaces/bang.ts";
 import { SearchQueryT } from "@/interfaces/searchQuery.ts";
-import { showToast } from "@/components/toast.tsx";
 
 export type MainLayoutContext = {
     apps: SearchQueryT[];
@@ -27,6 +26,7 @@ interface MainLayoutProps {
     query: string;
     setQuery: React.Dispatch<React.SetStateAction<string>>;
     selfQueryChangedRef: React.MutableRefObject<boolean>;
+    clearQuery: () => void;
 }
 
 export default function MainLayout({ inputRef, stage, query, setQuery, selfQueryChangedRef }: MainLayoutProps) {
@@ -43,8 +43,14 @@ export default function MainLayout({ inputRef, stage, query, setQuery, selfQuery
             const pApps = await window.electronStore.get("pinnedApps");
             setPinnedApps(pApps ? JSON.parse(pApps) : []);
         };
+        const reloadPinnedApps = async () => {
+            const pApps = await window.electronStore.get("pinnedApps");
+            setPinnedApps(pApps ? JSON.parse(pApps) : []);
+        };
         getAppData();
         window.electron.onCacheReload(getAppData);
+        window.addEventListener("pinnedAppsChanged", reloadPinnedApps);
+        return () => window.removeEventListener("pinnedAppsChanged", reloadPinnedApps);
     }, []);
 
     useEffect(() => {
@@ -58,13 +64,14 @@ export default function MainLayout({ inputRef, stage, query, setQuery, selfQuery
 
     const pinApp = async (app: SearchQueryT) => {
         if (pinnedApps.length === 21) {
-            showToast("Maximum Pins Reached", "You can pin up to 21 apps only.");
+            window.electron.notify("Maximum Pins Reached", "You can pin up to 21 apps only.");
             return;
         }
         if (!pinnedApps.find((a) => isSameApp(a, app))) {
             const updated = [...pinnedApps, app];
             window.electronStore.set("pinnedApps", JSON.stringify(updated));
             setPinnedApps(updated);
+            window.dispatchEvent(new CustomEvent("pinnedAppsChanged"));
         }
     };
 
@@ -72,6 +79,7 @@ export default function MainLayout({ inputRef, stage, query, setQuery, selfQuery
         const updated = pinnedApps.filter((a) => !isSameApp(a, app));
         window.electronStore.set("pinnedApps", JSON.stringify(updated));
         setPinnedApps(updated);
+        window.dispatchEvent(new CustomEvent("pinnedAppsChanged"));
     };
 
     const faviconUrl = bangData?.d
@@ -99,6 +107,7 @@ export default function MainLayout({ inputRef, stage, query, setQuery, selfQuery
         unPinApp,
         searchFilters,
         setSearchFilters,
+        clearQuery: () => setQuery(""),
     };
 
     return (

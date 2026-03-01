@@ -13,9 +13,14 @@ type ProcessedSearchResult = {
 }
 
 declare global {
+    interface File {
+        path: string;
+    }
+
     interface Window {
         electron: {
             log:(data:any) => void;
+            notify:(title:string, message:string) => void;
             invoke: (channel: string, data?: any) => Promise<any>;
             setOpenBind:(binding:string)=>Promise<boolean>;
             openExternal:(url: string) => void;
@@ -29,7 +34,8 @@ declare global {
             getCacheLoadingStatus:()=>Promise<boolean>;
             setCacheLoadingBar: (callback: (currentCacheStep: number, totalCacheSteps: number) => void) => void;
             executeCmd: (command: string) => void;
-            selectFolder:()=>Promise<string | null>;
+            setFolderDialogOpen:(isOpen: boolean)=>Promise<void>;
+            showFolderDialog:()=>Promise<string | null>;
             deleteFolder:(path:string)=>Promise<boolean>;
 
             searchQuery:(query:string, filters:boolean[]) => Promise<ProcessedSearchResult>;

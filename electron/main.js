@@ -43,6 +43,7 @@ const appStates = {
     fixWindowOpen:false,
     windowLocked:false,
     pauseEscape:false,
+    dialogOpen:false,
 }
 
 const folderWatcher = chokidar.watch([],{
@@ -199,7 +200,7 @@ const createWindow = async () => {
     const devServerURL = "http://localhost:5173";
 
     mainWindow.on('blur', () => {
-        if (appStates.fixWindowOpen) mainWindow.focus();
+        if (appStates.fixWindowOpen && !appStates.dialogOpen) mainWindow.focus();
         if (mainWindow?.isVisible()) hideMainWindow();
     });
 

@@ -2,9 +2,14 @@ import { app, ipcMain, shell } from "electron";
 import { getGoogleSuggestions } from "../utils/autoSuggestion.js";
 import { executeUserCommand } from "../utils/cmd.js";
 import { processSearchQuery } from "../utils/search.js";
+import { showNotification } from "../utils/notification.js";
 
 export function registerElectronIpc({ hideMainWindow, cache, store }) {
     ipcMain.on("log", (_, data) => console.log(data));
+
+    ipcMain.on("notify", (_, title, message) => {
+        showNotification({ title, message });
+    });
 
     ipcMain.handle("search-query", (_, query, searchFilters = []) => {
         return processSearchQuery(

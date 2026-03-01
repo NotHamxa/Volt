@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { Settings, Hash, FolderOpen, Info } from "lucide-react";
-import { showToast } from "@/components/toast.tsx";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import GeneralSettingsSection from "@/sections/generalSection.tsx";
 import FoldersSection from "@/sections/foldersSection.tsx";
@@ -70,14 +69,14 @@ export default function SettingsPage() {
 
     const confirmChangeBind = async () => {
         if (pressedKeysRef.current.size < 2) {
-            showToast("Invalid Shortcut", "Please use at least two keys (e.g., Alt + Space)");
+            window.electron.notify("Invalid Shortcut", "Please use at least two keys (e.g., Alt + Space)");
             return;
         }
         const formattedKeys = Array.from(pressedKeysRef.current).slice(0, 3).join("+");
         setBindLoad(true);
         await window.electron.setOpenBind(formattedKeys);
         setBindLoad(false);
-        showToast("Shortcut Updated", `New shortcut: ${formattedKeys}`);
+        window.electron.notify("Shortcut Updated", `New shortcut: ${formattedKeys}`);
         setCurrentOpenBind(formattedKeys);
         setListeningToKeyboard(false);
     };
@@ -85,17 +84,17 @@ export default function SettingsPage() {
     const onAddFolder = async () => {
         if (selectingFolder.current) return;
         selectingFolder.current = true;
-        const folder = await window.electron.selectFolder();
+        const folder = await window.electron.showFolderDialog();
         selectingFolder.current = false;
         if (!folder) return;
         if (cachedFolders.includes(folder)) {
-            showToast("Note", "This folder is already indexed.");
+            window.electron.notify("Note", "This folder is already indexed.");
             return;
         }
-        setLoadingCachedFolders([...loadingCachedFolders, folder]);
+        setLoadingCachedFolders(prev => [...prev, folder]);
         await window.file.cacheFolder(folder);
-        setCachedFolders([...cachedFolders, folder]);
-        setLoadingCachedFolders(loadingCachedFolders.filter(f => f !== folder));
+        setCachedFolders(prev => [...prev, folder]);
+        setLoadingCachedFolders(prev => prev.filter(f => f !== folder));
     };
 
     const deleteFolder = async (path: string) => {
@@ -103,7 +102,7 @@ export default function SettingsPage() {
         const success = await window.electron.deleteFolder(path);
         if (success) {
             setCachedFolders(cachedFolders.filter(f => f !== path));
-            showToast("Removed", "Folder removed from index.");
+            window.electron.notify("Removed", "Folder removed from index.");
         }
         setRemovingFolder(null);
     };

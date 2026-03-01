@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("electron", {
     log:(data)=>{ipcRenderer.send("log",data)},
+    notify:(title,message)=>ipcRenderer.send("notify",title,message),
     invoke: (channel, data) => ipcRenderer.invoke(channel, data),
     setOpenBind:(binding)=>ipcRenderer.invoke("set-open-bind", binding),
     openExternal: (url) => ipcRenderer.send('open-external', url),
@@ -19,7 +20,8 @@ contextBridge.exposeInMainWorld("electron", {
     onCacheLoaded: (callback) => ipcRenderer.on('cache-loaded', callback),
     onCacheReload: (callback) => ipcRenderer.on('reloaded-app-cache', callback),
     executeCmd:(cmd)=>ipcRenderer.send('execute-cmd', cmd),
-    selectFolder:()=>ipcRenderer.invoke('select-folder'),
+    setFolderDialogOpen:(isOpen)=>ipcRenderer.invoke('set-folder-dialog-open', isOpen),
+    showFolderDialog:()=>ipcRenderer.invoke('show-folder-dialog'),
     deleteFolder:(path)=>ipcRenderer.invoke('delete-folder',path),
     searchQuery:(query,filters)=>ipcRenderer.invoke('search-query',query,filters),
     toggleEscape:(state)=>ipcRenderer.send("toggle-esc-pause",state),

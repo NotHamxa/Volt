@@ -31,7 +31,6 @@ import { SearchQueryT } from "@/interfaces/searchQuery.ts";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { getQueryData } from "@/scripts/query.ts";
 import type { ProcessedQueryResult } from "@/scripts/query.ts";
-import { showToast } from "@/components/toast.tsx";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip.tsx";
 import {
     Dialog,
@@ -45,7 +44,8 @@ import { Button } from "@/components/ui/button.tsx";
 
 interface IQuerySuggestions {
     query: string;
-    searchFilters: boolean[]
+    searchFilters: boolean[];
+    clearQuery: () => void;
 }
 
 type QueryComponentProps = {
@@ -413,7 +413,7 @@ const QueryComponent = memo(({
     );
 });
 
-export default function QuerySuggestions({ query, searchFilters }: IQuerySuggestions) {
+export default function QuerySuggestions({ query, searchFilters, clearQuery }: IQuerySuggestions) {
     const [pinnedApps, setPinnedApps] = useState<SearchQueryT[]>([])
     const [isCmdCommand, setIsCmdCommand] = useState<boolean>(false)
     const [cmdCommand, setCmdCommand] = useState<string>("")
@@ -431,11 +431,13 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
     const [commands, setCommands] = useState<SearchQueryT[]>([]);
 
     useEffect(() => {
-        const getAppData = async () => {
+        const reloadPinnedApps = async () => {
             const pApps = await window.electronStore.get("pinnedApps")
             setPinnedApps(pApps ? JSON.parse(pApps) : []);
         }
-        getAppData()
+        reloadPinnedApps();
+        window.addEventListener("pinnedAppsChanged", reloadPinnedApps);
+        return () => window.removeEventListener("pinnedAppsChanged", reloadPinnedApps);
     }, []);
 
     useEffect(() => {
@@ -523,20 +525,23 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
 
     const pinApp = useCallback(async (app: SearchQueryT) => {
         if (pinnedApps.length === 21) {
-            showToast("Maximum Pins Reached", "You can pin up to 21 apps only.");
+            window.electron.notify("Maximum Pins Reached", "You can pin up to 21 apps only.");
             return;
         }
         if (!pinnedApps.find((a) => isSameApp(a, app))) {
             const updated = [...pinnedApps, app];
             window.electronStore.set("pinnedApps", JSON.stringify(updated));
             setPinnedApps(updated);
+            window.dispatchEvent(new CustomEvent("pinnedAppsChanged"));
+            clearQuery();
         }
-    }, [pinnedApps]);
+    }, [pinnedApps, clearQuery]);
 
     const unPinApp = useCallback(async (app: SearchQueryT) => {
         const updated = pinnedApps.filter((a) => !isSameApp(a, app));
         window.electronStore.set("pinnedApps", JSON.stringify(updated));
         setPinnedApps(updated);
+        window.dispatchEvent(new CustomEvent("pinnedAppsChanged"));
     }, [pinnedApps]);
 
     const isAppPinned = useCallback((app: SearchQueryT): boolean => {

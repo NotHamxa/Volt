@@ -204,26 +204,25 @@ export default function BangSuggestions({bang, setQuery, selfQueryChanged}: IBan
         window.electronStore.set("searchHistory", JSON.stringify(updatedHistory));
     };
     function isValidUrl(url: string): string | null {
+        const hasProtocol = /^https?:\/\//i.test(url);
+        const isLocalhost = /^(localhost|127\.0\.0\.1)(:\d+)?(\/.*)?$/i.test(url);
+
+        // Without an explicit protocol, must have a dot (domain/IP) or be localhost
+        if (!hasProtocol && !isLocalhost && !url.includes(".")) return null;
+
         try {
-            let normalizedUrl = url;
+            const normalizedUrl = hasProtocol ? url
+                : isLocalhost ? `http://${url}`
+                : `https://${url}`;
 
-            if (!/^https?:\/\//i.test(url)) {
-                // Default to http for localhost/127.0.0.1, otherwise https
-                normalizedUrl = /^(localhost|127\.0\.0\.1)/i.test(url)
-                    ? `http://${url}`
-                    : `https://${url}`;
-            }
-
-            const parsed = new URL(normalizedUrl);
-            const hostname = parsed.hostname;
+            const { hostname } = new URL(normalizedUrl);
             if (
                 hostname === "localhost" ||
-                /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname) || // IPv4
-                hostname.includes(".") // normal domain
+                /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname) ||
+                hostname.includes(".")
             ) {
                 return normalizedUrl;
             }
-
             return null;
         } catch {
             return null;
@@ -231,20 +230,40 @@ export default function BangSuggestions({bang, setQuery, selfQueryChanged}: IBan
     }
 
     async function handleOpen(suggestion: string | SearchHistoryT) {
-
         if (typeof suggestion === "string") {
-            suggestion = suggestion.replace(/<\/?b>/g, "")
+            suggestion = suggestion.replace(/<\/?b>/g, "");
             const words = bang.trim().split(" ");
             const lastWord = words[words.length - 1];
-            const shortcut = lastWord.startsWith("!") ? lastWord.slice(1) : isValidUrl(suggestion)?"ds":"g";
-            const bangString: string = suggestion + " !" + shortcut;
-            if (suggestion==="!"+shortcut){
+            const hasBang = lastWord.startsWith("!");
+
+            if (!hasBang) {
+                const validUrl = isValidUrl(suggestion);
+                if (validUrl) {
+                    const { hostname } = new URL(validUrl);
+                    const historyEntry: SearchHistoryT = {
+                        searchTerm: suggestion,
+                        searchUrl: validUrl,
+                        site: hostname,
+                    };
+                    const stored = await window.electronStore.get("searchHistory");
+                    let searchHistory: SearchHistoryT[] = stored ? JSON.parse(stored) : [];
+                    const existingIndex = searchHistory.findIndex(item => JSON.stringify(item) === JSON.stringify(historyEntry));
+                    if (existingIndex !== -1) searchHistory.splice(existingIndex, 1);
+                    searchHistory = [historyEntry, ...searchHistory.slice(0, 19)];
+                    window.electronStore.set("searchHistory", JSON.stringify(searchHistory));
+                    window.electron.openExternal(validUrl);
+                    return;
+                }
+            }
+
+            const shortcut = hasBang ? lastWord.slice(1) : "g";
+            const bangString = suggestion + " !" + shortcut;
+            if (suggestion === "!" + shortcut) {
                 await handleBangs(suggestion);
                 return;
             }
             await handleBangs(bangString);
-        }
-        else{
+        } else {
             await handleHistoryItem(suggestion);
         }
     }

@@ -31,18 +31,21 @@ export function registerFilesIpc({
         openFileWith(filePath);
     });
 
-    ipcMain.handle("select-folder", async () => {
+    ipcMain.handle("set-folder-dialog-open", (_, isOpen) => {
+        appStates.fixWindowOpen = isOpen;
+        mainWindow.setAlwaysOnTop(!isOpen);
+    });
+
+    ipcMain.handle("show-folder-dialog", async () => {
         appStates.fixWindowOpen = true;
+        appStates.dialogOpen = true;
         mainWindow.setAlwaysOnTop(false);
-        const result = await dialog.showOpenDialog(mainWindow, {
-            title: "Select Folder",
-            properties: ["openDirectory"],
-        });
+        const result = await dialog.showOpenDialog({ properties: ["openDirectory"] });
         mainWindow.setAlwaysOnTop(true);
+        mainWindow.focus();
+        appStates.dialogOpen = false;
         appStates.fixWindowOpen = false;
-        const dirPath = result.filePaths?.[0];
-        if (!dirPath) return null;
-        return dirPath;
+        return result.canceled ? null : result.filePaths[0];
     });
 
     ipcMain.handle("cache-folder", async (_, folderPath) => {

@@ -14,7 +14,6 @@ import {
     rectSortingStrategy,
     SortableContext,
 } from "@dnd-kit/sortable";
-import {showToast} from "@/components/toast.tsx";
 import {LinkShortcutType} from "@/interfaces/links.ts";
 import AddLinkShortcutModal from "@/components/modal/addLinkShortcutModal.tsx";
 import EditLinkShortcutModal from "@/components/modal/editLinkShortcutModal.tsx";
@@ -24,38 +23,17 @@ import SortablePinnedApp from "@/components/subComponents/pinnedApps.tsx";
 interface Props {
     setStage: (n: number) => void;
     unPinApp: (app: SearchQueryT) => void;
-    apps:SearchQueryT[];
     pinnedApps: SearchQueryT[];
     setPinnedApps:React.Dispatch<React.SetStateAction<SearchQueryT[]>>;
 }
 
 
-export default function PinnedApps({setStage, unPinApp, apps, pinnedApps,setPinnedApps}: Props) {
+export default function PinnedApps({setStage, unPinApp, pinnedApps,setPinnedApps}: Props) {
     const [addShortcutOpenModal,setAddShortcutOpenModal] = useState<boolean>(false);
     const [editShortcutModalOpen, setEditShortcutModalOpen] = useState(false);
 
     const [linkShortcuts, setLinkShortcuts] = useState<LinkShortcutType[]>([]);
     const [editLinkShortcut,setEditLinkShortcut] = useState<LinkShortcutType | null>(null);
-
-    useEffect(() => {
-        const getSuggestedApps = async ()=>{
-            const appStack = await window.electronStore.get("appLaunchStack")
-            let appLaunchStack = []
-            if (appStack!==null && appStack!==undefined){
-                appLaunchStack = JSON.parse(appStack);
-            }
-            const sApps = []
-            for (const appName of appLaunchStack){
-                if (!(pinnedApps.some(app=>app.name===appName)) && sApps.length<7){
-                    const app = apps.find(app=>app.name===appName);
-                    sApps.push(app)
-                }
-            }
-            // setSuggestedApps(sApps);
-        }
-        if (apps.length>0)
-            getSuggestedApps();
-    }, [apps,pinnedApps]);
 
     const openEditModal = (link:LinkShortcutType)=>{
         setEditLinkShortcut(link)
@@ -176,7 +154,7 @@ export default function PinnedApps({setStage, unPinApp, apps, pinnedApps,setPinn
                         className="text-white/40 hover:text-white/70 px-2.5 py-1 h-auto text-xs rounded-lg flex items-center gap-1 transition-colors duration-150 bg-white/5 border border-white/8"
                         onClick={()=>{
                             if (linkShortcuts.length >= 8){
-                                showToast("Limit","You can only add 8 shortcuts.");
+                                window.electron.notify("Limit","You can only add 8 shortcuts.");
                                 return;
                             }
                             setAddShortcutOpenModal(true)

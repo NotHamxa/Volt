@@ -6,7 +6,7 @@ import { MainLayoutContext } from "@/pages/mainPage.tsx";
 
 export default function HomePage() {
     const navigate = useNavigate();
-    const { apps, pinnedApps, setPinnedApps, unPinApp } = useOutletContext<MainLayoutContext>();
+    const { pinnedApps, setPinnedApps, unPinApp } = useOutletContext<MainLayoutContext>();
 
     return (
         <motion.div
@@ -18,7 +18,6 @@ export default function HomePage() {
             className="w-full h-full"
         >
             <PinnedApps
-                apps={apps}
                 pinnedApps={pinnedApps}
                 setPinnedApps={setPinnedApps}
                 setStage={() => navigate('/all')}

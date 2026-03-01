@@ -36,7 +36,7 @@ export function createNotificationWindow() {
         },
     })
 
-    notifWin.loadFile(path.join(__dirname, '../assets/notification.html'))
+    notifWin.loadFile(path.join(__dirname, '../Assets/notification.html'))
 
     notifWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
     notifWin.setAlwaysOnTop(true, 'screen-saver')

@@ -37,10 +37,8 @@ export async function loadAppData(webContents,cache) {
     try {
         console.log("collecting")
         cache.appCache = await loadApps();
-        setTimeout(async ()=>{
-            await validateCache(webContents,cache.appCache);
-            await loadAppIconsCache(webContents,cache);
-        }, 1);
+        await validateCache(webContents,cache.appCache);
+        await loadAppIconsCache(webContents,cache);
     } catch(error) {
         cache.appCache = [];
     }

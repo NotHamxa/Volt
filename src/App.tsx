@@ -3,11 +3,10 @@ import { Unlock, Lock, Loader2, RefreshCw } from "lucide-react";
 import { FaGithub } from "react-icons/fa6";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip.tsx";
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import logo from "@/assets/icon.png";
 
 import SettingsPage from "@/pages/settingsPage.tsx";
 import { Toaster } from "@/components/ui/sonner.tsx";
-import { Label } from "@/components/ui/label.tsx";
-import { Progress } from "@/components/ui/progress.tsx";
 import MainLayout from "@/pages/mainPage.tsx";
 import HomePage from "@/pages/homePage.tsx";
 import AllAppsPage from "@/pages/allAppsPage.tsx";
@@ -18,8 +17,6 @@ import { IntroModal } from "@/components/modal/introModal.tsx";
 
 export default function App() {
     const [cacheLoadingStatus, setCacheLoadingStatus] = useState<boolean>(false);
-    const [currentCacheStep, setCurrentCacheStep] = useState<number>(0);
-    const [totalCacheSteps, setTotalCacheSteps] = useState<number>(0);
     const [showIntroModal, setShowIntroModal] = useState(false);
     const [updateProgress, setUpdateProgress] = useState<number | null>(null);
     const [updateReady, setUpdateReady] = useState(false);
@@ -131,15 +128,20 @@ export default function App() {
         };
 
         const getCacheLoadingStatus = async () => {
+            let cacheAlreadyLoaded = false;
+
+            // Register listeners BEFORE the status check to avoid a race where
+            // cache-loaded fires during the IPC round-trip and is never caught.
+            window.electron.onCacheLoaded(() => {
+                cacheAlreadyLoaded = true;
+                handleCacheLoadedEvent();
+            });
+            window.electron.setCacheLoadingBar(() => {});
+
             const status = await window.electron.getCacheLoadingStatus();
-            if (status) {
-                window.electron.onCacheLoaded(handleCacheLoadedEvent);
-                window.electron.setCacheLoadingBar((currentStep, totalSteps) => {
-                    setCurrentCacheStep(currentStep);
-                    setTotalCacheSteps(totalSteps);
-                });
+            if (!cacheAlreadyLoaded) {
+                setCacheLoadingStatus(status);
             }
-            setCacheLoadingStatus(status);
         };
 
         const handleShortcutModalOpen = () => {
@@ -196,14 +198,15 @@ export default function App() {
 
     if (cacheLoadingStatus) {
         return (
-            <div className="w-screen h-screen bg-[rgba(24,24,27,0.99)] flex flex-col items-center justify-center gap-4 rounded-xl">
-                <Label className="text-lg text-white font-medium">
-                    App data loading, please wait...
-                </Label>
-                <Progress
-                    value={Math.trunc((currentCacheStep / totalCacheSteps) * 100)}
-                    className="w-3/5"
-                />
+            <div className="w-screen h-screen bg-[rgba(24,24,27,0.99)] flex items-center justify-center rounded-xl">
+                <div className="flex flex-col items-center gap-5">
+                    <div className="relative flex items-center justify-center w-16 h-16">
+                        <div className="absolute inset-0 rounded-full border border-white/[0.07]" />
+                        <div className="absolute inset-0 rounded-full border-t border-white/30 animate-spin" style={{ animationDuration: '1.4s' }} />
+                        <img src={logo} alt="Volt" className="w-8 h-8 object-contain opacity-60" />
+                    </div>
+                    <span className="text-[10px] tracking-[0.25em] uppercase text-white/20">Loading</span>
+                </div>
             </div>
         );
     }

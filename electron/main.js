@@ -11,6 +11,7 @@ import {loadAppData, loadFileData} from "./utils/startup.js";
 import { registerIpc } from "./ipc/index.js";
 import {setupAutoUpdater} from "./utils/updater.js";
 import {createNotificationWindow} from "./utils/notification.js";
+import {normaliseString} from "./utils/search.js";
 if (!app.requestSingleInstanceLock()) {
     app.quit();
     process.exit(0);
@@ -69,7 +70,8 @@ folderWatcher.on("add", filePath => {
             source: "",
             appId: "",
             path: filePath,
-            type: "file"
+            type: "file",
+            normalisedName:normaliseString(filePath)
         });
         store.set("cachedFoldersData", folder);
     }
@@ -124,14 +126,11 @@ const handleWindowLock = ()=>{
 const changeOpenBind = async (binding)=>{
     globalShortcut.unregister(openShortcut);
     globalShortcut.register(binding, () => {
-        if (!mainWindow) return;
+        if (!mainWindow || cache.loadingAppCache) return;
         if (mainWindow.isVisible()) {
             hideMainWindow();
         } else {
             showMainWindow();
-            // if (process.env.NODE_ENV !== "development") {
-            //     mainWindow.webContents.reloadIgnoringCache();
-            // }
         }
     });
     openShortcut = binding;
@@ -236,6 +235,8 @@ app.whenReady().then(async () => {
 
     if (!cache.firstTimeExperience)
         mainWindow.hide()
+    else
+        mainWindow.show()
 
     if (process.env.NODE_ENV !== "development") {
         setupAutoUpdater(mainWindow);

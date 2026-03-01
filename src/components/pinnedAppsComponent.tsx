@@ -139,17 +139,11 @@ export default function PinnedApps({setStage, unPinApp, apps, pinnedApps,setPinn
                 editLink={editLinkShortcut}
                 linkShortcuts={linkShortcuts}
             />
-            <div style={{height: "325px", display: "flex", flexDirection: "column"}}>
-                <div style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    paddingRight: "10px",
-                }}>
-                    <span style={{margin: "0 12px", fontSize: "11px", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.25)"}}>Pinned Apps</span>
+            <div className="h-[325px] flex flex-col">
+                <div className="flex items-center justify-between pr-[10px]">
+                    <span className="mx-3 text-[11px] font-semibold tracking-[0.1em] uppercase text-white/25">Pinned Apps</span>
                     <Button
-                        className="text-white/40 hover:text-white/70 px-2.5 py-1 h-auto text-xs rounded-lg flex items-center gap-1 transition-colors duration-150"
-                        style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+                        className="text-white/40 hover:text-white/70 px-2.5 py-1 h-auto text-xs rounded-lg flex items-center gap-1 transition-colors duration-150 bg-white/5 border border-white/8"
                         onClick={() => setStage(2)}
                     >
                         All
@@ -157,7 +151,7 @@ export default function PinnedApps({setStage, unPinApp, apps, pinnedApps,setPinn
                     </Button>
                 </div>
                 {pinnedApps?.length > 0 ? (
-                    <div style={{display: "flex", alignItems: "center", justifyContent: "center", width: "100%"}}>
+                    <div className="flex items-center justify-center w-full">
                         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                             <SortableContext items={pinnedApps.map(app => app.name)} strategy={rectSortingStrategy}>
                                 <div className="col-span-6 w-full flex flex-wrap gap-0 px-[20px] py-[10px]">
@@ -169,28 +163,17 @@ export default function PinnedApps({setStage, unPinApp, apps, pinnedApps,setPinn
                         </DndContext>
                     </div>
                 ) : (
-                    <div style={{
-                        flex: 1,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                    }}>
-                        <label style={{ fontSize: "13px", color: "rgba(255,255,255,0.2)" }}>No Apps Pinned</label>
+                    <div className="flex-1 flex items-center justify-center">
+                        <label className="text-[13px] text-white/20">No Apps Pinned</label>
                     </div>
                 )}
             </div>
-            <div style={{height: "100%", display: "flex", flexDirection: "column"}}>
-                <div style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    paddingRight: "10px",
-                }}>
-                    <span style={{margin: "0 12px", fontSize: "11px", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.25)"}}>Links</span>
+            <div className="h-full flex flex-col">
+                <div className="flex items-center justify-between pr-[10px]">
+                    <span className="mx-3 text-[11px] font-semibold tracking-[0.1em] uppercase text-white/25">Links</span>
                     <Button
                         variant="ghost"
-                        className="text-white/40 hover:text-white/70 px-2.5 py-1 h-auto text-xs rounded-lg flex items-center gap-1 transition-colors duration-150"
-                        style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+                        className="text-white/40 hover:text-white/70 px-2.5 py-1 h-auto text-xs rounded-lg flex items-center gap-1 transition-colors duration-150 bg-white/5 border border-white/8"
                         onClick={()=>{
                             if (linkShortcuts.length >= 8){
                                 showToast("Limit","You can only add 8 shortcuts.");
@@ -204,7 +187,7 @@ export default function PinnedApps({setStage, unPinApp, apps, pinnedApps,setPinn
                     </Button>
                 </div>
 
-                <div style={{height: "100%", display: "flex", flexDirection: "row", padding:"5px 20px", width:"100%"}}>
+                <div className="h-full flex flex-row py-[5px] px-5 w-full">
                     {linkShortcuts.length > 0 ? (
                         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleLinksDragEnd}>
                             <SortableContext items={linkShortcuts.map(link => link.shortcut)} strategy={rectSortingStrategy}>
@@ -222,8 +205,8 @@ export default function PinnedApps({setStage, unPinApp, apps, pinnedApps,setPinn
                             </SortableContext>
                         </DndContext>
                     ) : (
-                        <div style={{flex: 1, display: "flex", alignItems: "center", justifyContent: "center"}}>
-                            <label style={{ fontSize: "13px", color: "rgba(255,255,255,0.2)" }}>No Links Pinned</label>
+                        <div className="flex-1 flex items-center justify-center">
+                            <label className="text-[13px] text-white/20">No Links Pinned</label>
                         </div>
                     )}
                 </div>

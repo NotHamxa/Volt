@@ -18,18 +18,18 @@ interface SettingCardProps {
 }
 export const SettingCard = ({ title, description, children, icon: Icon, isDestructive = false }: SettingCardProps) => (
     <div
-        className="px-5 py-4 rounded-xl transition-all duration-200"
-        style={{
-            background: "rgba(255,255,255,0.03)",
-            border: isDestructive ? "1px solid rgba(239,68,68,0.15)" : "1px solid rgba(255,255,255,0.07)",
-        }}
+        className={`px-5 py-4 rounded-xl transition-all duration-200 bg-white/[0.03] ${
+            isDestructive ? "border border-red-500/[0.15]" : "border border-white/[0.07]"
+        }`}
     >
         <div className="flex items-center justify-between gap-6">
             <div className="flex gap-3.5 items-center">
                 {Icon && (
                     <div className={`p-2 rounded-lg shrink-0 inline-flex ${
-                        isDestructive ? 'bg-red-500/10 text-red-400/70' : ''
-                    }`} style={isDestructive ? {} : { background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                        isDestructive
+                            ? 'bg-red-500/10 text-red-400/70'
+                            : 'bg-white/[0.06] border border-white/8'
+                    }`}>
                         <Icon size={16} className={isDestructive ? "" : "text-white/40"} />
                     </div>
                 )}
@@ -66,11 +66,11 @@ export function DeleteHistorySection() {
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="rounded-lg text-[13px] text-white/45 hover:text-red-400 hover:bg-red-500/10 transition-colors" style={{ border: "1px solid rgba(255,255,255,0.1)" }}>
+                <Button variant="outline" className="rounded-lg text-[13px] text-white/45 hover:text-red-400 hover:bg-red-500/10 transition-colors border-white/10">
                     Clear
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-72 p-4 rounded-xl shadow-2xl" style={{ background: "rgba(12,12,12,0.98)", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <DropdownMenuContent className="w-72 p-4 rounded-xl shadow-2xl bg-[rgba(12,12,12,0.98)] border border-white/8">
                 <DropdownMenuLabel className="mb-1 text-[13px] text-white/80">Delete search history?</DropdownMenuLabel>
                 <p className="text-[12px] text-white/35 mb-4">This will clear your recent query suggestions. This cannot be undone.</p>
                 <div className="flex justify-end gap-2">
@@ -102,11 +102,11 @@ export function ResetAppData() {
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="rounded-lg text-[13px] text-white/45 hover:text-red-400 hover:bg-red-500/10 transition-colors" style={{ border: "1px solid rgba(255,255,255,0.1)" }}>
+                <Button variant="outline" className="rounded-lg text-[13px] text-white/45 hover:text-red-400 hover:bg-red-500/10 transition-colors border-white/10">
                     Factory Reset
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-80 p-5 rounded-xl shadow-2xl" style={{ background: "rgba(12,12,12,0.98)", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <DropdownMenuContent className="w-80 p-5 rounded-xl shadow-2xl bg-[rgba(12,12,12,0.98)] border border-white/8">
                 <DropdownMenuLabel className="mb-2 text-[13px] text-red-400/80 flex items-center gap-2">
                     <AlertTriangle size={14} /> Danger Zone
                 </DropdownMenuLabel>

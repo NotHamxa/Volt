@@ -38,14 +38,12 @@ interface IApp{
 
 }
 function App({app,pinnedApps,pinApp,unPinApp}:IApp) {
-    const [hovered, setHovered] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
     const [logo, setLogo] = useState<string>("");
     useEffect(() => {
         getLogo()
     }, [app]);
 
-    const isHighlighted = hovered || isFocused;
     const handleFocus = () => setIsFocused(true);
     const handleBlur = () => setIsFocused(false);
 
@@ -70,27 +68,13 @@ function App({app,pinnedApps,pinApp,unPinApp}:IApp) {
                 <button
                     onClick={async () => {
                         await window.apps.openApp(app);
-
                     }}
-                    onMouseEnter={() => setHovered(true)}
-                    onMouseLeave={() => setHovered(false)}
                     onFocus={handleFocus}
                     onBlur={handleBlur}
                     tabIndex={0}
-                    style={{
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                        padding: "8px",
-                        borderRadius: "8px",
-                        background: isHighlighted ? "rgba(255, 255, 255, 0.1)" : "transparent",
-                        userSelect: "none",
-                        transition: "background 0.15s ease-in-out",
-                        outline: isFocused ? "2px solid #3faffa" : "none",
-                    }}
+                    className={`cursor-pointer flex items-center gap-2 p-2 rounded-lg select-none transition-colors duration-150 hover:bg-white/10 ${isFocused ? "bg-white/10 outline outline-2 outline-[#3faffa]" : "outline-none"}`}
                 >
-                    {logo?<img style={{width:24,height:24,objectFit: 'contain'}} src={logo}/>:<AppWindowIcon size={24} />}
+                    {logo ? <img className="w-6 h-6 object-contain" src={logo}/> : <AppWindowIcon size={24} />}
                     <Label>{app.name}</Label>
                 </button>
             </ContextMenuTrigger>
@@ -105,13 +89,11 @@ function App({app,pinnedApps,pinApp,unPinApp}:IApp) {
                 }}
                 >
                     {isAppPinned(app)?
-                        // App pinned
                         <>
                             <PinOff size={24}/>
                             Unpin from Start
                         </>
                         :
-                        // App not pinned
                         <>
                             <Pin size={24}/>
                             Pin to Start
@@ -123,7 +105,7 @@ function App({app,pinnedApps,pinApp,unPinApp}:IApp) {
                     <ContextMenuItem onClick={async ()=>{
                         await window.apps.openApp(app,true)
                     }}>
-                        <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                        <div className="flex items-center gap-2">
                             <ShieldCheck size={24}/>
                             <label>Open as Administrator</label>
                         </div>
@@ -137,7 +119,7 @@ function App({app,pinnedApps,pinApp,unPinApp}:IApp) {
                                 window.file.openInExplorer(app.path)
                         }}
                     >
-                        <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                        <div className="flex items-center gap-2">
                             <FolderOpen size={24}/>
                             <label>Open file location</label>
                         </div>
@@ -150,7 +132,7 @@ function App({app,pinnedApps,pinApp,unPinApp}:IApp) {
                         window.electron.openUninstall()
                     }}
                 >
-                    <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                    <div className="flex items-center gap-2">
                         <Trash2 size={24}/>
                         <label>Uninstall</label>
                     </div>
@@ -164,18 +146,12 @@ function App({app,pinnedApps,pinApp,unPinApp}:IApp) {
 
 export default function AllApps({setStage, apps,pinnedApps,pinApp,unPinApp}:IAllAppsComponent) {
     return (
-        <div style={{height: "100%", display: "flex", flexDirection: "column"}}>
-            <div style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                paddingRight: "10px",
-            }}>
-                <span style={{margin: "0 12px", fontSize: "11px", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.25)"}}>All Apps</span>
+        <div className="h-full flex flex-col">
+            <div className="flex items-center justify-between pr-[10px]">
+                <span className="mx-3 text-[11px] font-semibold tracking-[0.1em] uppercase text-white/25">All Apps</span>
                 <Button
                     variant="ghost"
-                    className="text-white/40 hover:text-white/70 px-2.5 py-1 h-auto text-xs rounded-lg flex items-center gap-1 transition-colors duration-150"
-                    style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+                    className="text-white/40 hover:text-white/70 px-2.5 py-1 h-auto text-xs rounded-lg flex items-center gap-1 transition-colors duration-150 bg-white/5 border border-white/8"
                     onClick={() => {
                         setStage(1)
                     }}
@@ -184,11 +160,7 @@ export default function AllApps({setStage, apps,pinnedApps,pinApp,unPinApp}:IAll
                     Back
                 </Button>
             </div>
-            <ScrollArea style={{width: "100%",
-                height: "400px",
-                padding: "0 16px",
-                boxSizing: "border-box"
-            }}>
+            <ScrollArea className="w-full h-[400px] px-4">
                 {Object.entries(
                     apps.reduce((acc: { [key: string]: SearchQueryT[] }, app) => {
                         const firstLetter = app.name[0].toUpperCase();
@@ -198,16 +170,8 @@ export default function AllApps({setStage, apps,pinnedApps,pinApp,unPinApp}:IAll
                     }, {})
                 ).sort(([a], [b]) => a.localeCompare(b))
                     .map(([letter, group]) => (
-                        <div key={letter} style={{marginBottom: "16px"}}>
-                            <div style={{
-                                fontWeight: 600,
-                                color: "rgba(255,255,255,0.2)",
-                                fontSize: "11px",
-                                letterSpacing: "0.08em",
-                                textTransform: "uppercase",
-                                marginBottom: "6px",
-                                paddingLeft: "8px",
-                            }}>
+                        <div key={letter} className="mb-4">
+                            <div className="font-semibold text-white/20 text-[11px] tracking-[0.08em] uppercase mb-1.5 pl-2">
                                 {letter}
                             </div>
                             {group.map(app => (

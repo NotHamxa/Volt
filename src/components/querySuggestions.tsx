@@ -1,5 +1,5 @@
 import { Label } from "@/components/ui/label.tsx";
-import { CSSProperties, useEffect, useState, useMemo, useCallback, memo, useRef } from "react";
+import { useEffect, useState, useMemo, useCallback, memo, useRef } from "react";
 import {
     Folder,
     File,
@@ -154,19 +154,14 @@ const QueryComponent = memo(({
                              }: QueryComponentProps) => {
     const { name, type, path } = item;
 
-    const [hovered, setHovered] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [logo, setLogo] = useState<string>();
 
     const triggerRef = useRef<HTMLSpanElement>(null);
 
-    const isHighlighted = hovered || highlighted || isFocused;
-
     const handleFocus = useCallback(() => setIsFocused(true), []);
     const handleBlur = useCallback(() => setIsFocused(false), []);
-    const handleMouseEnter = useCallback(() => setHovered(true), []);
-    const handleMouseLeave = useCallback(() => setHovered(false), []);
 
     const getLogo = useCallback(async () => {
         if (item.path) {
@@ -266,11 +261,7 @@ const QueryComponent = memo(({
     const icon = useMemo(() => {
         if (type === "app") {
             return logo ? (
-                <img
-                    style={{ width: 24, height: 24, objectFit: "contain" }}
-                    src={logo}
-                    alt=""
-                />
+                <img className="w-6 h-6 object-contain" src={logo} alt="" />
             ) : (
                 <AppWindowIcon size={24} />
             );
@@ -301,38 +292,18 @@ const QueryComponent = memo(({
     const buttonContent = (
         <button
             onClick={handleClick}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
             onFocus={handleFocus}
             onBlur={handleBlur}
             tabIndex={0}
-            style={{
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "8px 12px",
-                borderRadius: "8px",
-                background: isHighlighted ? "rgba(255, 255, 255, 0.1)" : "transparent",
-                userSelect: "none",
-                transition: "background 0.15s ease-in-out",
-                outline: isFocused ? "1px solid rgba(255,255,255,0.18)" : "none",
-                gap: "12px",
-                width: "100%"
-            }}
+            className={`cursor-pointer flex items-center justify-between py-2 px-3 rounded-lg select-none transition-colors duration-150 gap-3 w-full hover:bg-white/10 ${
+                (highlighted || isFocused) ? "bg-white/10" : "bg-transparent"
+            } ${isFocused ? "outline outline-[1px] outline-white/[0.18]" : "outline-none"}`}
         >
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <div className="flex items-center gap-2">
                 {icon}
                 <Label>{name}</Label>
             </div>
-            <Label
-                style={{
-                    marginLeft: "auto",
-                    opacity: 0.7,
-                    fontSize: 12,
-                    cursor: "default",
-                }}
-            >
+            <Label className="ml-auto opacity-70 text-[12px] cursor-default">
                 {labelText}
             </Label>
         </button>
@@ -450,6 +421,8 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
     const [triggeredIndex, setTriggeredIndex] = useState<number>(-1);
     const [triggeredContextMenuIndex, setTriggeredContextMenuIndex] = useState<number>(-1);
     const [isContextMenuOpen, setIsContextMenuOpen] = useState<boolean>(false);
+    const scrollAreaRef = useRef<HTMLDivElement>(null);
+    const itemRefs = useRef<(HTMLElement | null)[]>([]);
     const [bestMatch, setBestMatch] = useState<SearchQueryT | null>(null);
     const [apps, setApps] = useState<SearchQueryT[]>([]);
     const [folders, setFolders] = useState<SearchQueryT[]>([]);
@@ -504,10 +477,11 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
     const allResults = useMemo<SearchQueryT[]>(() => [
         ...(bestMatch ? [bestMatch] : []),
         ...apps,
+        ...commands,
         ...settings,
         ...files,
         ...folders,
-        ...commands,
+
     ], [bestMatch, apps, settings, files, folders, commands]);
 
     const handleKeyDown = useCallback(async (e: KeyboardEvent) => {
@@ -569,35 +543,46 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
         return pinnedApps.some((a) => isSameApp(a, app));
     }, [pinnedApps]);
 
+    useEffect(() => {
+        const viewport = scrollAreaRef.current?.querySelector<HTMLElement>('[data-radix-scroll-area-viewport]');
+        const item = itemRefs.current[focusedIndex];
+        if (!viewport || !item) return;
+        const viewportRect = viewport.getBoundingClientRect();
+        const itemRect = item.getBoundingClientRect();
+        if (itemRect.bottom > viewportRect.bottom) {
+            viewport.scrollTop += itemRect.bottom - viewportRect.bottom;
+        } else if (itemRect.top < viewportRect.top) {
+            viewport.scrollTop -= viewportRect.top - itemRect.top;
+        }
+    }, [focusedIndex]);
+
     return (
-        <ScrollArea style={styles.mainContainer}>
+        <ScrollArea ref={scrollAreaRef} className="w-full h-[420px] px-4">
             {isCmdCommand ? (
                 <div>
-                    <div style={{ textAlign: "center", fontSize: "11px", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.25)", marginBottom: "8px" }}>CMD Command</div>
-                    <div style={{
-                        padding: "8px",
-                        borderRadius: "8px",
-                        background: "rgba(255, 255, 255, 0.05)"
-                    }}>
+                    <div className="text-center text-[11px] font-semibold tracking-[0.1em] uppercase text-white/25 mb-2">CMD Command</div>
+                    <div className="p-2 rounded-lg bg-white/5">
                         {cmdCommand}
                     </div>
                 </div>
             ) : (
                 allResults.length === 0 ? (
-                    <div style={{ textAlign: "center", padding: "32px 0", fontSize: "13px", color: "rgba(255,255,255,0.2)" }}>No results found</div>
+                    <div className="text-center py-8 text-[13px] text-white/20">No results found</div>
                 ) : (
                     <>
                         {bestMatch && (
-                            <QueryComponent
-                                item={bestMatch}
-                                highlighted={focusedIndex === 0}
-                                pinApp={pinApp}
-                                unPinApp={unPinApp}
-                                isAppPinned={bestMatch.type === "app" ? isAppPinned(bestMatch) : false}
-                                triggerAction={triggeredIndex === 0}
-                                triggerContextMenu={triggeredContextMenuIndex === 0}
-                                onContextMenuOpenChange={setIsContextMenuOpen}
-                            />
+                            <div ref={el => { itemRefs.current[0] = el; }}>
+                                <QueryComponent
+                                    item={bestMatch}
+                                    highlighted={focusedIndex === 0}
+                                    pinApp={pinApp}
+                                    unPinApp={unPinApp}
+                                    isAppPinned={bestMatch.type === "app" ? isAppPinned(bestMatch) : false}
+                                    triggerAction={triggeredIndex === 0}
+                                    triggerContextMenu={triggeredContextMenuIndex === 0}
+                                    onContextMenuOpenChange={setIsContextMenuOpen}
+                                />
+                            </div>
                         )}
 
                         {apps.length > 0 && searchFilters[0] && (
@@ -605,17 +590,18 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
                                 {apps.map((app, index) => {
                                     const itemIndex = index + (bestMatch ? 1 : 0);
                                     return (
-                                        <QueryComponent
-                                            key={`${app.name}-${app.path}-${index}`}
-                                            item={app}
-                                            highlighted={focusedIndex === itemIndex}
-                                            isAppPinned={isAppPinned(app)}
-                                            pinApp={pinApp}
-                                            unPinApp={unPinApp}
-                                            triggerAction={triggeredIndex === itemIndex}
-                                            triggerContextMenu={triggeredContextMenuIndex === itemIndex}
-                                            onContextMenuOpenChange={setIsContextMenuOpen}
-                                        />
+                                        <div key={`${app.name}-${app.path}-${index}`} ref={el => { itemRefs.current[itemIndex] = el; }}>
+                                            <QueryComponent
+                                                item={app}
+                                                highlighted={focusedIndex === itemIndex}
+                                                isAppPinned={isAppPinned(app)}
+                                                pinApp={pinApp}
+                                                unPinApp={unPinApp}
+                                                triggerAction={triggeredIndex === itemIndex}
+                                                triggerContextMenu={triggeredContextMenuIndex === itemIndex}
+                                                onContextMenuOpenChange={setIsContextMenuOpen}
+                                            />
+                                        </div>
                                     );
                                 })}
                             </>
@@ -625,14 +611,15 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
                                 {commands.map((command, index) => {
                                     const itemIndex = index + (bestMatch ? 1 : 0) + apps.length;
                                     return (
-                                        <QueryComponent
-                                            key={`${command.name}-${index}`}
-                                            item={command}
-                                            highlighted={focusedIndex === itemIndex}
-                                            triggerAction={triggeredIndex === itemIndex}
-                                            triggerContextMenu={triggeredContextMenuIndex === itemIndex}
-                                            onContextMenuOpenChange={setIsContextMenuOpen}
-                                        />
+                                        <div key={`${command.name}-${index}`} ref={el => { itemRefs.current[itemIndex] = el; }}>
+                                            <QueryComponent
+                                                item={command}
+                                                highlighted={focusedIndex === itemIndex}
+                                                triggerAction={triggeredIndex === itemIndex}
+                                                triggerContextMenu={triggeredContextMenuIndex === itemIndex}
+                                                onContextMenuOpenChange={setIsContextMenuOpen}
+                                            />
+                                        </div>
                                     );
                                 })}
                             </>
@@ -642,14 +629,15 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
                                 {settings.map((file, index) => {
                                     const itemIndex = index + (bestMatch ? 1 : 0) + commands.length + apps.length;
                                     return (
-                                        <QueryComponent
-                                            key={`${file.name}-${index}`}
-                                            item={file}
-                                            highlighted={focusedIndex === itemIndex}
-                                            triggerAction={triggeredIndex === itemIndex}
-                                            triggerContextMenu={triggeredContextMenuIndex === itemIndex}
-                                            onContextMenuOpenChange={setIsContextMenuOpen}
-                                        />
+                                        <div key={`${file.name}-${index}`} ref={el => { itemRefs.current[itemIndex] = el; }}>
+                                            <QueryComponent
+                                                item={file}
+                                                highlighted={focusedIndex === itemIndex}
+                                                triggerAction={triggeredIndex === itemIndex}
+                                                triggerContextMenu={triggeredContextMenuIndex === itemIndex}
+                                                onContextMenuOpenChange={setIsContextMenuOpen}
+                                            />
+                                        </div>
                                     );
                                 })}
                             </>
@@ -660,14 +648,15 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
                                 {files.map((file, index) => {
                                     const itemIndex = index + (bestMatch ? 1 : 0) + commands.length + apps.length + settings.length;
                                     return (
-                                        <QueryComponent
-                                            key={`${file.name}-${file.path}-${index}`}
-                                            item={file}
-                                            highlighted={focusedIndex === itemIndex}
-                                            triggerAction={triggeredIndex === itemIndex}
-                                            triggerContextMenu={triggeredContextMenuIndex === itemIndex}
-                                            onContextMenuOpenChange={setIsContextMenuOpen}
-                                        />
+                                        <div key={`${file.name}-${file.path}-${index}`} ref={el => { itemRefs.current[itemIndex] = el; }}>
+                                            <QueryComponent
+                                                item={file}
+                                                highlighted={focusedIndex === itemIndex}
+                                                triggerAction={triggeredIndex === itemIndex}
+                                                triggerContextMenu={triggeredContextMenuIndex === itemIndex}
+                                                onContextMenuOpenChange={setIsContextMenuOpen}
+                                            />
+                                        </div>
                                     );
                                 })}
                             </>
@@ -678,14 +667,15 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
                                 {folders.map((folder, index) => {
                                     const itemIndex = index + (bestMatch ? 1 : 0) + apps.length + commands.length + files.length + settings.length;
                                     return (
-                                        <QueryComponent
-                                            key={`${folder.name}-${folder.path}-${index}`}
-                                            item={folder}
-                                            highlighted={focusedIndex === itemIndex}
-                                            triggerAction={triggeredIndex === itemIndex}
-                                            triggerContextMenu={triggeredContextMenuIndex === itemIndex}
-                                            onContextMenuOpenChange={setIsContextMenuOpen}
-                                        />
+                                        <div key={`${folder.name}-${folder.path}-${index}`} ref={el => { itemRefs.current[itemIndex] = el; }}>
+                                            <QueryComponent
+                                                item={folder}
+                                                highlighted={focusedIndex === itemIndex}
+                                                triggerAction={triggeredIndex === itemIndex}
+                                                triggerContextMenu={triggeredContextMenuIndex === itemIndex}
+                                                onContextMenuOpenChange={setIsContextMenuOpen}
+                                            />
+                                        </div>
                                     );
                                 })}
                             </>
@@ -696,12 +686,3 @@ export default function QuerySuggestions({ query, searchFilters }: IQuerySuggest
         </ScrollArea>
     );
 }
-
-const styles: { [key: string]: CSSProperties } = {
-    mainContainer: {
-        width: "100%",
-        height: "420px",
-        padding: "0 16px",
-        boxSizing: "border-box",
-    },
-};

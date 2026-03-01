@@ -56,10 +56,7 @@ function IntroPage({ children }: { children: ReactNode }) {
 function FeatureRow({ icon: Icon, title, desc }: { icon: any; title: string; desc: string }) {
     return (
         <div className="flex gap-3.5 items-start">
-            <div
-                className="mt-0.5 flex items-center justify-center w-8 h-8 rounded-lg shrink-0"
-                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
-            >
+            <div className="mt-0.5 flex items-center justify-center w-8 h-8 rounded-lg shrink-0 bg-white/5 border border-white/8">
                 <Icon size={14} className="text-white/60" strokeWidth={1.5} />
             </div>
             <div>
@@ -72,15 +69,7 @@ function FeatureRow({ icon: Icon, title, desc }: { icon: any; title: string; des
 
 function KbdKey({ children }: { children: ReactNode }) {
     return (
-        <kbd
-            className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium text-white/60"
-            style={{
-                background: "rgba(255,255,255,0.07)",
-                border: "1px solid rgba(255,255,255,0.12)",
-                boxShadow: "0 1px 0 rgba(255,255,255,0.05)",
-                fontFamily: "monospace",
-            }}
-        >
+        <kbd className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium text-white/60 font-mono bg-white/[0.07] border border-white/[0.12] shadow-[0_1px_0_rgba(255,255,255,0.05)]">
             {children}
         </kbd>
     );
@@ -88,10 +77,7 @@ function KbdKey({ children }: { children: ReactNode }) {
 
 function Callout({ children }: { children: ReactNode }) {
     return (
-        <div
-            className="flex items-start gap-2.5 px-3.5 py-3 rounded-xl text-[12px] text-white/40 leading-relaxed"
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
-        >
+        <div className="flex items-start gap-2.5 px-3.5 py-3 rounded-xl text-[12px] text-white/40 leading-relaxed bg-white/[0.04] border border-white/[0.07]">
             {children}
         </div>
     );
@@ -101,17 +87,14 @@ const PAGES: ReactNode[] = [
     <IntroPage>
         <div>
             <p className="text-[11px] uppercase tracking-widest text-white/20 mb-2">Getting started</p>
-            <h2 className="text-[22px] font-semibold text-white leading-tight" style={{ letterSpacing: "-0.03em" }}>
+            <h2 className="text-[22px] font-semibold text-white leading-tight tracking-[-0.03em]">
                 Opening Volt
             </h2>
         </div>
         <p className="text-[13px] text-white/40 leading-relaxed">
             Volt lives in the background and is ready the moment you need it.
         </p>
-        <div
-            className="flex items-center justify-center gap-2 py-5 rounded-xl"
-            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
-        >
+        <div className="flex items-center justify-center gap-2 py-5 rounded-xl bg-white/[0.03] border border-white/[0.07]">
             <KbdKey>Ctrl</KbdKey>
             <span className="text-white/20 text-sm">+</span>
             <KbdKey>Space</KbdKey>
@@ -126,7 +109,7 @@ const PAGES: ReactNode[] = [
     <IntroPage>
         <div>
             <p className="text-[11px] uppercase tracking-widest text-white/20 mb-2">Search</p>
-            <h2 className="text-[22px] font-semibold text-white leading-tight" style={{ letterSpacing: "-0.03em" }}>
+            <h2 className="text-[22px] font-semibold text-white leading-tight tracking-[-0.03em]">
                 Find anything, instantly
             </h2>
         </div>
@@ -142,8 +125,7 @@ const PAGES: ReactNode[] = [
             ].map(({ label, dim }) => (
                 <div
                     key={label}
-                    className="flex items-center justify-between px-3.5 py-2.5 rounded-lg"
-                    style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+                    className="flex items-center justify-between px-3.5 py-2.5 rounded-lg bg-white/[0.03] border border-white/[0.06]"
                 >
                     <span className="text-[12px] font-medium text-white/70">{label}</span>
                     <span className="text-[11px] text-white/25">{dim}</span>
@@ -155,7 +137,7 @@ const PAGES: ReactNode[] = [
     <IntroPage>
         <div>
             <p className="text-[11px] uppercase tracking-widest text-white/20 mb-2">Pinning</p>
-            <h2 className="text-[22px] font-semibold text-white leading-tight" style={{ letterSpacing: "-0.03em" }}>
+            <h2 className="text-[22px] font-semibold text-white leading-tight tracking-[-0.03em]">
                 Pin what you use most
             </h2>
         </div>
@@ -180,7 +162,7 @@ const PAGES: ReactNode[] = [
     <IntroPage>
         <div>
             <p className="text-[11px] uppercase tracking-widest text-white/20 mb-2">Files</p>
-            <h2 className="text-[22px] font-semibold text-white leading-tight" style={{ letterSpacing: "-0.03em" }}>
+            <h2 className="text-[22px] font-semibold text-white leading-tight tracking-[-0.03em]">
                 Your directories, searchable
             </h2>
         </div>
@@ -201,17 +183,14 @@ const PAGES: ReactNode[] = [
     <IntroPage>
         <div>
             <p className="text-[11px] uppercase tracking-widest text-white/20 mb-2">Web Search</p>
-            <h2 className="text-[22px] font-semibold text-white leading-tight" style={{ letterSpacing: "-0.03em" }}>
+            <h2 className="text-[22px] font-semibold text-white leading-tight tracking-[-0.03em]">
                 Search the web too
             </h2>
         </div>
         <p className="text-[13px] text-white/40 leading-relaxed">
             Volt can search the web without leaving the launcher. Switch modes with a single key.
         </p>
-        <div
-            className="flex items-center gap-3 py-4 px-4 rounded-xl"
-            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
-        >
+        <div className="flex items-center gap-3 py-4 px-4 rounded-xl bg-white/[0.03] border border-white/[0.07]">
             <KbdKey>Tab</KbdKey>
             <span className="text-[12px] text-white/40">toggle between Windows search and web search</span>
         </div>
@@ -225,17 +204,14 @@ const PAGES: ReactNode[] = [
     <IntroPage>
         <div>
             <p className="text-[11px] uppercase tracking-widest text-white/20 mb-2">Bangs</p>
-            <h2 className="text-[22px] font-semibold text-white leading-tight" style={{ letterSpacing: "-0.03em" }}>
+            <h2 className="text-[22px] font-semibold text-white leading-tight tracking-[-0.03em]">
                 Search shortcuts
             </h2>
         </div>
         <p className="text-[13px] text-white/40 leading-relaxed">
             Bangs let you jump straight to a website's search. Type your query, add a bang, and you're there.
         </p>
-        <div
-            className="flex flex-col gap-1.5 px-3.5 py-3 rounded-xl font-mono text-[12px]"
-            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
-        >
+        <div className="flex flex-col gap-1.5 px-3.5 py-3 rounded-xl font-mono text-[12px] bg-white/[0.03] border border-white/[0.07]">
             {[
                 { q: "rick astley", bang: "!yt", dest: "YouTube" },
                 { q: "typescript docs", bang: "!g", dest: "Google" },
@@ -318,22 +294,14 @@ export function IntroModal({ open, setOpen }: IntroModalProps) {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 z-50 flex items-center justify-center"
-                style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(8px)" }}
+                className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(0,0,0,0.65)] backdrop-blur-[8px]"
             >
                 <motion.div
                     initial={{ scale: 0.93, opacity: 0, y: 16 }}
                     animate={{ scale: 1, opacity: 1, y: 0 }}
                     exit={{ scale: 0.93, opacity: 0, y: 16 }}
                     transition={{ duration: 0.38, ease: EASE }}
-                    className="relative flex w-115 overflow-hidden rounded-2xl"
-                    style={{
-                        background: "rgba(12, 12, 12, 0.98)",
-                        border: "1px solid rgba(255,255,255,0.07)",
-                        boxShadow: "0 40px 90px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.04)",
-                        minHeight: "400px",
-                        maxHeight: "540px",
-                    }}
+                    className="relative flex w-115 overflow-hidden rounded-2xl bg-[rgba(12,12,12,0.98)] border border-white/[0.07] shadow-[0_40px_90px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.04)] min-h-[400px] max-h-[540px]"
                 >
                     {!isLanding && (
                         <div className="absolute right-5 top-1/2 -translate-y-1/2 z-10">
@@ -361,10 +329,7 @@ export function IntroModal({ open, setOpen }: IntroModalProps) {
                                         transition={{ delay: 0.08, duration: 0.4 }}
                                         className="text-center"
                                     >
-                                        <h1
-                                            className="text-[42px] font-semibold text-white leading-none mb-2.5"
-                                            style={{ letterSpacing: "-0.04em" }}
-                                        >
+                                        <h1 className="text-[42px] font-semibold text-white leading-none mb-2.5 tracking-[-0.04em]">
                                             Volt
                                         </h1>
                                         <p className="text-[13px] text-white/35 tracking-wide">
@@ -389,8 +354,7 @@ export function IntroModal({ open, setOpen }: IntroModalProps) {
                                     >
                                         <button
                                             onClick={() => go(0)}
-                                            className="w-full py-2.5 rounded-xl text-[13px] font-medium text-black transition-all duration-150 hover:opacity-90 active:scale-[0.98]"
-                                            style={{ background: "#fff" }}
+                                            className="w-full py-2.5 rounded-xl text-[13px] font-medium text-black transition-all duration-150 hover:opacity-90 active:scale-[0.98] bg-white"
                                         >
                                             Get started [Enter]
                                         </button>
@@ -418,27 +382,20 @@ export function IntroModal({ open, setOpen }: IntroModalProps) {
                                         <div
                                             ref={scrollRef}
                                             onScroll={checkScroll}
-                                            className="h-full overflow-y-auto px-7 pt-8 pb-5 pr-14"
-                                            style={{ scrollbarWidth: "none" }}
+                                            className="h-full overflow-y-auto px-7 pt-8 pb-5 pr-14 [scrollbar-width:none]"
                                         >
                                             {PAGES[step]}
                                         </div>
                                         <ScrollIndicator visible={canScroll} />
                                     </div>
 
-                                    <div
-                                        className="flex items-center justify-between px-7 py-4.5"
-                                        style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
-                                    >
+                                    <div className="flex items-center justify-between px-7 py-4.5 border-t border-white/5">
                                         <button
                                             onClick={() => go(step - 1)}
                                             disabled={step === 0}
                                             className="flex items-center gap-1.5 text-[12px] text-white/30 hover:text-white/55 disabled:opacity-0 disabled:pointer-events-none transition-all duration-150"
                                         >
-                                            <span
-                                                className="inline-flex items-center justify-center w-5 h-5 rounded-md text-[10px]"
-                                                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
-                                            >
+                                            <span className="inline-flex items-center justify-center w-5 h-5 rounded-md text-[10px] bg-white/[0.06] border border-white/10">
                                                 <ChevronLeft/>
                                             </span>
                                                 Back
@@ -457,10 +414,7 @@ export function IntroModal({ open, setOpen }: IntroModalProps) {
                                         >
                                             {isLast ? "Done" : "Next"}
                                             {!isLast && (
-                                                <span
-                                                    className="inline-flex items-center justify-center w-5 h-5 rounded-md text-[10px]"
-                                                    style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
-                                                >
+                                                <span className="inline-flex items-center justify-center w-5 h-5 rounded-md text-[10px] bg-white/[0.06] border border-white/10">
                                                     <ChevronRight/>
                                                 </span>
                                             )}

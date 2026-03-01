@@ -52,10 +52,7 @@ function PinnedLinks({ link, removeLink, setEditLink, index }: IPinnedLinks) {
     return (
         <ContextMenu>
             <ContextMenuTrigger asChild>
-                <div
-                    className="relative group flex items-center justify-center"
-                    style={{ width: "100px", height: "80px" }}
-                >
+                <div className="relative group flex items-center justify-center w-[100px] h-20">
                     {showKbd && (
                         <div className="absolute top-1 right-1.5 shadow-md transition">
                             <Kbd className="text-xs">{index + 1}</Kbd>

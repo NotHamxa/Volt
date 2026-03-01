@@ -21,7 +21,7 @@ export default function FoldersSection({
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
             <div className="flex items-end justify-between">
                 <div>
-                    <h2 className="text-[22px] font-semibold text-white tracking-tight mb-1.5" style={{ letterSpacing: "-0.03em" }}>Search Index</h2>
+                    <h2 className="text-[22px] font-semibold text-white tracking-[-0.03em] mb-1.5">Search Index</h2>
                     <p className="text-white/40 text-[13px]">Add folders to make their contents searchable instantly.</p>
                 </div>
                 <Button onClick={onAddFolder} className="bg-white text-black hover:bg-white/90 rounded-xl px-5 h-9 text-[13px] font-medium transition-all active:scale-95">
@@ -32,15 +32,15 @@ export default function FoldersSection({
 
             <div className="grid gap-3">
                 {cachedFolders.length === 0 && !loadingCachedFolders.length && (
-                    <div className="py-12 text-center rounded-2xl" style={{ border: "1px dashed rgba(255,255,255,0.07)" }}>
+                    <div className="py-12 text-center rounded-2xl border border-dashed border-white/[0.07]">
                         <FolderOpen className="mx-auto text-white/15 mb-4" size={36} strokeWidth={1} />
                         <p className="text-white/25 text-[13px]">No folders indexed yet.</p>
                     </div>
                 )}
                 {cachedFolders.map((folder, index) => (
-                    <div key={index} className="flex items-center justify-between px-4 py-3 rounded-xl transition-all group" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                    <div key={index} className="flex items-center justify-between px-4 py-3 rounded-xl transition-all group bg-white/[0.03] border border-white/[0.07]">
                         <div className="flex items-center gap-3.5 min-w-0">
-                            <div className="p-2 rounded-lg shrink-0" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                            <div className="p-2 rounded-lg shrink-0 bg-white/[0.06] border border-white/8">
                                 <Folder size={16} className="text-white/40" />
                             </div>
                             <span className="text-[13px] truncate text-white/65 font-medium">{folder}</span>
@@ -56,7 +56,7 @@ export default function FoldersSection({
                     </div>
                 ))}
                 {loadingCachedFolders.map((folder, index) => (
-                    <div key={`loading-${index}`} className="flex items-center justify-between px-4 py-3 rounded-xl animate-pulse" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                    <div key={`loading-${index}`} className="flex items-center justify-between px-4 py-3 rounded-xl animate-pulse bg-white/[0.02] border border-white/5">
                         <span className="text-[13px] text-white/25">{folder}</span>
                         <Spinner />
                     </div>

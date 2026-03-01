@@ -193,24 +193,7 @@ export default function App() {
             <Toaster />
             <IntroModal open={showIntroModal} setOpen={setShowIntroModal} />
             {(showUnlockedIcon || showLockedIcon) &&
-                <div
-                    style={{
-                        position: "absolute",
-                        top: "50%",
-                        left: "50%",
-                        transform: "translate(-50%, -50%)",
-                        display: "flex",
-                        gap: "20px",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        zIndex: 50,
-                        backgroundColor: "rgba(24, 24, 27, 0.95)",
-                        padding: "20px 40px",
-                        borderRadius: "12px",
-                        backdropFilter: "blur(10px)",
-                        boxShadow: "0 4px 15px rgba(0, 0, 0, 0.3)",
-                    }}
-                >
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-5 items-center justify-center z-50 bg-[rgba(24,24,27,0.95)] px-10 py-5 rounded-xl backdrop-blur-[10px] shadow-[0_4px_15px_rgba(0,0,0,0.3)]">
                     {showLockedIcon && <Lock size={48} className="text-white" />}
                     {showUnlockedIcon && <Unlock size={48} className="text-white" />}
                 </div>
@@ -247,19 +230,7 @@ export default function App() {
                 </Routes>
             </div>
 
-            <div
-                style={{
-                    borderTopStyle: "solid",
-                    borderTopColor: "rgba(255,255,255,0.07)",
-                    borderTopWidth: "1px",
-                    height: "40px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "0px 16px",
-                    width: "800px",
-                }}
-            >
+            <div className="border-t border-white/[0.07] h-10 flex items-center justify-between px-4 w-[800px]">
                 <button
                     className="text-white/25 hover:text-white/60 transition-colors duration-150"
                     onClick={async () => {
@@ -281,9 +252,9 @@ export default function App() {
                     >
                         Settings
                     </button>
-                    <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md" style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}>Ctrl</span>
+                    <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-white/[0.07] border border-white/10">Ctrl</span>
                     <span className="text-white/15">+</span>
-                    <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md" style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}>H</span>
+                    <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-white/[0.07] border border-white/10">H</span>
                 </div>
             </div>
         </div>

@@ -23,7 +23,7 @@ export default function GeneralSettingsSection({
     return (
         <div className="space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-500">
             <header>
-                <h2 className="text-[22px] font-semibold text-white tracking-tight mb-1.5" style={{ letterSpacing: "-0.03em" }}>General</h2>
+                <h2 className="text-[22px] font-semibold text-white tracking-[-0.03em] mb-1.5">General</h2>
                 <p className="text-white/40 text-[13px]">Configure how you interact with the application.</p>
             </header>
 
@@ -35,7 +35,7 @@ export default function GeneralSettingsSection({
                 >
                     <div className="flex items-center gap-2">
                         {listeningToKeyboard ? (
-                            <div className="flex items-center gap-2 p-1 rounded-xl" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                            <div className="flex items-center gap-2 p-1 rounded-xl bg-white/5 border border-white/10">
                                 <span className="px-4 text-[13px] font-mono text-white/60 animate-pulse min-w-25 text-center">
                                     {openBind || "Recording..."}
                                 </span>
@@ -48,7 +48,7 @@ export default function GeneralSettingsSection({
                             </div>
                         ) : (
                             <Button variant="outline" className="h-9 rounded-xl border-white/10 hover:bg-white/8 hover:border-white/15 px-4 text-white/60 hover:text-white/80 text-[13px]" onClick={() => setListeningToKeyboard(true)}>
-                                <span className="font-mono mr-4 text-xs text-white/35 bg-white/5 px-2 py-1 rounded" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>{currentOpenBind}</span>
+                                <span className="font-mono mr-4 text-xs text-white/35 bg-white/5 px-2 py-1 rounded border border-white/8">{currentOpenBind}</span>
                                 Change
                             </Button>
                         )}

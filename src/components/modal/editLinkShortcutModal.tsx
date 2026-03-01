@@ -81,9 +81,9 @@ export default function EditLinkShortcutModal({
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent style={{ background: "rgba(24, 24, 27, 1)" }}>
+            <DialogContent className="bg-[rgba(24,24,27,1)]">
                 <DialogTitle>
-                    <Label style={{ display: "flex", alignSelf: "center" }}>
+                    <Label className="flex self-center">
                         Edit Shortcut
                     </Label>
                 </DialogTitle>
@@ -109,7 +109,7 @@ export default function EditLinkShortcutModal({
                 />
 
                 {error && (
-                    <p style={{ color: "red", fontSize: "0.875rem" }}>{error}</p>
+                    <p className="text-red-500 text-sm">{error}</p>
                 )}
 
                 <Button onClick={handleSave}>Save</Button>

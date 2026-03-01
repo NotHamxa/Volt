@@ -15,7 +15,7 @@ export default function HomePage() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            style={{ width: "100%", height: "100%" }}
+            className="w-full h-full"
         >
             <PinnedApps
                 apps={apps}

@@ -1,4 +1,4 @@
-import {CSSProperties, useEffect, useState} from "react";
+import {useEffect, useState} from "react";
 import {handleBangs, handleHistoryItem} from "@/scripts/bangs.ts";
 import {SearchHistoryT} from "@/interfaces/history.ts";
 import {X} from "lucide-react";
@@ -28,35 +28,17 @@ export default function BangSuggestions({bang, setQuery, selfQueryChanged}: IBan
 
 
     function BangSuggestionItem({suggestion, highlighted}: BangSuggestionItemProps) {
-        const [isHovered, setIsHovered] = useState(false);
         return (
-
             <div
                 tabIndex={0}
                 onClick={async () => {
                     await handleOpen(suggestion);
                 }}
-                onMouseEnter={() => {
-                    setIsHovered(true);
-                }}
-                onMouseLeave={() => {
-                    setIsHovered(false);
-                }}
-                style={{
-                    padding: "8px",
-                    borderRadius: "8px",
-                    background:
-                        (highlighted || isHovered) && suggestion !== ""
-                            ? "rgba(255, 255, 255, 0.1)"
-                            : "transparent",
-                    color: "#fff",
-                    cursor: "pointer",
-                    userSelect: "none",
-                    transition: "background 0.15s ease-in-out",
-                    justifyContent: "space-between",
-                    width: "100%",
-                    display: "flex",
-                }}
+                className={`p-2 rounded-lg text-white cursor-pointer select-none transition-colors duration-150 justify-between w-full flex ${
+                    highlighted && suggestion !== ""
+                        ? "bg-white/10"
+                        : suggestion !== "" ? "hover:bg-white/10" : ""
+                }`}
             >
                 <label dangerouslySetInnerHTML={{ __html: suggestion }} />
             </div>
@@ -68,66 +50,30 @@ export default function BangSuggestions({bang, setQuery, selfQueryChanged}: IBan
         return (
             <div
                 tabIndex={0}
-                onMouseEnter={() => {
-                    setIsHovered(true);
-                }}
-                onMouseLeave={() => {
-                    setIsHovered(false);
-                }}
-                style={{
-                    padding: "8px",
-                    borderRadius: "8px",
-                    background: (highlighted || isHovered) && historyItem.searchTerm !== ""
-                        ? "rgba(255, 255, 255, 0.1)"
-                        : "transparent",
-                    color: "#fff",
-                    cursor: "pointer",
-                    userSelect: "none",
-                    transition: "background 0.15s ease-in-out",
-                    justifyContent: "space-between",
-                    width: "100%",
-                    display: "flex",
-                }}
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
+                className={`p-2 rounded-lg text-white cursor-pointer select-none transition-colors duration-150 justify-between w-full flex ${
+                    highlighted && historyItem.searchTerm !== ""
+                        ? "bg-white/10"
+                        : historyItem.searchTerm !== "" ? "hover:bg-white/10" : ""
+                }`}
             >
                 <div
                     onClick={async () => {
                         await handleHistoryItem(historyItem);
                     }}
-                    style={{
-                        width: "100%",
-                        justifyContent: "space-between",
-                        flexDirection: "row",
-                        display: "flex",
-                        alignItems: "center",
-                    }}
+                    className="w-full flex flex-row justify-between items-center"
                 >
-                    <label
-                        style={{
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                            marginRight: "12px",
-                            maxWidth: "70%",
-                        }}
-                    >
+                    <label className="overflow-hidden text-ellipsis whitespace-nowrap mr-3 max-w-[70%]">
                         {historyItem.searchTerm}
                     </label>
-                    <div
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            whiteSpace: "nowrap",
-                        }}
-                    >
+                    <div className="flex items-center whitespace-nowrap">
                         <small>{historyItem.site}</small>
                     </div>
                 </div>
                 {isHovered && (
                     <div
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                        }}
+                        className="flex items-center"
                         onClick={()=>{
                             onDelete(historyItem);
                         }}
@@ -304,18 +250,10 @@ export default function BangSuggestions({bang, setQuery, selfQueryChanged}: IBan
     }
 
     return (
-        <div style={styles.mainContainer}>
+        <div className="w-full h-full px-4">
             {(bang === "" || isHistory) ? (
                 searchHistory.length === 0 ? (
-                    <div style={{
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        height: "100%",
-                        width: "100%",
-                        color: "rgba(255,255,255,0.2)",
-                        fontSize: "13px"
-                    }}>
+                    <div className="flex justify-center items-center h-full w-full text-white/20 text-[13px]">
                         No recent searches
                     </div>
                 ) : (
@@ -341,12 +279,3 @@ export default function BangSuggestions({bang, setQuery, selfQueryChanged}: IBan
 
     );
 }
-
-const styles: { [key: string]: CSSProperties } = {
-    mainContainer: {
-        width: "100%",
-        height: "100%",
-        padding: "0 16px",
-        boxSizing: "border-box",
-    },
-};

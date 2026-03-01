@@ -65,10 +65,10 @@ export default function AddLinkShortcutModal({
             onOpenChange={setAddShortcutOpenModal}
         >
             <DialogContent
-                style={{ background: "rgba(24, 24, 27,1)" }}
+                className="bg-[rgba(24,24,27,1)]"
             >
                 <DialogTitle>
-                    <Label style={{ display: "flex", alignSelf: 'center' }}>Add Shortcut</Label>
+                    <Label className="flex self-center">Add Shortcut</Label>
                 </DialogTitle>
                 <Label>Name</Label>
                 <Input
@@ -89,7 +89,7 @@ export default function AddLinkShortcutModal({
                     onKeyDown={(e) => e.key === "Enter" && handleSave()}
                 />
                 {error && (
-                    <p style={{ color: "red", fontSize: "0.875rem" }}>{error}</p>
+                    <p className="text-red-500 text-sm">{error}</p>
                 )}
                 <Button onClick={handleSave}>Save</Button>
             </DialogContent>

@@ -12,7 +12,7 @@ export default function QuickBangsSection() {
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
             <div>
-                <h2 className="text-[22px] font-semibold text-white tracking-tight mb-1.5" style={{ letterSpacing: "-0.03em" }}>Quick Bangs</h2>
+                <h2 className="text-[22px] font-semibold text-white tracking-[-0.03em] mb-1.5">Quick Bangs</h2>
                 <p className="text-white/40 text-[13px]">
                     Use shortcuts like <code className="text-white/60">!g</code> or <code className="text-white/60">!yt</code> to search specific sites.
                 </p>
@@ -31,23 +31,19 @@ export default function QuickBangsSection() {
                             : null
                         );
                     }}
-                    className="pl-10 h-10 text-[13px] rounded-xl focus:ring-white/15"
-                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+                    className="pl-10 h-10 text-[13px] rounded-xl focus:ring-white/15 bg-white/[0.04] border border-white/8"
                 />
             </div>
 
-            <ScrollArea className="rounded-xl p-2 max-h-[500px]" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
+            <ScrollArea className="rounded-xl p-2 max-h-[500px] border border-white/[0.06]">
                 <div className="grid grid-cols-1 gap-1">
                     {bangs?.map((bang, i) => (
-                        <div key={i} className="flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors" style={{ cursor: "default" }}
-                            onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
-                            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-                        >
+                        <div key={i} className="flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors cursor-default hover:bg-white/[0.04]">
                             <div className="flex flex-col gap-0.5">
                                 <span className="text-[13px] font-medium text-white/75">{bang.s}</span>
                                 <span className="text-[10px] text-white/25 uppercase tracking-tight">{bang.d || 'Search Provider'}</span>
                             </div>
-                            <div className="px-2 py-0.5 rounded-md font-mono text-[11px] text-white/45" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.09)" }}>
+                            <div className="px-2 py-0.5 rounded-md font-mono text-[11px] text-white/45 bg-white/[0.06] border border-white/[0.09]">
                                 !{bang.t}
                             </div>
                         </div>

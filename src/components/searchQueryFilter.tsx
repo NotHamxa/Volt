@@ -41,7 +41,7 @@ function SearchQueryFilter({filters,setFilters}:SearchQueryFilterT) {
     }
 
     return (
-        <div style={{marginRight:"10px"}}>
+        <div className="mr-2.5">
             <DropdownMenu>
                 <DropdownMenuTrigger>
                     <div className="hover:bg-white/10 rounded cursor-pointer transition-colors text-white">

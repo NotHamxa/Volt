@@ -55,42 +55,22 @@ function PinnedApp({app, unPinApp}: IPinnedApp) {
         <ContextMenu>
             <ContextMenuTrigger>
                 <button
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'flex-start',
-                        width: '100px',
-                        height: '90px',
-                        backgroundColor: 'transparent',
-                        borderRadius: '8px',
-                        transition: 'background-color 0.3s ease, transform 0.1s ease',
-                        cursor: 'pointer',
-                        flexDirection: 'column',
-                        overflow: 'hidden',
-                        textAlign: 'center',
-                        userSelect: 'none',
-                        paddingTop:"5px"
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#353737'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                    onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.95)'}
-                    onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                    onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                    className="flex items-center justify-start w-[100px] h-[90px] bg-transparent rounded-lg transition-all duration-300 cursor-pointer flex-col overflow-hidden text-center select-none pt-[5px] hover:bg-[#353737] active:scale-95"
                     onClick={async () => {
                         await window.apps.openApp(app);
                     }}
                 >
                     {logo ? (
-                        <img style={{width: 36, height: 36, objectFit: 'contain'}} src={logo}/>
+                        <img className="w-9 h-9 object-contain" src={logo}/>
                     ) : (
                         <AppWindowIcon size={36}/>
                     )}
-                    <label style={{marginTop: '8px', fontSize: '12px'}}>{app.name}</label>
+                    <label className="mt-2 text-[12px]">{app.name}</label>
                 </button>
             </ContextMenuTrigger>
             <ContextMenuContent>
                 <ContextMenuItem onClick={() => unPinApp(app)}>
-                    <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                    <div className="flex items-center gap-2">
                         <PinOff size={24}/>
                         <label>Unpin from Start</label>
                     </div>
@@ -98,7 +78,7 @@ function PinnedApp({app, unPinApp}: IPinnedApp) {
                 <ContextMenuSeparator/>
                 {app.path !== "" && (
                     <ContextMenuItem onClick={async () => await window.apps.openApp(app, true)}>
-                        <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                        <div className="flex items-center gap-2">
                             <ShieldCheck size={24}/>
                             <label>Open as Administrator</label>
                         </div>
@@ -106,7 +86,7 @@ function PinnedApp({app, unPinApp}: IPinnedApp) {
                 )}
                 {app.path && (
                     <ContextMenuItem onClick={() => window.file.openInExplorer(app.path!)}>
-                        <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                        <div className="flex items-center gap-2">
                             <FolderOpen size={24}/>
                             <label>Open file location</label>
                         </div>
@@ -114,7 +94,7 @@ function PinnedApp({app, unPinApp}: IPinnedApp) {
                 )}
                 {app.path && <ContextMenuSeparator/>}
                 <ContextMenuItem onClick={() => window.electron.openUninstall()}>
-                    <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                    <div className="flex items-center gap-2">
                         <Trash2 size={24}/>
                         <label>Uninstall</label>
                     </div>

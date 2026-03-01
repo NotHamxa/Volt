@@ -1,4 +1,4 @@
-import { CSSProperties, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Search } from "lucide-react";
 import { Outlet, useLocation } from 'react-router-dom';
 import { Input } from "@/components/ui/input.tsx";
@@ -84,7 +84,7 @@ export default function MainLayout({ inputRef, stage, query, setQuery, selfQuery
         return (
             <div className="flex items-center space-x-2 text-white/25 text-sm">
                 <span>{stage === 1 ? "Web" : "Files"}</span>
-                <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md" style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-white/[0.07] border border-white/10">
                     Tab
                 </span>
             </div>
@@ -103,9 +103,9 @@ export default function MainLayout({ inputRef, stage, query, setQuery, selfQuery
 
     return (
         <>
-            <div style={styles.inputContainer}>
+            <div className="flex flex-row gap-2.5 items-center px-5 border-b border-white/[0.07] mb-[5px]">
                 {faviconUrl && stage === 2
-                    ? <img src={faviconUrl} style={styles.favicon} />
+                    ? <img src={faviconUrl} className="w-6 h-6" />
                     : <Search size={20} className="text-white/30 shrink-0" />
                 }
                 <Input
@@ -121,7 +121,7 @@ export default function MainLayout({ inputRef, stage, query, setQuery, selfQuery
                         }
                     }}
                     placeholder={stage === 1 ? "Search apps and documents" : "Search the web"}
-                    style={styles.input}
+                    className="w-full my-2.5 block border-0 bg-transparent"
                     autoFocus
                 />
                 {!query && <SwitchModes />}
@@ -133,28 +133,3 @@ export default function MainLayout({ inputRef, stage, query, setQuery, selfQuery
         </>
     );
 }
-
-const styles: { [key: string]: CSSProperties } = {
-    input: {
-        width: '100%',
-        margin: '10px auto',
-        display: 'block',
-        borderWidth: '0px',
-        backgroundColor: 'transparent',
-    },
-    inputContainer: {
-        display: "flex",
-        flexDirection: "row",
-        gap: 10,
-        alignItems: "center",
-        padding: "0px 20px",
-        borderBottomWidth: "1px",
-        borderBottomStyle: "solid",
-        borderBottomColor: 'rgba(255,255,255,0.07)',
-        marginBottom: "5px",
-    },
-    favicon: {
-        width: 24,
-        height: 24,
-    },
-};

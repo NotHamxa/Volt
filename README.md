@@ -1,29 +1,67 @@
-<!-- Replace the image URL below with your app logo -->
-<p align="center">
-  <img src="YOUR_LOGO_URL_HERE" alt="Spotlight Search App Logo" width="150">
-</p>
+# Volt
 
-<h1 align="center">Volt</h1>
+**Your system, at your fingertips.**
 
-<p align="center">
-  A fast and minimalistic Spotlight-style search application built with <strong>Electron</strong> and <strong>React</strong>.
-</p>
+Volt is a fast, minimal launcher for Windows — built with Electron and React. Hit a shortcut, find what you need, and get back to work.
+
+[**hamzahmed.com/project/volt**](https://hamzahmed.com/project/volt)
 
 ---
 
-## 🚀 Features
+## What it does
 
-- 🔎 **Instant Search**: Quickly search files, folders, and installed apps.
-- ⚡ **Lightweight & Fast**: Built with Electron and React for performance.
-- 🎨 **Clean UI**: Minimal, distraction-free design.
-- 🛠 **Customizable**: Add your own search sources or tweak UI easily.
+**Search everything**
+Type to instantly search installed apps, files and folders, system commands, and Windows Settings — all from one place.
+
+**Pin what you use most**
+Right-click any app to pin it. Add links by URL. Pinned items always appear at the top.
+
+**Watch your directories**
+Tell Volt which folders to index and your files surface directly in the search bar, kept up to date automatically.
+
+**Web search without leaving the launcher**
+Press `Tab` to switch between local and web search. No need to open a browser for a quick lookup.
+
+**Bangs**
+Jump straight to a site's search with a bang shortcut — `!yt`, `!g`, `!r`, and more. Fully customisable.
 
 ---
 
-## 📸 Screenshots
+## Usage
 
-<!-- Add screenshots of your app here -->
-<p align="center">
-  <img src="YOUR_SCREENSHOT_URL_HERE" alt="Spotlight Search Screenshot" width="600">
-</p>
+Press `Ctrl + Space` to open Volt. That shortcut can be changed in **Settings → General**.
 
+| Key | Action |
+|---|---|
+| `Ctrl + Space` | Toggle Volt |
+| `Tab` | Switch between local / web search |
+| `Ctrl + H` | Open Settings |
+| `Esc` | Dismiss |
+
+---
+
+## Stack
+
+- [Electron](https://www.electronjs.org/)
+- [React](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)
+- [Tailwind CSS v4](https://tailwindcss.com/)
+- [Vite](https://vitejs.dev/)
+
+---
+
+## Development
+
+```bash
+pnpm install
+pnpm start
+```
+
+## Build
+
+```bash
+pnpm dist
+```
+
+---
+
+Built by [Hamza Ahmed](https://hamzahmed.com)

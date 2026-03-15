@@ -99,6 +99,7 @@ export default function App() {
                 inputRef.current.focus();
             }
             navigate('/');
+            window.electron.toggleEscape(true);
         };
 
         const handleKeyDown = (e: KeyboardEvent) => {

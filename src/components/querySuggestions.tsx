@@ -46,6 +46,7 @@ interface IQuerySuggestions {
     query: string;
     searchFilters: boolean[];
     clearQuery: () => void;
+    logoMap: Map<string, string>;
 }
 
 type QueryComponentProps = {
@@ -54,6 +55,7 @@ type QueryComponentProps = {
     pinApp?: (app: SearchQueryT) => void;
     unPinApp?: (app: SearchQueryT) => void;
     isAppPinned?: boolean;
+    logo?: string;
     triggerAction?: boolean;
     triggerContextMenu?: boolean;
     onContextMenuOpenChange?: (open: boolean) => void;
@@ -132,6 +134,8 @@ function getParentFolders(p: string): string {
     return "../" + segments.slice(segments.length - 3, segments.length - 1).join('/');
 }
 
+const getLogoKey = (item: SearchQueryT) => `${item.path ?? ""}|${item.appId ?? ""}`;
+
 const isSameApp = (a: SearchQueryT, b: SearchQueryT) => {
     return (
         a.appId === b.appId &&
@@ -146,6 +150,7 @@ const QueryComponent = memo(({
                                  item,
                                  highlighted = false,
                                  isAppPinned = false,
+                                 logo,
                                  pinApp = () => { },
                                  unPinApp = () => { },
                                  triggerAction = false,
@@ -156,26 +161,11 @@ const QueryComponent = memo(({
 
     const [isFocused, setIsFocused] = useState(false);
     const [showConfirmation, setShowConfirmation] = useState(false);
-    const [logo, setLogo] = useState<string>();
 
     const triggerRef = useRef<HTMLSpanElement>(null);
 
     const handleFocus = useCallback(() => setIsFocused(true), []);
     const handleBlur = useCallback(() => setIsFocused(false), []);
-
-    const getLogo = useCallback(async () => {
-        if (item.path) {
-            const appLogo = await window.apps.getAppLogo(item);
-            setLogo(appLogo);
-        } else if (item.source === "UWP") {
-            const appLogo = await window.apps.getUwpAppLogo(item)
-            setLogo(appLogo);
-        }
-    }, [item.path, item.source]);
-
-    useEffect(() => {
-        getLogo()
-    }, [getLogo]);
 
     useEffect(() => {
         if (triggerAction && type === "commandConfirm") {
@@ -313,18 +303,16 @@ const QueryComponent = memo(({
         <>
             <ContextMenu onOpenChange={onContextMenuOpenChange}>
                 <ContextMenuTrigger ref={triggerRef}>
-                    <TooltipProvider>
-                        <Tooltip delayDuration={300}>
-                            <TooltipTrigger asChild>
-                                {buttonContent}
-                            </TooltipTrigger>
-                            {type === "file" && path && (
-                                <TooltipContent side={"top"}>
-                                    <span>{path}</span>
-                                </TooltipContent>
-                            )}
-                        </Tooltip>
-                    </TooltipProvider>
+                    <Tooltip delayDuration={300}>
+                        <TooltipTrigger asChild>
+                            {buttonContent}
+                        </TooltipTrigger>
+                        {type === "file" && path && (
+                            <TooltipContent side={"top"}>
+                                <span>{path}</span>
+                            </TooltipContent>
+                        )}
+                    </Tooltip>
                 </ContextMenuTrigger>
                 <ContextMenuContent>
                     {type === "app" && <>
@@ -408,12 +396,13 @@ const QueryComponent = memo(({
         prevProps.highlighted === nextProps.highlighted &&
         isSameApp(prevProps.item, nextProps.item) &&
         prevProps.isAppPinned === nextProps.isAppPinned &&
+        prevProps.logo === nextProps.logo &&
         prevProps.triggerAction === nextProps.triggerAction &&
         prevProps.triggerContextMenu === nextProps.triggerContextMenu
     );
 });
 
-export default function QuerySuggestions({ query, searchFilters, clearQuery }: IQuerySuggestions) {
+export default function QuerySuggestions({ query, searchFilters, clearQuery, logoMap }: IQuerySuggestions) {
     const [pinnedApps, setPinnedApps] = useState<SearchQueryT[]>([])
     const [isCmdCommand, setIsCmdCommand] = useState<boolean>(false)
     const [cmdCommand, setCmdCommand] = useState<string>("")
@@ -458,6 +447,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery }: I
             const x = performance.now();
             const result: ProcessedQueryResult | null = await getQueryData(query.trim(), searchFilters);
             if (cancelled || !result) return;
+
             setBestMatch(result.bestMatch);
             setApps(result.apps);
             setFolders(result.folders);
@@ -544,9 +534,17 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery }: I
         window.dispatchEvent(new CustomEvent("pinnedAppsChanged"));
     }, [pinnedApps]);
 
-    const isAppPinned = useCallback((app: SearchQueryT): boolean => {
-        return pinnedApps.some((a) => isSameApp(a, app));
+    const pinnedAppKeys = useMemo(() => {
+        const set = new Set<string>();
+        for (const a of pinnedApps) {
+            set.add(`${a.appId}|${a.path}|${a.name}|${a.type}|${a.source}`);
+        }
+        return set;
     }, [pinnedApps]);
+
+    const isAppPinned = useCallback((app: SearchQueryT): boolean => {
+        return pinnedAppKeys.has(`${app.appId}|${app.path}|${app.name}|${app.type}|${app.source}`);
+    }, [pinnedAppKeys]);
 
     useEffect(() => {
         const viewport = scrollAreaRef.current?.querySelector<HTMLElement>('[data-radix-scroll-area-viewport]');
@@ -562,6 +560,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery }: I
     }, [focusedIndex]);
 
     return (
+        <TooltipProvider>
         <ScrollArea ref={scrollAreaRef} className="w-full h-[420px] px-4">
             {isCmdCommand ? (
                 <div>
@@ -583,6 +582,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery }: I
                                     pinApp={pinApp}
                                     unPinApp={unPinApp}
                                     isAppPinned={bestMatch.type === "app" ? isAppPinned(bestMatch) : false}
+                                    logo={bestMatch.type === "app" ? logoMap.get(getLogoKey(bestMatch)) : undefined}
                                     triggerAction={triggeredIndex === 0}
                                     triggerContextMenu={triggeredContextMenuIndex === 0}
                                     onContextMenuOpenChange={setIsContextMenuOpen}
@@ -600,6 +600,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery }: I
                                                 item={app}
                                                 highlighted={focusedIndex === itemIndex}
                                                 isAppPinned={isAppPinned(app)}
+                                                logo={logoMap.get(getLogoKey(app))}
                                                 pinApp={pinApp}
                                                 unPinApp={unPinApp}
                                                 triggerAction={triggeredIndex === itemIndex}
@@ -689,5 +690,6 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery }: I
                 )
             )}
         </ScrollArea>
+        </TooltipProvider>
     );
 }

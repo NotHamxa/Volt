@@ -200,8 +200,15 @@ const createWindow = async () => {
     const devServerURL = "http://localhost:5173";
 
     mainWindow.on('blur', () => {
+        globalShortcut.unregister("Esc");
         if (appStates.fixWindowOpen && !appStates.dialogOpen) mainWindow.focus();
-        if (mainWindow?.isVisible()) hideMainWindow();
+        else if (mainWindow?.isVisible()) hideMainWindow();
+    });
+
+    mainWindow.webContents.on('before-input-event', (_, input) => {
+        if (input.type === 'keyDown' && input.key === 'F4' && input.alt) {
+            app.quit();
+        }
     });
 
     mainWindow.on('focus', () => {
@@ -235,9 +242,9 @@ app.whenReady().then(async () => {
     await loadFileData(cache)
 
     if (!cache.firstTimeExperience)
-        mainWindow.hide()
+        hideMainWindow()
     else
-        mainWindow.show()
+        showMainWindow()
 
     if (process.env.NODE_ENV !== "development") {
         setupAutoUpdater(mainWindow);
@@ -256,9 +263,6 @@ app.whenReady().then(async () => {
             hideMainWindow();
         } else {
             showMainWindow();
-            if (process.env.NODE_ENV !== "development") {
-                mainWindow.webContents.reloadIgnoringCache();
-            }
         }
     });
     appsWatcher.on("add",async _=>{

@@ -5,7 +5,7 @@ import { MainLayoutContext } from "@/pages/mainPage.tsx";
 export default function SearchPage() {
     const [searchParams] = useSearchParams();
     const query = searchParams.get('query') || '';
-    const { searchFilters, clearQuery } = useOutletContext<MainLayoutContext>();
+    const { searchFilters, clearQuery, logoMap } = useOutletContext<MainLayoutContext>();
 
-    return <QuerySuggestions query={query} searchFilters={searchFilters} clearQuery={clearQuery} />;
+    return <QuerySuggestions query={query} searchFilters={searchFilters} clearQuery={clearQuery} logoMap={logoMap} />;
 }

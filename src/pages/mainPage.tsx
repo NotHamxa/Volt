@@ -10,6 +10,7 @@ import { SearchQueryT } from "@/interfaces/searchQuery.ts";
 export type MainLayoutContext = {
     apps: SearchQueryT[];
     pinnedApps: SearchQueryT[];
+    logoMap: Map<string, string>;
     setPinnedApps: React.Dispatch<React.SetStateAction<SearchQueryT[]>>;
     pinApp: (app: SearchQueryT) => void;
     unPinApp: (app: SearchQueryT) => void;
@@ -26,7 +27,6 @@ interface MainLayoutProps {
     query: string;
     setQuery: React.Dispatch<React.SetStateAction<string>>;
     selfQueryChangedRef: React.MutableRefObject<boolean>;
-    clearQuery: () => void;
 }
 
 export default function MainLayout({ inputRef, stage, query, setQuery, selfQueryChangedRef }: MainLayoutProps) {
@@ -34,14 +34,32 @@ export default function MainLayout({ inputRef, stage, query, setQuery, selfQuery
     const [searchFilters, setSearchFilters] = useState<boolean[]>([true, true, true, true, true]);
     const [apps, setApps] = useState<SearchQueryT[]>([]);
     const [pinnedApps, setPinnedApps] = useState<SearchQueryT[]>([]);
+    const [logoMap, setLogoMap] = useState<Map<string, string>>(new Map());
     const location = useLocation();
 
     useEffect(() => {
         const getAppData = async () => {
-            const appsData = await window.apps.searchApps("");
+            const appsData: SearchQueryT[] = await window.apps.searchApps("");
             setApps(appsData);
             const pApps = await window.electronStore.get("pinnedApps");
             setPinnedApps(pApps ? JSON.parse(pApps) : []);
+
+            const entries = await Promise.all(
+                appsData.map(async (item) => {
+                    let logo: string | undefined;
+                    if (item.path) {
+                        logo = await window.apps.getAppLogo(item);
+                    } else if (item.source === "UWP") {
+                        logo = await window.apps.getUwpAppLogo(item);
+                    }
+                    return [`${item.path ?? ""}|${item.appId ?? ""}`, logo] as const;
+                })
+            );
+            const map = new Map<string, string>();
+            for (const [key, logo] of entries) {
+                if (logo) map.set(key, logo);
+            }
+            setLogoMap(map);
         };
         const reloadPinnedApps = async () => {
             const pApps = await window.electronStore.get("pinnedApps");
@@ -102,12 +120,12 @@ export default function MainLayout({ inputRef, stage, query, setQuery, selfQuery
     const context: MainLayoutContext = {
         apps,
         pinnedApps,
+        logoMap,
         setPinnedApps,
         pinApp,
         unPinApp,
         searchFilters,
         setSearchFilters,
-        clearQuery: () => setQuery(""),
     };
 
     return (

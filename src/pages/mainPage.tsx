@@ -147,6 +147,18 @@ export default function MainLayout({ inputRef, stage, query, setQuery, selfQuery
                             e.preventDefault();
                         }
                     }}
+                    onBlur={() => {
+                        setTimeout(() => {
+                            const active = document.activeElement as HTMLElement | null;
+                            if (
+                                active &&
+                                (active.tagName === 'INPUT' ||
+                                 active.tagName === 'TEXTAREA' ||
+                                 active.closest('[role="dialog"]'))
+                            ) return;
+                            inputRef.current?.focus();
+                        }, 0);
+                    }}
                     placeholder={stage === 1 ? "Search apps and documents" : "Search the web"}
                     className="w-full my-2.5 block border-0 bg-transparent"
                     autoFocus

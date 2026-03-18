@@ -153,6 +153,10 @@ export default function App() {
             window.addEventListener("keydown", handleKeyDown);
         };
 
+        const handleRefocusInput = () => {
+            setTimeout(() => inputRef.current?.focus(), 0);
+        };
+
         const handleWindowLock = () => {
             if (lockTimeoutRef.current) clearTimeout(lockTimeoutRef.current);
             setShowLockedIcon(true);
@@ -187,6 +191,7 @@ export default function App() {
         window.addEventListener("keydown", handleKeyDown);
         window.addEventListener("shortcutModalOpen", handleShortcutModalOpen);
         window.addEventListener("shortcutModalClose", handleShortcutModalClose);
+        window.addEventListener("refocusInput", handleRefocusInput);
 
         getCacheLoadingStatus();
 
@@ -194,6 +199,7 @@ export default function App() {
             window.removeEventListener("keydown", handleKeyDown);
             window.removeEventListener("shortcutModalOpen", handleShortcutModalOpen);
             window.removeEventListener("shortcutModalClose", handleShortcutModalClose);
+            window.removeEventListener("refocusInput", handleRefocusInput);
         };
     }, []);
 

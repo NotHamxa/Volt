@@ -1,45 +1,41 @@
 import {exec} from "child_process";
 import {showNotification} from "./notification.js";
 
-function getCommandSuccessMessage(commandName) {
-    switch (commandName) {
-        case "Shutdown":                     return "Shutting down...";
-        case "Restart":                      return "Restarting...";
-        case "Sleep":                        return "Going to sleep...";
-        case "Hibernate":                    return "Hibernating...";
-        case "Lock Screen":                  return "Screen locked";
-        case "Sign Out":                     return "Signing out...";
-        case "Open Recycle Bin":             return "Recycle Bin opened";
-        case "Empty Recycle Bin":            return "Recycle Bin emptied";
-        case "Display - PC Screen Only":     return "Display: PC screen only";
-        case "Display - Duplicate":          return "Display: Duplicating";
-        case "Display - Extend":             return "Display: Extended";
-        case "Display - Second Screen Only": return "Display: Second screen only";
-        case "Minimize All Windows":         return "All windows minimized";
-        case "Restart Windows Explorer":     return "Explorer restarted";
-        case "Flush DNS Cache":              return "DNS cache flushed";
-        case "Show IP Configuration":        return "Opening IP config...";
-        case "Open Network Settings":        return "Opening Network Settings...";
-        case "Show WiFi Profiles":           return "Opening WiFi profiles...";
-        case "Open Windows Terminal":        return "Terminal opened";
-        case "Open System Properties":       return "Opening System Properties...";
-        case "Open System Restore":          return "Opening System Restore...";
-        default:                             return `${commandName} executed`;
-    }
-}
+const commandNotifications = {
+    "Shutdown":                     { icon: '⏻',  title: 'Shutting down...',           message: 'Your PC will shut down shortly' },
+    "Restart":                      { icon: '↺',  title: 'Restarting...',              message: 'Your PC will restart shortly' },
+    "Sleep":                        { icon: '🌙', title: 'Going to sleep...',           message: 'Your PC will sleep shortly' },
+    "Hibernate":                    { icon: '💤', title: 'Hibernating...',              message: 'Your session will be saved' },
+    "Lock Screen":                  { icon: '🔒', title: 'Screen locked',              message: 'Sign in to continue' },
+    "Sign Out":                     { icon: '🚪', title: 'Signing out...',              message: 'Your session is ending' },
+    "Open Recycle Bin":             { icon: '🗑️', title: 'Recycle Bin opened',         message: '' },
+    "Empty Recycle Bin":            { icon: '🗑️', title: 'Recycle Bin emptied',        message: 'All deleted files removed' },
+    "Display - PC Screen Only":     { icon: '🖥️', title: 'Display: PC screen only',    message: 'External displays disconnected' },
+    "Display - Duplicate":          { icon: '🖥️', title: 'Display: Duplicating',       message: 'Mirroring to all screens' },
+    "Display - Extend":             { icon: '🖥️', title: 'Display: Extended',          message: 'Desktop extended across screens' },
+    "Display - Second Screen Only": { icon: '🖥️', title: 'Display: Second screen only',message: 'Main display disconnected' },
+    "Minimize All Windows":         { icon: '⬇️', title: 'All windows minimized',      message: '' },
+    "Restart Windows Explorer":     { icon: '📁', title: 'Explorer restarted',         message: 'Windows Explorer has been restarted' },
+    "Flush DNS Cache":              { icon: '🌐', title: 'DNS cache flushed',           message: 'DNS resolver cache cleared' },
+    "Show IP Configuration":        { icon: '🌐', title: 'IP Configuration',            message: 'Opening network details...' },
+    "Open Network Settings":        { icon: '🌐', title: 'Network Settings',            message: 'Opening network settings...' },
+    "Show WiFi Profiles":           { icon: '📶', title: 'WiFi Profiles',               message: 'Opening saved WiFi profiles...' },
+    "Open Windows Terminal":        { icon: '⌨️', title: 'Terminal opened',             message: '' },
+    "Open System Properties":       { icon: '⚙️', title: 'System Properties',           message: 'Opening system properties...' },
+    "Open System Restore":          { icon: '⚙️', title: 'System Restore',              message: 'Opening system restore...' },
+};
 
-export function sendCommandNotification(commandName, success) {
-    console.log("showing"+commandName);
-    showNotification({ icon: '🗑️', title: getCommandSuccessMessage(commandName), message: '2.4 GB freed' })
+export function sendCommandNotification(commandName) {
+    const notif = commandNotifications[commandName] ?? { icon: '⚡', title: commandName, message: 'Command executed' };
+    showNotification({ icon: notif.icon, title: notif.title, message: notif.message });
 }
 
 export async function executeCommand(item){
     return new Promise((resolve) => {
         exec(item.path, { shell: "cmd.exe" }, (error) => {
-            const success = !error;
             if (error) console.error(`Command failed: ${item.path}`, error);
-            sendCommandNotification(item.name, success);
-            resolve(success);
+            sendCommandNotification(item.name);
+            resolve(!error);
         });
     });
 }

@@ -360,15 +360,15 @@ const QueryComponent = memo(({
 
             {type === "commandConfirm" && (
                 <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
-                    <DialogContent className="sm:max-w-106.25">
+                    <DialogContent className="sm:max-w-106.25 bg-[rgba(24,24,27,1)]">
                         <DialogHeader>
                             <DialogTitle>Confirm Command</DialogTitle>
-                            <DialogDescription className="text-gray-600">
+                            <DialogDescription className="text-white/40">
                                 Are you sure you want to run this command?
                             </DialogDescription>
                         </DialogHeader>
-                        <div className="py-4">
-                            <code className="block w-full p-3 rounded text-sm font-mono break-all">
+                        <div className="py-2">
+                            <code className="block w-full p-3 rounded-lg text-sm font-mono break-all bg-white/[0.04] border border-white/[0.07] text-white/70">
                                 {name}
                             </code>
                         </div>
@@ -376,6 +376,7 @@ const QueryComponent = memo(({
                             <Button
                                 variant="outline"
                                 onClick={handleCancel}
+                                className="border-white/10 text-white/45 hover:text-white/65"
                             >
                                 Cancel (Esc)
                             </Button>
@@ -410,6 +411,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
     const [triggeredIndex, setTriggeredIndex] = useState<number>(-1);
     const [triggeredContextMenuIndex, setTriggeredContextMenuIndex] = useState<number>(-1);
     const [isContextMenuOpen, setIsContextMenuOpen] = useState<boolean>(false);
+    const blockNextEnterRef = useRef(false);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     const itemRefs = useRef<(HTMLElement | null)[]>([]);
     const [bestMatch, setBestMatch] = useState<SearchQueryT | null>(null);
@@ -476,9 +478,19 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
 
     ], [bestMatch, apps, settings, files, folders, commands]);
 
+    const handleContextMenuOpenChange = useCallback((open: boolean) => {
+        setIsContextMenuOpen(open);
+        if (!open) {
+            blockNextEnterRef.current = true;
+        }
+    }, []);
+
     const handleKeyDown = useCallback(async (e: KeyboardEvent) => {
-        console.log(isContextMenuOpen)
         if (isContextMenuOpen) return;
+        if (e.key === "Enter" && blockNextEnterRef.current) {
+            blockNextEnterRef.current = false;
+            return;
+        }
 
         if (e.key === "ArrowDown" && focusedIndex < allResults.length - 1) {
             setFocusedIndex(prev => prev + 1);
@@ -585,7 +597,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                                     logo={bestMatch.type === "app" ? logoMap.get(getLogoKey(bestMatch)) : undefined}
                                     triggerAction={triggeredIndex === 0}
                                     triggerContextMenu={triggeredContextMenuIndex === 0}
-                                    onContextMenuOpenChange={setIsContextMenuOpen}
+                                    onContextMenuOpenChange={handleContextMenuOpenChange}
                                 />
                             </div>
                         )}
@@ -605,7 +617,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                                                 unPinApp={unPinApp}
                                                 triggerAction={triggeredIndex === itemIndex}
                                                 triggerContextMenu={triggeredContextMenuIndex === itemIndex}
-                                                onContextMenuOpenChange={setIsContextMenuOpen}
+                                                onContextMenuOpenChange={handleContextMenuOpenChange}
                                             />
                                         </div>
                                     );
@@ -623,7 +635,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                                                 highlighted={focusedIndex === itemIndex}
                                                 triggerAction={triggeredIndex === itemIndex}
                                                 triggerContextMenu={triggeredContextMenuIndex === itemIndex}
-                                                onContextMenuOpenChange={setIsContextMenuOpen}
+                                                onContextMenuOpenChange={handleContextMenuOpenChange}
                                             />
                                         </div>
                                     );
@@ -641,7 +653,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                                                 highlighted={focusedIndex === itemIndex}
                                                 triggerAction={triggeredIndex === itemIndex}
                                                 triggerContextMenu={triggeredContextMenuIndex === itemIndex}
-                                                onContextMenuOpenChange={setIsContextMenuOpen}
+                                                onContextMenuOpenChange={handleContextMenuOpenChange}
                                             />
                                         </div>
                                     );
@@ -660,7 +672,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                                                 highlighted={focusedIndex === itemIndex}
                                                 triggerAction={triggeredIndex === itemIndex}
                                                 triggerContextMenu={triggeredContextMenuIndex === itemIndex}
-                                                onContextMenuOpenChange={setIsContextMenuOpen}
+                                                onContextMenuOpenChange={handleContextMenuOpenChange}
                                             />
                                         </div>
                                     );
@@ -679,7 +691,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                                                 highlighted={focusedIndex === itemIndex}
                                                 triggerAction={triggeredIndex === itemIndex}
                                                 triggerContextMenu={triggeredContextMenuIndex === itemIndex}
-                                                onContextMenuOpenChange={setIsContextMenuOpen}
+                                                onContextMenuOpenChange={handleContextMenuOpenChange}
                                             />
                                         </div>
                                     );

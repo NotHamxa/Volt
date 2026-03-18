@@ -5,6 +5,7 @@ import Store from "electron-store";
 import path from "path";
 import {fileURLToPath} from "url";
 import {deleteFolder} from "./utils/cache.js";
+import { initWindowFocusTracker, captureForegroundWindow, restoreForegroundWindow } from "./utils/windowFocus.js";
 import chokidar from "chokidar";
 import os from "os";
 import {loadAppData, loadFileData} from "./utils/startup.js";
@@ -30,7 +31,6 @@ if (!openShortcut) {
     openShortcut = "Ctrl+Space";
 }
 let mainWindow = null;
-let lastFocusedWindow = null;
 const cache = {
     appCache:[],
     appIconsCache:{},
@@ -96,7 +96,7 @@ folderWatcher.on("unlinkDir", async (dirPath) => {
 })
 const showMainWindow = () => {
     if (!mainWindow) return;
-    lastFocusedWindow = BrowserWindow.getFocusedWindow();
+    captureForegroundWindow();
 
     mainWindow.setOpacity(0);
     mainWindow.show();
@@ -114,9 +114,7 @@ const hideMainWindow = () => {
     globalShortcut.unregister("Esc");
     mainWindow.webContents.send('window-blurred');
     appStates.pauseEscape = false;
-    if (lastFocusedWindow) {
-        lastFocusedWindow.focus();
-    }
+    restoreForegroundWindow();
 };
 const handleWindowLock = ()=>{
     appStates.windowLocked = !appStates.windowLocked;
@@ -161,7 +159,11 @@ ipcMain.on("toggle-esc-pause", (_, state) => {
 
 const createWindow = async () => {
     if (mainWindow) {
-        mainWindow.loadURL("http://localhost:5173");
+        if (process.env.NODE_ENV === "development") {
+            mainWindow.loadURL("http://localhost:5173");
+        } else {
+            mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
+        }
         return;
     }
     mainWindow = new BrowserWindow({
@@ -211,11 +213,6 @@ const createWindow = async () => {
         }
     });
 
-    mainWindow.on('focus', () => {
-        lastFocusedWindow = BrowserWindow.getFocusedWindow();
-    });
-
-
     if (process.env.NODE_ENV === "development") {
         mainWindow.loadURL(devServerURL);
     } else {
@@ -228,6 +225,7 @@ const createWindow = async () => {
 };
 
 app.whenReady().then(async () => {
+    initWindowFocusTracker();
     await createWindow();
     createNotificationWindow();
     registerIpc({

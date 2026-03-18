@@ -40,6 +40,7 @@ export async function loadAppData(webContents,cache) {
         await validateCache(webContents,cache.appCache);
         await loadAppIconsCache(webContents,cache);
     } catch(error) {
+        console.log(error)
         cache.appCache = [];
     }
 }

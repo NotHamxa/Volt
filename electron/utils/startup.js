@@ -2,6 +2,7 @@ import {cacheAppIcon, cacheFolder, cacheUwpIcon, loadApps} from "./cache.js";
 import {app} from "electron";
 import Store from "electron-store";
 import {getUwpInstallLocations} from "./apps/uwpAppLogo.js";
+import defaultCommands from "../data/commands.json" with { type: 'json' };
 
 const store = new Store();
 export async function loadFileData(cache){
@@ -97,4 +98,39 @@ async function loadAppIconsCache(webContents,cache) {
         }
     }
     store.set("appIconsCache", JSON.stringify(cache.appIconsCache));
+}
+
+export function loadCommandsData(cache, store) {
+    const customCommands = JSON.parse(store.get("customCommands") ?? "[]");
+    cache.commandsCache = [...defaultCommands, ...customCommands];
+}
+
+export function addCustomCommand(cache, store, command) {
+    const customCommands = JSON.parse(store.get("customCommands") ?? "[]");
+    customCommands.push(command);
+    store.set("customCommands", JSON.stringify(customCommands));
+    cache.commandsCache = [...defaultCommands, ...customCommands];
+    return cache.commandsCache;
+}
+
+export function removeCustomCommand(cache, store, commandName) {
+    let customCommands = JSON.parse(store.get("customCommands") ?? "[]");
+    customCommands = customCommands.filter(c => c.name !== commandName);
+    store.set("customCommands", JSON.stringify(customCommands));
+    cache.commandsCache = [...defaultCommands, ...customCommands];
+    return cache.commandsCache;
+}
+
+export function getCustomCommands(store) {
+    return JSON.parse(store.get("customCommands") ?? "[]");
+}
+
+export function importCustomCommands(cache, store, commands) {
+    const customCommands = JSON.parse(store.get("customCommands") ?? "[]");
+    const existingNames = new Set(customCommands.map(c => c.name));
+    const newCommands = commands.filter(c => !existingNames.has(c.name));
+    customCommands.push(...newCommands);
+    store.set("customCommands", JSON.stringify(customCommands));
+    cache.commandsCache = [...defaultCommands, ...customCommands];
+    return cache.commandsCache;
 }

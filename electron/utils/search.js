@@ -1,18 +1,11 @@
 import path from "path";
 import os from "os";
 import settings from "../data/settings.json" with { type: 'json' };
-import commands from "../data/commands.json" with { type: 'json' };
-
 export const normaliseString = (str) => str.toLowerCase().replace(/\s+/g, "");
 
 const settingsIndex = settings.map(s => ({
     item: s,
     normalized: normaliseString(s.name)
-}));
-
-const commandsIndex = commands.map(c => ({
-    item: c,
-    normalized: normaliseString(c.name)
 }));
 
 const userHome = os.homedir();
@@ -40,10 +33,12 @@ export function searchSettings(query) {
     return results;
 }
 
-export function searchCommands(query) {
+export function searchCommands(commandsCache, query) {
+    if (!commandsCache?.length) return [];
     const results = [];
-    for (const { item, normalized } of commandsIndex) {
-        if (normalized.includes(query)) results.push(item);
+    for (const cmd of commandsCache) {
+        if (!cmd._normalized) cmd._normalized = normaliseString(cmd.name);
+        if (cmd._normalized.includes(query)) results.push(cmd);
     }
     return results;
 }
@@ -110,7 +105,7 @@ function computeLimit(appsLen, foldersLen, filesLen, settingsLen, commandsLen, f
 
 const clean = ({ _normalized, ...rest }) => rest;
 
-export function processSearchQuery(appCache, cachedFolderData, rawStack, query, filters) {
+export function processSearchQuery(appCache, commandsCache, cachedFolderData, rawStack, query, filters) {
     const x = performance.now()
     const q = normaliseString(query).trim();
     if (!q) return { bestMatch: null, apps: [], files: [], folders: [], settings: [], commands: [] };
@@ -126,7 +121,7 @@ export function processSearchQuery(appCache, cachedFolderData, rawStack, query, 
         if (filters[2]) folders = allFF.filter(f => f.type === "folder");
     }
     let settings = filters[3] ? searchSettings(q) : [];
-    let commands = filters[4] ? searchCommands(q) : [];
+    let commands = filters[4] ? searchCommands(commandsCache, q) : [];
 
     if (apps.length) apps = sortByLaunchHistory(apps, stack);
 
@@ -158,6 +153,6 @@ export function processSearchQuery(appCache, cachedFolderData, rawStack, query, 
         files:     files.slice(0, limit).map(clean),
         folders:   folders.slice(0, limit).map(clean),
         settings:  settings.slice(0, limit),
-        commands:  commands.slice(0, limit),
+        commands:  commands.slice(0, limit).map(clean),
     };
 }

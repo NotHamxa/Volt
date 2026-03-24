@@ -8,7 +8,7 @@ import {deleteFolder} from "./utils/cache.js";
 import { initWindowFocusTracker, captureForegroundWindow, restoreForegroundWindow } from "./utils/windowFocus.js";
 import chokidar from "chokidar";
 import os from "os";
-import {loadAppData, loadFileData} from "./utils/startup.js";
+import {loadAppData, loadFileData, loadCommandsData} from "./utils/startup.js";
 import { registerIpc } from "./ipc/index.js";
 import {setupAutoUpdater} from "./utils/updater.js";
 import {createNotificationWindow} from "./utils/notification.js";
@@ -34,6 +34,7 @@ let mainWindow = null;
 const cache = {
     appCache:[],
     appIconsCache:{},
+    commandsCache:[],
     cachedFolders:[],
     cachedFoldersData:{},
     loadingAppCache:true,
@@ -237,6 +238,7 @@ app.whenReady().then(async () => {
         store,
     });
     await loadAppData(mainWindow.webContents,cache);
+    loadCommandsData(cache, store);
     await loadFileData(cache)
 
     if (!cache.firstTimeExperience)

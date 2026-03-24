@@ -3,6 +3,7 @@ import { getGoogleSuggestions } from "../utils/autoSuggestion.js";
 import { executeUserCommand } from "../utils/cmd.js";
 import { processSearchQuery } from "../utils/search.js";
 import { showNotification } from "../utils/notification.js";
+import { checkForUpdates } from "../utils/updater.js";
 
 export function registerElectronIpc({ hideMainWindow, cache, store }) {
     ipcMain.on("log", (_, data) => console.log(data));
@@ -14,6 +15,7 @@ export function registerElectronIpc({ hideMainWindow, cache, store }) {
     ipcMain.handle("search-query", (_, query, searchFilters = []) => {
         return processSearchQuery(
             cache.appCache,
+            cache.commandsCache,
             cache.cachedFoldersData,
             store.get("appLaunchStack"),
             query,
@@ -58,6 +60,11 @@ export function registerElectronIpc({ hideMainWindow, cache, store }) {
     ipcMain.handle("set-open-on-startup", (_, enabled) => {
         app.setLoginItemSettings({ openAtLogin: enabled });
         store.set("openOnStartup", enabled);
+        return true;
+    });
+
+    ipcMain.handle("check-for-updates", () => {
+        checkForUpdates();
         return true;
     });
 }

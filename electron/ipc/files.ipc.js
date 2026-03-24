@@ -17,6 +17,14 @@ export function registerFilesIpc({
         return searchFilesAndFolders(query, cache.cachedFoldersData);
     });
 
+    ipcMain.handle("get-folder-file-counts", () => {
+        const counts = {};
+        for (const [folder, files] of Object.entries(cache.cachedFoldersData)) {
+            counts[folder] = Array.isArray(files) ? files.length : 0;
+        }
+        return counts;
+    });
+
     ipcMain.on("open-path", async (_, filePath) => {
         await shell.openPath(filePath);
         hideMainWindow();

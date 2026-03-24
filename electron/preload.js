@@ -30,7 +30,10 @@ contextBridge.exposeInMainWorld("electron", {
     onUpdateDownloaded:(cb)=>ipcRenderer.on("update-downloaded",cb),
     quitAndInstall:()=>ipcRenderer.send("quit-and-install"),
     getOpenOnStartup:()=>ipcRenderer.invoke("get-open-on-startup"),
-    setOpenOnStartup:(enabled)=>ipcRenderer.invoke("set-open-on-startup",enabled)
+    setOpenOnStartup:(enabled)=>ipcRenderer.invoke("set-open-on-startup",enabled),
+    checkForUpdates:()=>ipcRenderer.invoke("check-for-updates"),
+    onUpdateNotAvailable:(cb)=>ipcRenderer.on("update-not-available",cb),
+    getFolderFileCounts:()=>ipcRenderer.invoke("get-folder-file-counts"),
 });
 contextBridge.exposeInMainWorld("file",{
     searchFilesAndFolders: (baseDir, query) => ipcRenderer.invoke('search-files', baseDir, query),
@@ -45,6 +48,12 @@ contextBridge.exposeInMainWorld("apps",{
     searchApps: (query) => ipcRenderer.invoke('search-apps', query),
     searchSettings: (query) => ipcRenderer.invoke('search-settings', query),
     searchCommands: (query) => ipcRenderer.invoke('search-commands', query),
+    getCustomCommands: () => ipcRenderer.invoke('get-custom-commands'),
+    addCustomCommand: (command) => ipcRenderer.invoke('add-custom-command', command),
+    removeCustomCommand: (name) => ipcRenderer.invoke('remove-custom-command', name),
+    importCommandsFile: () => ipcRenderer.invoke('import-commands-file'),
+    exportCommandsFile: () => ipcRenderer.invoke('export-commands-file'),
+    updateCustomCommand: (originalName, command) => ipcRenderer.invoke('update-custom-command', originalName, command),
 
     openApp:(app,admin=false) => ipcRenderer.invoke('launch-app', app,admin),
     openSetting:(setting)=>ipcRenderer.invoke('open-setting', setting),

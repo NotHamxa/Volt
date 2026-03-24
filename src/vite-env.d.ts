@@ -45,7 +45,10 @@ declare global {
             setOpenOnStartup:(enabled:boolean)=>Promise<boolean>;
             onUpdateProgress:(callback:(data:{percent:number})=>void)=>void;
             onUpdateDownloaded:(callback:()=>void)=>void;
+            onUpdateNotAvailable:(callback:()=>void)=>void;
             quitAndInstall:()=>void;
+            checkForUpdates:()=>Promise<boolean>;
+            getFolderFileCounts:()=>Promise<Record<string, number>>;
         };
         electronStore: {
             set: (key: string, value: any) => void;
@@ -56,7 +59,13 @@ declare global {
             searchApps: (query: string) => Promise<SearchQueryT[]>;
             searchSettings: (query: string) => Promise<SearchQueryT[]>;
             searchCommands: (query: string) => Promise<SearchQueryT[]>;
-            openApp: (app: SearchQueryT,admin=false) => Promise<boolean>;
+            getCustomCommands: () => Promise<SearchQueryT[]>;
+            addCustomCommand: (command: SearchQueryT) => Promise<SearchQueryT[]>;
+            removeCustomCommand: (name: string) => Promise<SearchQueryT[]>;
+            importCommandsFile: () => Promise<SearchQueryT[] | null>;
+            exportCommandsFile: () => Promise<boolean>;
+            updateCustomCommand: (originalName: string, command: SearchQueryT) => Promise<SearchQueryT[] | null>;
+            openApp: (app: SearchQueryT,admin?:boolean) => Promise<boolean>;
             openSettings: (settings: string) => Promise<boolean>;
             getAppLogo:(app: SearchQueryT) => Promise<string>;
             getUwpAppLogo:(app:SearchQueryT) => Promise<string>;
@@ -69,7 +78,7 @@ declare global {
             openInExplorer:(path: string) => void;
             openFileWith:(path: string) => void;
             cacheFolder:(path: string) => Promise<boolean>;
-            getImageB64:(path,width=50)=>Promise<string | null>;
+            getImageB64:(path:string,width?:number)=>Promise<string | null>;
         }
     }
 }

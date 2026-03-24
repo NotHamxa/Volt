@@ -40,12 +40,18 @@ function SearchQueryFilter({filters,setFilters}:SearchQueryFilterT) {
         );
     }
 
+    const activeCount = filters.filter(Boolean).length;
+    const totalCount = filters.length;
+
     return (
-        <div className="mr-2.5">
+        <div className="mr-2.5 shrink-0">
             <DropdownMenu>
                 <DropdownMenuTrigger>
-                    <div className="hover:bg-white/10 rounded cursor-pointer transition-colors text-white">
-                        <SlidersHorizontal size={24}/>
+                    <div className="flex items-center gap-1.5 px-2 py-1 hover:bg-white/10 rounded-lg cursor-pointer transition-colors text-white/50 hover:text-white/70">
+                        <SlidersHorizontal size={15}/>
+                        {activeCount < totalCount && (
+                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-white/10 text-white/50">{activeCount}</span>
+                        )}
                     </div>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>

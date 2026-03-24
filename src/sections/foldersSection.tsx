@@ -58,13 +58,13 @@ export default function FoldersSection() {
                     <h2 className="text-[22px] font-semibold text-white tracking-[-0.03em] mb-1.5">Search Index</h2>
                     <p className="text-white/40 text-[13px]">
                         Add folders to make their contents searchable instantly.
-                        {cachedFolders.length > 0 && (
-                            <span className="ml-2 text-white/25">
-                                {cachedFolders.length} folder{cachedFolders.length !== 1 ? "s" : ""} indexed
-                                {totalFiles > 0 && <span> &middot; {totalFiles.toLocaleString()} files</span>}
-                            </span>
-                        )}
                     </p>
+                    {cachedFolders.length > 0 && (
+                        <p className="text-white/25 text-[12px] mt-1">
+                            {cachedFolders.length} folder{cachedFolders.length !== 1 ? "s" : ""} indexed
+                            {totalFiles > 0 && <span> &middot; {totalFiles.toLocaleString()} files</span>}
+                        </p>
+                    )}
                 </div>
                 <Button onClick={onAddFolder} className="bg-white text-black hover:bg-white/90 rounded-xl px-5 h-9 text-[13px] font-medium transition-all active:scale-95">
                     <Plus size={18} className="mr-2" />

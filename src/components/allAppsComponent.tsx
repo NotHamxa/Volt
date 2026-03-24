@@ -1,5 +1,5 @@
 import {SearchQueryT} from "@/interfaces/searchQuery.ts";
-import {useEffect, useState} from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 import {Button} from "@/components/ui/button.tsx";
 import {AppWindowIcon, ChevronLeft, FolderOpen, Pin, PinOff, ShieldCheck, Trash2} from "lucide-react";
 import {ScrollArea} from "@/components/ui/scroll-area.tsx";
@@ -11,16 +11,7 @@ import {
     ContextMenuTrigger
 } from "@/components/ui/context-menu.tsx";
 import {Label} from "@/components/ui/label.tsx";
-
-const isSameApp = (a: SearchQueryT, b: SearchQueryT) => {
-    return (
-        a.appId === b.appId &&
-        a.path === b.path &&
-        a.name === b.name &&
-        a.type === b.type &&
-        a.source === b.source
-    );
-};
+import {isSameApp} from "@/utils/appUtils.ts";
 
 interface IAllAppsComponent {
     setStage: (n: number) => void;
@@ -145,10 +136,33 @@ function App({app,pinnedApps,pinApp,unPinApp}:IApp) {
 
 
 export default function AllApps({setStage, apps,pinnedApps,pinApp,unPinApp}:IAllAppsComponent) {
+    const scrollRef = useRef<HTMLDivElement>(null);
+
+    const grouped = useMemo(() =>
+        Object.entries(
+            apps.reduce((acc: { [key: string]: SearchQueryT[] }, app) => {
+                const firstLetter = app.name[0]?.toUpperCase() || "#";
+                if (!acc[firstLetter]) acc[firstLetter] = [];
+                acc[firstLetter].push(app);
+                return acc;
+            }, {})
+        ).sort(([a], [b]) => a.localeCompare(b)),
+    [apps]);
+
+    const letters = useMemo(() => grouped.map(([l]) => l), [grouped]);
+
+    const scrollToLetter = (letter: string) => {
+        const el = scrollRef.current?.querySelector(`[data-letter="${letter}"]`);
+        el?.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+
     return (
         <div className="h-full flex flex-col">
             <div className="flex items-center justify-between pr-[10px]">
-                <span className="mx-3 text-[11px] font-semibold tracking-[0.1em] uppercase text-white/25">All Apps</span>
+                <div className="flex items-center gap-2">
+                    <span className="mx-3 text-[11px] font-semibold tracking-[0.1em] uppercase text-white/25">All Apps</span>
+                    <span className="text-[10px] text-white/15">{apps.length}</span>
+                </div>
                 <Button
                     variant="ghost"
                     className="text-white/40 hover:text-white/70 px-2.5 py-1 h-auto text-xs rounded-lg flex items-center gap-1 transition-colors duration-150 bg-white/5 border border-white/8"
@@ -160,17 +174,10 @@ export default function AllApps({setStage, apps,pinnedApps,pinApp,unPinApp}:IAll
                     Back
                 </Button>
             </div>
-            <ScrollArea className="w-full h-[400px] px-4">
-                {Object.entries(
-                    apps.reduce((acc: { [key: string]: SearchQueryT[] }, app) => {
-                        const firstLetter = app.name[0].toUpperCase();
-                        if (!acc[firstLetter]) acc[firstLetter] = [];
-                        acc[firstLetter].push(app);
-                        return acc;
-                    }, {})
-                ).sort(([a], [b]) => a.localeCompare(b))
-                    .map(([letter, group]) => (
-                        <div key={letter} className="mb-4">
+            <div className="flex flex-1 min-h-0">
+                <ScrollArea className="w-full h-[400px] px-4" ref={scrollRef}>
+                    {grouped.map(([letter, group]) => (
+                        <div key={letter} className="mb-4" data-letter={letter}>
                             <div className="font-semibold text-white/20 text-[11px] tracking-[0.08em] uppercase mb-1.5 pl-2">
                                 {letter}
                             </div>
@@ -183,11 +190,22 @@ export default function AllApps({setStage, apps,pinnedApps,pinApp,unPinApp}:IAll
                                         unPinApp={unPinApp}
                                     />
                                 </div>
-
                             ))}
                         </div>
                     ))}
-            </ScrollArea>
+                </ScrollArea>
+                <div className="flex flex-col items-center justify-center gap-0.5 pr-1 py-2">
+                    {letters.map(l => (
+                        <button
+                            key={l}
+                            onClick={() => scrollToLetter(l)}
+                            className="text-[9px] text-white/20 hover:text-white/60 w-4 h-3.5 flex items-center justify-center rounded transition-colors"
+                        >
+                            {l}
+                        </button>
+                    ))}
+                </div>
+            </div>
         </div>
     )
 }

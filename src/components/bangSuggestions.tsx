@@ -1,7 +1,11 @@
 import {useEffect, useState} from "react";
 import {handleBangs, handleHistoryItem} from "@/scripts/bangs.ts";
 import {SearchHistoryT} from "@/interfaces/history.ts";
-import {X} from "lucide-react";
+import {X, Globe} from "lucide-react";
+
+function sanitizeSuggestion(html: string): string {
+    return html.replace(/<\/?(?!b\b)[^>]*>/gi, "");
+}
 
 type BangSuggestionItemProps = {
     suggestion: string;
@@ -40,7 +44,7 @@ export default function BangSuggestions({bang, setQuery, selfQueryChanged}: IBan
                         : suggestion !== "" ? "hover:bg-white/10" : ""
                 }`}
             >
-                <label dangerouslySetInnerHTML={{ __html: suggestion }} />
+                <label dangerouslySetInnerHTML={{ __html: sanitizeSuggestion(suggestion) }} />
             </div>
         );
     }
@@ -272,8 +276,10 @@ export default function BangSuggestions({bang, setQuery, selfQueryChanged}: IBan
         <div className="w-full h-full px-4">
             {(bang === "" || isHistory) ? (
                 searchHistory.length === 0 ? (
-                    <div className="flex justify-center items-center h-full w-full text-white/20 text-[13px]">
-                        No recent searches
+                    <div className="flex flex-col justify-center items-center h-full w-full gap-3">
+                        <Globe size={28} className="text-white/10" strokeWidth={1.5} />
+                        <p className="text-white/20 text-[13px]">No recent searches</p>
+                        <p className="text-white/10 text-[11px]">Your web search history will appear here</p>
                     </div>
                 ) : (
                     searchHistory.slice(0,11).map((item, index) => (

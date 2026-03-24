@@ -49,6 +49,7 @@ declare global {
             quitAndInstall:()=>void;
             checkForUpdates:()=>Promise<boolean>;
             getFolderFileCounts:()=>Promise<Record<string, number>>;
+            getUpdateModalInfo:()=>Promise<{show:boolean; previousVersion?:string; currentVersion?:string}>;
         };
         electronStore: {
             set: (key: string, value: any) => void;

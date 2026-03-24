@@ -6,6 +6,7 @@ import SearchQueryFilter from "@/components/searchQueryFilter.tsx";
 import { getBangData } from "@/scripts/bangs.ts";
 import { BangData } from "@/interfaces/bang.ts";
 import { SearchQueryT } from "@/interfaces/searchQuery.ts";
+import { isSameApp } from "@/utils/appUtils.ts";
 
 export type MainLayoutContext = {
     apps: SearchQueryT[];
@@ -17,9 +18,6 @@ export type MainLayoutContext = {
     searchFilters: boolean[];
     setSearchFilters: React.Dispatch<React.SetStateAction<boolean[]>>;
 };
-
-const isSameApp = (a: SearchQueryT, b: SearchQueryT) =>
-    a.appId === b.appId && a.path === b.path && a.name === b.name && a.type === b.type && a.source === b.source;
 
 interface MainLayoutProps {
     inputRef: React.RefObject<HTMLInputElement | null>;
@@ -108,9 +106,26 @@ export default function MainLayout({ inputRef, stage, query, setQuery, selfQuery
 
     function SwitchModes() {
         return (
-            <div className="flex items-center space-x-2 text-white/25 text-sm">
-                <span>{stage === 1 ? "Web" : "Files"}</span>
-                <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-white/[0.07] border border-white/10">
+            <div className="flex items-center gap-2 shrink-0">
+                <div className="relative flex items-center bg-white/[0.05] rounded-lg p-0.5 border border-white/[0.08]">
+                    <div
+                        className="absolute h-[calc(100%-4px)] w-[calc(50%-2px)] rounded-md bg-white/[0.12] transition-transform duration-200 ease-out"
+                        style={{ transform: stage === 1 ? 'translateX(2px)' : 'translateX(calc(100% + 2px))' }}
+                    />
+                    <button
+                        onClick={() => inputRef.current?.focus()}
+                        className={`relative z-10 px-2.5 py-1 text-[10px] font-medium rounded-md transition-colors duration-150 ${stage === 1 ? 'text-white/70' : 'text-white/25'}`}
+                    >
+                        Files
+                    </button>
+                    <button
+                        onClick={() => inputRef.current?.focus()}
+                        className={`relative z-10 px-2.5 py-1 text-[10px] font-medium rounded-md transition-colors duration-150 ${stage === 2 ? 'text-white/70' : 'text-white/25'}`}
+                    >
+                        Web
+                    </button>
+                </div>
+                <span className="inline-flex items-center px-1.5 py-0.5 text-[9px] rounded-md bg-white/[0.05] border border-white/[0.08] text-white/20">
                     Tab
                 </span>
             </div>

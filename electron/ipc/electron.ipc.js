@@ -67,4 +67,12 @@ export function registerElectronIpc({ hideMainWindow, cache, store }) {
         checkForUpdates();
         return true;
     });
+
+    ipcMain.handle("get-update-modal-info", () => {
+        if (cache.showUpdateModal) {
+            cache.showUpdateModal = false;
+            return { show: true, previousVersion: cache.previousVersion, currentVersion: app.getVersion() };
+        }
+        return { show: false };
+    });
 }

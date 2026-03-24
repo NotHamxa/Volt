@@ -8,6 +8,7 @@ import {ContextMenu,
 import {AppWindowIcon, FolderOpen, PinOff, ShieldCheck, Trash2} from "lucide-react";
 import {useSortable} from "@dnd-kit/sortable";
 import {CSS} from "@dnd-kit/utilities";
+import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip.tsx";
 interface IPinnedApp {
     app: SearchQueryT;
     unPinApp: (app: SearchQueryT) => void;
@@ -54,19 +55,29 @@ function PinnedApp({app, unPinApp}: IPinnedApp) {
     return (
         <ContextMenu>
             <ContextMenuTrigger>
-                <button
-                    className="flex items-center justify-start w-[100px] h-[90px] bg-transparent rounded-lg transition-all duration-300 cursor-pointer flex-col overflow-hidden text-center select-none pt-[5px] hover:bg-[#353737] active:scale-95"
-                    onClick={async () => {
-                        await window.apps.openApp(app);
-                    }}
-                >
-                    {logo ? (
-                        <img className="w-9 h-9 object-contain" src={logo}/>
-                    ) : (
-                        <AppWindowIcon size={36}/>
-                    )}
-                    <label className="mt-2 text-[12px]">{app.name}</label>
-                </button>
+                <TooltipProvider delayDuration={500}>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <button
+                                aria-label={`Open ${app.name}`}
+                                className="flex items-center justify-start w-[100px] h-[90px] bg-transparent rounded-lg transition-all duration-300 cursor-pointer flex-col overflow-hidden text-center select-none pt-[5px] hover:bg-[#353737] active:scale-95"
+                                onClick={async () => {
+                                    await window.apps.openApp(app);
+                                }}
+                            >
+                                {logo ? (
+                                    <img className="w-9 h-9 object-contain" src={logo}/>
+                                ) : (
+                                    <AppWindowIcon size={36}/>
+                                )}
+                                <label className="mt-2 text-[12px] max-w-[90px] truncate">{app.name}</label>
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="bg-[rgba(24,24,27,0.98)] border border-white/10 text-white/70 text-[11px]">
+                            {app.name}
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
             </ContextMenuTrigger>
             <ContextMenuContent>
                 <ContextMenuItem onClick={() => unPinApp(app)}>

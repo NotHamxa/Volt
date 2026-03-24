@@ -2,6 +2,7 @@ import {ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger} fr
 import {LinkShortcutType} from "@/interfaces/links.ts";
 import {useEffect, useState} from "react";
 import {AppWindowIcon} from "lucide-react";
+import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip.tsx";
 import {useSortable} from "@dnd-kit/sortable";
 import {CSS} from "@dnd-kit/utilities";
 import {Kbd} from "@/components/ui/kbd.tsx";
@@ -52,36 +53,44 @@ function PinnedLinks({ link, removeLink, setEditLink, index }: IPinnedLinks) {
     return (
         <ContextMenu>
             <ContextMenuTrigger asChild>
-                <div className="relative group flex items-center justify-center w-[100px] h-20">
-                    {showKbd && (
-                        <div className="absolute top-1 right-1.5 shadow-md transition">
-                            <Kbd className="text-xs">{index + 1}</Kbd>
-                        </div>
-                    )}
-                    <button
-                        className="w-full h-full flex flex-col items-center justify-start pt-1 rounded-lg text-center transition-all duration-200 cursor-pointer select-none hover:bg-[#353737] active:scale-95"
-                        onClick={() => window.electron.openExternal(shortcut)}
-                    >
-                        {favicon ? (
-                            <img
-                                src={favicon}
-                                alt={`${name} favicon`}
-                                className="w-8 h-8 mb-1"
-                            />
-                        ) : (
-                            <AppWindowIcon size={40} />
-                        )}
-                        <span className="text-sm">{name}</span>
-                    </button>
-                    <button
-                        className="absolute top-1 right-1 p-1 rounded hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                        }}
-                    ></button>
-                </div>
-
+                <TooltipProvider delayDuration={500}>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <div className="relative group flex items-center justify-center w-[100px] h-20">
+                                {showKbd && (
+                                    <div className="absolute top-1 right-1.5 shadow-md transition">
+                                        <Kbd className="text-xs">{index + 1}</Kbd>
+                                    </div>
+                                )}
+                                <button
+                                    className="w-full h-full flex flex-col items-center justify-start pt-1 rounded-lg text-center transition-all duration-200 cursor-pointer select-none hover:bg-[#353737] active:scale-95"
+                                    onClick={() => window.electron.openExternal(shortcut)}
+                                >
+                                    {favicon ? (
+                                        <img
+                                            src={favicon}
+                                            alt={`${name} favicon`}
+                                            className="w-8 h-8 mb-1"
+                                        />
+                                    ) : (
+                                        <AppWindowIcon size={40} />
+                                    )}
+                                    <span className="text-sm">{name}</span>
+                                </button>
+                                <button
+                                    className="absolute top-1 right-1 p-1 rounded hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                    }}
+                                ></button>
+                            </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="bg-[rgba(24,24,27,0.98)] border border-white/10 text-white/70 text-[11px]">
+                            {shortcut}
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
             </ContextMenuTrigger>
             <ContextMenuContent className="z-50">
                 <ContextMenuItem

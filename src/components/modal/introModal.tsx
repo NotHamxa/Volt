@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, ReactNode, Dispatch, SetStateAction } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import {ChevronRight, ChevronLeft, Search, Pin, Folder, Globe, Hash, Command, Link} from "lucide-react";
+import {ChevronRight, ChevronLeft, Search, Pin, Folder, Globe, Hash, Command, Link, Terminal, FileUp} from "lucide-react";
 
 import logo from "@/assets/icon.png";
 function ScrollIndicator({ visible }: { visible: boolean }) {
@@ -31,18 +31,20 @@ function ScrollIndicator({ visible }: { visible: boolean }) {
     );
 }
 
-function PageDots({ total, current }: { total: number; current: number }) {
+function PageDots({ total, current, onDotClick }: { total: number; current: number; onDotClick: (index: number) => void }) {
     return (
         <div className="flex flex-col items-center gap-1.5">
             {Array.from({ length: total }).map((_, i) => (
-                <motion.div
+                <motion.button
                     key={i}
+                    onClick={() => onDotClick(i)}
                     animate={{
                         height: i === current ? 20 : 6,
                         opacity: i === current ? 1 : i < current ? 0.3 : 0.15,
                     }}
                     transition={{ duration: 0.3, ease: "easeInOut" }}
-                    className="w-0.75 rounded-full bg-white"
+                    className="w-1.5 rounded-full bg-white cursor-pointer hover:opacity-80 p-0 border-0"
+                    aria-label={`Go to page ${i + 1}`}
                 />
             ))}
         </div>
@@ -122,6 +124,7 @@ const PAGES: ReactNode[] = [
                 { label: "Files & Folders", dim: "From your indexed directories" },
                 { label: "System Commands", dim: "Shutdown, restart, display modes…" },
                 { label: "Settings", dim: "Jump straight to Windows settings" },
+                { label: "Custom Commands", dim: "Your own shell commands" },
             ].map(({ label, dim }) => (
                 <div
                     key={label}
@@ -177,6 +180,32 @@ const PAGES: ReactNode[] = [
         <Callout>
             <Search size={13} className="mt-0.5 shrink-0 text-white/30" strokeWidth={1.5} />
             <span>Set this up in <span className="text-white/60">Settings → Search Index</span>.</span>
+        </Callout>
+    </IntroPage>,
+
+    <IntroPage>
+        <div>
+            <p className="text-[11px] uppercase tracking-widest text-white/20 mb-2">Commands</p>
+            <h2 className="text-[22px] font-semibold text-white leading-tight tracking-[-0.03em]">
+                Run shell commands
+            </h2>
+        </div>
+        <p className="text-[13px] text-white/40 leading-relaxed">
+            Add your own shell commands to Volt and run them directly from the search bar — no terminal needed.
+        </p>
+        <FeatureRow
+            icon={Terminal}
+            title="Custom commands"
+            desc="Type a command name in search, hit Enter, and it runs. Optionally require confirmation before executing."
+        />
+        <FeatureRow
+            icon={FileUp}
+            title="Import & export"
+            desc="Share your command set as a JSON file, or import commands from someone else."
+        />
+        <Callout>
+            <Terminal size={13} className="mt-0.5 shrink-0 text-white/30" strokeWidth={1.5} />
+            <span>Manage commands in <span className="text-white/60">Settings → Commands</span>.</span>
         </Callout>
     </IntroPage>,
 
@@ -306,7 +335,7 @@ export function IntroModal({ open, setOpen }: IntroModalProps) {
                 >
                     {!isLanding && (
                         <div className="absolute right-5 top-1/2 -translate-y-1/2 z-10">
-                            <PageDots total={PAGES.length} current={step} />
+                            <PageDots total={PAGES.length} current={step} onDotClick={(i) => go(i)} />
                         </div>
                     )}
 

@@ -15,6 +15,17 @@ export async function loadFileData(cache){
         store.set("showIntroModal","true")
     }
 
+    // Detect version change (update happened)
+    const storedVersion = store.get("version");
+    const currentVersion = app.getVersion();
+    if (storedVersion && storedVersion !== currentVersion && !cache.firstTimeExperience) {
+        cache.showUpdateModal = true;
+        cache.previousVersion = storedVersion;
+        store.set("version", currentVersion);
+    } else {
+        cache.showUpdateModal = false;
+    }
+
     if (cache.firstTimeExperience) {
         const desktopPath = app.getPath("desktop");
         const downloadsPath = app.getPath("downloads");
@@ -23,7 +34,7 @@ export async function loadFileData(cache){
         store.set("cachedFolders", JSON.stringify(cache.cachedFolders));
         store.set("showIntroModal","true")
         store.set("firstTimeExperience", false);
-        store.set("version", app.getVersion())
+        store.set("version", currentVersion)
         if (process.env.NODE_ENV !== "development") {
             app.setLoginItemSettings({ openAtLogin: true });
             store.set("openOnStartup", true);

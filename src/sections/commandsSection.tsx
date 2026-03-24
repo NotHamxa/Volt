@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button.tsx";
-import { Plus, Trash, Terminal, FileUp, FileDown, Pencil, Search, X, Check } from "lucide-react";
+import { Plus, Trash, Terminal, FileUp, FileDown, FileJson, Pencil, Search, X, Check } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { SearchQueryT } from "@/interfaces/searchQuery.ts";
 
@@ -31,13 +31,13 @@ export default function CommandsSection() {
     const [loading, setLoading] = useState(true);
     const [showAddForm, setShowAddForm] = useState(false);
     const [name, setName] = useState("");
-    const [path, setPath] = useState("");
+    const [script, setScript] = useState("");
     const [requireConfirm, setRequireConfirm] = useState(false);
     const [removing, setRemoving] = useState<string | null>(null);
     const [filter, setFilter] = useState("");
     const [editingCmd, setEditingCmd] = useState<string | null>(null);
     const [editName, setEditName] = useState("");
-    const [editPath, setEditPath] = useState("");
+    const [editScript, setEditScript] = useState("");
     const [editConfirm, setEditConfirm] = useState(false);
 
     const loadCommands = async () => {
@@ -51,20 +51,20 @@ export default function CommandsSection() {
     }, []);
 
     const handleAdd = async () => {
-        if (!name.trim() || !path.trim()) {
-            window.electron.notify("Missing Fields", "Both name and command are required.");
+        if (!name.trim() || !script.trim()) {
+            window.electron.notify("Missing Fields", "Both name and script are required.");
             return;
         }
         const command: SearchQueryT = {
             name: name.trim(),
             type: requireConfirm ? "commandConfirm" : "command",
             appId: "",
-            path: path.trim(),
+            path: script.trim(),
             source: "custom"
         };
         await window.apps.addCustomCommand(command);
         setName("");
-        setPath("");
+        setScript("");
         setRequireConfirm(false);
         setShowAddForm(false);
         await loadCommands();
@@ -78,7 +78,15 @@ export default function CommandsSection() {
         setRemoving(null);
     };
 
-    const handleImport = async () => {
+    const handleImportScript = async () => {
+        const result = await window.apps.importScriptFile();
+        if (!result) return;
+        setName(result.fileName);
+        setScript(result.content);
+        setShowAddForm(true);
+    };
+
+    const handleImportJson = async () => {
         const imported = await window.apps.importCommandsFile();
         if (imported) {
             await loadCommands();
@@ -96,7 +104,7 @@ export default function CommandsSection() {
     const startEdit = (cmd: SearchQueryT) => {
         setEditingCmd(cmd.name);
         setEditName(cmd.name);
-        setEditPath(cmd.path || "");
+        setEditScript(cmd.path || "");
         setEditConfirm(cmd.type === "commandConfirm");
     };
 
@@ -105,12 +113,12 @@ export default function CommandsSection() {
     };
 
     const saveEdit = async () => {
-        if (!editName.trim() || !editPath.trim()) return;
+        if (!editName.trim() || !editScript.trim()) return;
         const updated: SearchQueryT = {
             name: editName.trim(),
             type: editConfirm ? "commandConfirm" : "command",
             appId: "",
-            path: editPath.trim(),
+            path: editScript.trim(),
             source: "custom"
         };
         await window.apps.updateCustomCommand(editingCmd!, updated);
@@ -124,26 +132,32 @@ export default function CommandsSection() {
 
     return (
         <div className="space-y-8">
-            <div className="flex items-end justify-between">
-                <div>
-                    <h2 className="text-[22px] font-semibold text-white tracking-[-0.03em] mb-1.5">Commands</h2>
-                    <p className="text-white/40 text-[13px]">Add custom shell commands that appear in search results.</p>
+            <div>
+                <div className="flex items-end justify-between mb-4">
+                    <div>
+                        <h2 className="text-[22px] font-semibold text-white tracking-[-0.03em] mb-1.5">Commands</h2>
+                        <p className="text-white/40 text-[13px]">Add custom shell commands and scripts that appear in search results.</p>
+                    </div>
+                    <Button onClick={() => setShowAddForm(!showAddForm)} className="bg-white text-black hover:bg-white/90 rounded-xl px-5 h-9 text-[13px] font-medium transition-all active:scale-95 shrink-0">
+                        <Plus size={18} className="mr-2" />
+                        Add Command
+                    </Button>
                 </div>
                 <div className="flex gap-2">
+                    <Button onClick={handleImportScript} variant="outline" className="border-white/10 hover:bg-white/8 hover:border-white/15 rounded-xl px-4 h-9 text-[13px] font-medium transition-all active:scale-95 text-white/60 hover:text-white/80">
+                        <FileUp size={16} className="mr-2" />
+                        Import Script
+                    </Button>
+                    <Button onClick={handleImportJson} variant="outline" className="border-white/10 hover:bg-white/8 hover:border-white/15 rounded-xl px-4 h-9 text-[13px] font-medium transition-all active:scale-95 text-white/60 hover:text-white/80">
+                        <FileJson size={16} className="mr-2" />
+                        Import JSON
+                    </Button>
                     {commands.length > 0 && (
                         <Button onClick={handleExport} variant="outline" className="border-white/10 hover:bg-white/8 hover:border-white/15 rounded-xl px-4 h-9 text-[13px] font-medium transition-all active:scale-95 text-white/60 hover:text-white/80">
                             <FileDown size={16} className="mr-2" />
                             Export
                         </Button>
                     )}
-                    <Button onClick={handleImport} variant="outline" className="border-white/10 hover:bg-white/8 hover:border-white/15 rounded-xl px-4 h-9 text-[13px] font-medium transition-all active:scale-95 text-white/60 hover:text-white/80">
-                        <FileUp size={16} className="mr-2" />
-                        Import
-                    </Button>
-                    <Button onClick={() => setShowAddForm(!showAddForm)} className="bg-white text-black hover:bg-white/90 rounded-xl px-5 h-9 text-[13px] font-medium transition-all active:scale-95">
-                        <Plus size={18} className="mr-2" />
-                        Add Command
-                    </Button>
                 </div>
             </div>
 
@@ -160,13 +174,13 @@ export default function CommandsSection() {
                         />
                     </div>
                     <div className="space-y-2">
-                        <label className="text-[12px] font-medium text-white/50 uppercase tracking-wider">Shell Command</label>
-                        <input
-                            type="text"
-                            value={path}
-                            onChange={e => setPath(e.target.value)}
-                            placeholder='e.g. del /q /f %temp%\*'
-                            className="w-full h-9 px-3 rounded-lg bg-white/[0.06] border border-white/10 text-[13px] text-white/80 font-mono placeholder:text-white/20 focus:outline-none focus:border-white/20 transition-colors"
+                        <label className="text-[12px] font-medium text-white/50 uppercase tracking-wider">Script / Command</label>
+                        <textarea
+                            value={script}
+                            onChange={e => setScript(e.target.value)}
+                            placeholder={'e.g. del /q /f %temp%\\*\n\nOr import a .ps1 / .bat file to paste its content here'}
+                            rows={5}
+                            className="w-full px-3 py-2.5 rounded-lg bg-white/[0.06] border border-white/10 text-[13px] text-white/80 font-mono placeholder:text-white/20 focus:outline-none focus:border-white/20 transition-colors resize-none leading-relaxed [scrollbar-width:thin]"
                         />
                     </div>
                     <div className="flex items-center justify-between pt-1">
@@ -223,28 +237,26 @@ export default function CommandsSection() {
                     <div className="py-12 text-center rounded-2xl border border-dashed border-white/[0.07]">
                         <Terminal className="mx-auto text-white/15 mb-4" size={36} strokeWidth={1} />
                         <p className="text-white/25 text-[13px]">No custom commands yet.</p>
-                        <p className="text-white/15 text-[12px] mt-1">Add commands or import from a JSON file.</p>
+                        <p className="text-white/15 text-[12px] mt-1">Add commands or import a script file.</p>
                     </div>
                 ) : (
                     filtered.map((cmd, index) => (
                         editingCmd === cmd.name ? (
                             <div key={index} className="p-4 rounded-xl bg-white/[0.04] border border-white/[0.12] space-y-3">
-                                <div className="flex gap-3">
-                                    <input
-                                        type="text"
-                                        value={editName}
-                                        onChange={e => setEditName(e.target.value)}
-                                        className="flex-1 h-8 px-3 rounded-lg bg-white/[0.06] border border-white/10 text-[13px] text-white/80 focus:outline-none focus:border-white/20 transition-colors"
-                                        placeholder="Name"
-                                    />
-                                    <input
-                                        type="text"
-                                        value={editPath}
-                                        onChange={e => setEditPath(e.target.value)}
-                                        className="flex-[2] h-8 px-3 rounded-lg bg-white/[0.06] border border-white/10 text-[13px] text-white/80 font-mono focus:outline-none focus:border-white/20 transition-colors"
-                                        placeholder="Command"
-                                    />
-                                </div>
+                                <input
+                                    type="text"
+                                    value={editName}
+                                    onChange={e => setEditName(e.target.value)}
+                                    className="w-full h-8 px-3 rounded-lg bg-white/[0.06] border border-white/10 text-[13px] text-white/80 focus:outline-none focus:border-white/20 transition-colors"
+                                    placeholder="Name"
+                                />
+                                <textarea
+                                    value={editScript}
+                                    onChange={e => setEditScript(e.target.value)}
+                                    className="w-full px-3 py-2 rounded-lg bg-white/[0.06] border border-white/10 text-[13px] text-white/80 font-mono focus:outline-none focus:border-white/20 transition-colors resize-none leading-relaxed [scrollbar-width:thin]"
+                                    placeholder="Script / Command"
+                                    rows={4}
+                                />
                                 <div className="flex items-center justify-between">
                                     <label className="flex items-center gap-2 cursor-pointer">
                                         <button
@@ -284,7 +296,7 @@ export default function CommandsSection() {
                                                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400/70 font-medium">confirm</span>
                                             )}
                                         </div>
-                                        <span className="text-[11px] text-white/25 font-mono truncate block">{cmd.path}</span>
+                                        <span className="text-[11px] text-white/25 font-mono truncate block">{(cmd.path || "").split("\n")[0]}{(cmd.path || "").includes("\n") ? " …" : ""}</span>
                                     </div>
                                 </div>
                                 <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -306,8 +318,8 @@ export default function CommandsSection() {
 
             <div className="pt-4 border-t border-white/5">
                 <p className="text-[11px] text-white/20 leading-relaxed">
-                    Import format: a JSON array of objects with <code className="text-white/30">name</code> and <code className="text-white/30">path</code> fields.
-                    Optionally set <code className="text-white/30">type</code> to <code className="text-white/30">"commandConfirm"</code> for confirmation prompts.
+                    Import a <code className="text-white/30">.ps1</code>, <code className="text-white/30">.bat</code>, or <code className="text-white/30">.cmd</code> file to auto-fill the script content.
+                    Multi-line scripts are fully supported.
                 </p>
             </div>
         </div>

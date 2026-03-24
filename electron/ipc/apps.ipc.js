@@ -9,7 +9,9 @@ import {addCustomCommand, removeCustomCommand, getCustomCommands, importCustomCo
 import fs from "fs";
 
 export function registerAppsIpc({
+                                    mainWindow,
                                     cache,
+                                    appStates,
                                     hideMainWindow,
                                     store,
                                 }) {
@@ -37,11 +39,44 @@ export function registerAppsIpc({
         return removeCustomCommand(cache, store, commandName);
     });
 
+    ipcMain.handle("import-script-file", async () => {
+        appStates.fixWindowOpen = true;
+        appStates.dialogOpen = true;
+        mainWindow.setAlwaysOnTop(false);
+        const result = await dialog.showOpenDialog({
+            properties: ["openFile"],
+            filters: [
+                { name: "Scripts", extensions: ["ps1", "bat", "cmd", "sh", "vbs"] },
+                { name: "All Files", extensions: ["*"] }
+            ]
+        });
+        mainWindow.setAlwaysOnTop(true);
+        mainWindow.focus();
+        appStates.dialogOpen = false;
+        appStates.fixWindowOpen = false;
+        if (result.canceled || !result.filePaths.length) return null;
+        try {
+            const filePath = result.filePaths[0];
+            const content = fs.readFileSync(filePath, "utf-8");
+            const fileName = filePath.replace(/\\/g, "/").split("/").pop().replace(/\.[^.]+$/, "");
+            return { content, fileName, filePath };
+        } catch {
+            return null;
+        }
+    });
+
     ipcMain.handle("import-commands-file", async () => {
+        appStates.fixWindowOpen = true;
+        appStates.dialogOpen = true;
+        mainWindow.setAlwaysOnTop(false);
         const result = await dialog.showOpenDialog({
             properties: ["openFile"],
             filters: [{ name: "JSON Files", extensions: ["json"] }]
         });
+        mainWindow.setAlwaysOnTop(true);
+        mainWindow.focus();
+        appStates.dialogOpen = false;
+        appStates.fixWindowOpen = false;
         if (result.canceled || !result.filePaths.length) return null;
         try {
             const content = fs.readFileSync(result.filePaths[0], "utf-8");

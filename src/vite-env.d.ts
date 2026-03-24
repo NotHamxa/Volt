@@ -63,6 +63,7 @@ declare global {
             getCustomCommands: () => Promise<SearchQueryT[]>;
             addCustomCommand: (command: SearchQueryT) => Promise<SearchQueryT[]>;
             removeCustomCommand: (name: string) => Promise<SearchQueryT[]>;
+            importScriptFile: () => Promise<{content: string; fileName: string; filePath: string} | null>;
             importCommandsFile: () => Promise<SearchQueryT[] | null>;
             exportCommandsFile: () => Promise<boolean>;
             updateCustomCommand: (originalName: string, command: SearchQueryT) => Promise<SearchQueryT[] | null>;

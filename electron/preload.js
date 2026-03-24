@@ -52,6 +52,7 @@ contextBridge.exposeInMainWorld("apps",{
     getCustomCommands: () => ipcRenderer.invoke('get-custom-commands'),
     addCustomCommand: (command) => ipcRenderer.invoke('add-custom-command', command),
     removeCustomCommand: (name) => ipcRenderer.invoke('remove-custom-command', name),
+    importScriptFile: () => ipcRenderer.invoke('import-script-file'),
     importCommandsFile: () => ipcRenderer.invoke('import-commands-file'),
     exportCommandsFile: () => ipcRenderer.invoke('export-commands-file'),
     updateCustomCommand: (originalName, command) => ipcRenderer.invoke('update-custom-command', originalName, command),

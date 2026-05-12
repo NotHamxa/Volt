@@ -59,11 +59,18 @@ export default function ArgEntryBar({ command, initialValues, onRun, onCancel }:
 
     const handleKey = (e: React.KeyboardEvent<HTMLInputElement>, idx: number) => {
         if (e.key === "Enter") {
+            // Stop the native event from bubbling to any window-level listener
+            // that might be re-attached during the unmount/remount of the
+            // results pane (would otherwise re-fire the focused result and
+            // open the Google fallback after the command runs).
             e.preventDefault();
+            e.stopPropagation();
+            (e.nativeEvent as Event).stopImmediatePropagation?.();
             if (idx === args.length - 1) runIfReady();
             else focusSibling(idx, 1);
         } else if (e.key === "Tab") {
             e.preventDefault();
+            e.stopPropagation();
             focusSibling(idx, e.shiftKey ? -1 : 1);
         } else if (e.key === "Backspace" && (e.currentTarget.value === "") && idx === 0) {
             // Empty first field + backspace = back out of arg mode entirely.

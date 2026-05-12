@@ -49,6 +49,13 @@ export default function App() {
     const exitArgMode = () => {
         setArgCommand(null);
         setArgInitialValues(undefined);
+        // Clear the trailing query and route home so the remounted result
+        // list has nothing under focus — prevents a stray Enter from
+        // re-firing the Google fallback that the arg-bearing command name
+        // would otherwise fall back to.
+        setQuery("");
+        setStage(1);
+        navigate('/', { replace: true });
         setTimeout(() => inputRef.current?.focus(), 0);
     };
     const runArgCommand = (values: Record<string, string>) => {

@@ -183,6 +183,9 @@ const createWindow = async () => {
             nodeIntegration: false,
             contextIsolation: true,
             preload: path.join(__dirname, "preload.js"),
+            // Production builds: DevTools and its keyboard shortcuts
+            // (F12 / Ctrl+Shift+I) are unavailable. Stays on in dev.
+            devTools: process.env.NODE_ENV === "development",
         },
         titleBarStyle: "hidden",
         titleBarOverlay: false,

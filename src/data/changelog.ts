@@ -10,6 +10,26 @@ export interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
     {
+        version: "1.1.6",
+        date: "2026-05-13",
+        highlights: [
+            "Custom commands now accept arguments",
+            "Visible terminal output for scripts",
+            "Tips banner on the home view",
+        ],
+        sections: [
+            {
+                title: "New Features",
+                items: [
+                    "Custom commands support arguments — define named args with optional defaults and a required flag, reference them in the script with `{argName}`, and Volt prompts for values inline when you run the command",
+                    "Pass values inline by typing `commandName value1 \"value with spaces\"` in the search bar — only missing required args trigger the prompt",
+                    "Two new command types: Open in terminal and Open in terminal (with confirm) — spawns a visible cmd or PowerShell window so you can read the output",
+                    "\"Did you know?\" tip banner on the home view rotating through hidden features, plus a full Tips & Shortcuts page in Settings",
+                ],
+            },
+        ],
+    },
+    {
         version: "1.1.5",
         date: "2026-04-17",
         highlights: [

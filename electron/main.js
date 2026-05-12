@@ -9,6 +9,7 @@ import { initWindowFocusTracker, captureForegroundWindow, restoreForegroundWindo
 import chokidar from "chokidar";
 import os from "os";
 import {loadAppData, initStoreState, loadFolderCache, loadCommandsData, revalidateAppIcons} from "./utils/startup.js";
+import {sendInstallTelemetryIfNeeded} from "./utils/telemetry.js";
 import { registerIpc } from "./ipc/index.js";
 import {setupAutoUpdater} from "./utils/updater.js";
 import {createNotificationWindow} from "./utils/notification.js";
@@ -262,6 +263,10 @@ app.whenReady().then(async () => {
     if (process.env.NODE_ENV !== "development") {
         setupAutoUpdater(mainWindow);
     }
+
+    // One-time install ping. Retries on every launch until the server
+    // acknowledges — only then is the "sent" flag flipped in the store.
+    sendInstallTelemetryIfNeeded(store).catch(() => { /* swallowed */ });
 
     // Heavy caching in the background: the window is already dismissible.
     (async () => {

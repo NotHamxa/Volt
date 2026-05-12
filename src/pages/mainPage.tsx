@@ -7,6 +7,7 @@ import { getBangData } from "@/scripts/bangs.ts";
 import { BangData } from "@/interfaces/bang.ts";
 import { SearchQueryT } from "@/interfaces/searchQuery.ts";
 import { isSameApp } from "@/utils/appUtils.ts";
+import ArgEntryBar from "@/components/argEntryBar.tsx";
 
 export type MainLayoutContext = {
     apps: SearchQueryT[];
@@ -17,6 +18,7 @@ export type MainLayoutContext = {
     unPinApp: (app: SearchQueryT) => void;
     searchFilters: boolean[];
     setSearchFilters: React.Dispatch<React.SetStateAction<boolean[]>>;
+    enterArgMode: (item: SearchQueryT, initial?: Record<string, string>) => void;
 };
 
 interface MainLayoutProps {
@@ -25,9 +27,14 @@ interface MainLayoutProps {
     query: string;
     setQuery: React.Dispatch<React.SetStateAction<string>>;
     selfQueryChangedRef: React.MutableRefObject<boolean>;
+    argCommand: SearchQueryT | null;
+    argInitialValues?: Record<string, string>;
+    enterArgMode: (item: SearchQueryT, initial?: Record<string, string>) => void;
+    exitArgMode: () => void;
+    runArgCommand: (values: Record<string, string>) => void;
 }
 
-export default function MainLayout({ inputRef, stage, query, setQuery, selfQueryChangedRef }: MainLayoutProps) {
+export default function MainLayout({ inputRef, stage, query, setQuery, selfQueryChangedRef, argCommand, argInitialValues, enterArgMode, exitArgMode, runArgCommand }: MainLayoutProps) {
     const [bangData, setBangData] = useState<BangData | null>(null);
     const [searchFilters, setSearchFilters] = useState<boolean[]>([true, true, true, true, true]);
     const [apps, setApps] = useState<SearchQueryT[]>([]);
@@ -45,10 +52,12 @@ export default function MainLayout({ inputRef, stage, query, setQuery, selfQuery
             const entries = await Promise.all(
                 appsData.map(async (item) => {
                     let logo: string | undefined;
-                    if (item.path) {
-                        logo = await window.apps.getAppLogo(item);
+                    if (item.source === "Steam" && item.appId) {
+                        logo = await window.apps.getSteamGameLogo(item.appId) ?? undefined;
                     } else if (item.source === "UWP") {
                         logo = await window.apps.getUwpAppLogo(item);
+                    } else if (item.path) {
+                        logo = await window.apps.getAppLogo(item);
                     }
                     return [`${item.path ?? ""}|${item.appId ?? ""}`, logo] as const;
                 })
@@ -106,7 +115,7 @@ export default function MainLayout({ inputRef, stage, query, setQuery, selfQuery
 
     function SwitchModes() {
         return (
-            <div className="flex items-center gap-2 shrink-0">
+            <div data-walkthrough="mode-toggle" className="flex items-center gap-2 shrink-0">
                 <div className="relative flex items-center bg-white/[0.05] rounded-lg p-0.5 border border-white/[0.08]">
                     <div
                         className="absolute h-[calc(100%-4px)] w-[calc(50%-2px)] rounded-md bg-white/[0.12] transition-transform duration-200 ease-out"
@@ -141,49 +150,68 @@ export default function MainLayout({ inputRef, stage, query, setQuery, selfQuery
         unPinApp,
         searchFilters,
         setSearchFilters,
+        enterArgMode,
     };
 
     return (
         <>
-            <div className="flex flex-row gap-2.5 items-center px-5 border-b border-white/[0.07] mb-[5px]">
-                {faviconUrl && stage === 2
-                    ? <img src={faviconUrl} className="w-6 h-6" />
-                    : <Search size={20} className="text-white/30 shrink-0" />
-                }
-                <Input
-                    ref={inputRef}
-                    value={query}
-                    onChange={(e) => {
-                        selfQueryChangedRef.current = false;
-                        setQuery(e.target.value);
-                    }}
-                    onKeyDown={(e) => {
-                        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-                            e.preventDefault();
-                        }
-                    }}
-                    onBlur={() => {
-                        setTimeout(() => {
-                            const active = document.activeElement as HTMLElement | null;
-                            if (
-                                active &&
-                                (active.tagName === 'INPUT' ||
-                                 active.tagName === 'TEXTAREA' ||
-                                 active.closest('[role="dialog"]'))
-                            ) return;
-                            inputRef.current?.focus();
-                        }, 0);
-                    }}
-                    placeholder={stage === 1 ? "Search apps and documents" : "Search the web"}
-                    className="w-full my-2.5 block border-0 bg-transparent"
-                    autoFocus
+            {argCommand ? (
+                <ArgEntryBar
+                    command={argCommand}
+                    initialValues={argInitialValues}
+                    onRun={runArgCommand}
+                    onCancel={exitArgMode}
                 />
-                {!query && <SwitchModes />}
-                {isSearchRoute && query && (
-                    <SearchQueryFilter filters={searchFilters} setFilters={setSearchFilters} />
-                )}
-            </div>
-            <Outlet context={context} />
+            ) : (
+                <div data-walkthrough="search-input" className="flex flex-row gap-2.5 items-center px-5 border-b border-white/[0.07] mb-[5px]">
+                    {faviconUrl && stage === 2
+                        ? <img src={faviconUrl} className="w-6 h-6" />
+                        : <Search size={20} className="text-white/30 shrink-0" />
+                    }
+                    <Input
+                        ref={inputRef}
+                        value={query}
+                        onChange={(e) => {
+                            selfQueryChangedRef.current = false;
+                            setQuery(e.target.value);
+                        }}
+                        onKeyDown={(e) => {
+                            if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                                e.preventDefault();
+                            }
+                        }}
+                        onBlur={() => {
+                            setTimeout(() => {
+                                const active = document.activeElement as HTMLElement | null;
+                                if (
+                                    active &&
+                                    (active.tagName === 'INPUT' ||
+                                     active.tagName === 'TEXTAREA' ||
+                                     active.closest('[role="dialog"]'))
+                                ) return;
+                                inputRef.current?.focus();
+                            }, 0);
+                        }}
+                        placeholder={stage === 1 ? "Search apps and documents" : "Search the web"}
+                        className="w-full my-2.5 block border-0 bg-transparent"
+                        autoFocus
+                    />
+                    {!query && <SwitchModes />}
+                    {isSearchRoute && query && (
+                        <SearchQueryFilter filters={searchFilters} setFilters={setSearchFilters} />
+                    )}
+                </div>
+            )}
+            {argCommand ? (
+                <div className="flex-1 min-h-0 flex items-center justify-center px-8">
+                    <p className="text-[11px] text-white/30 text-center leading-relaxed">
+                        Filling arguments for <span className="text-white/55 font-medium">{argCommand.name}</span>.<br />
+                        Tab to move between fields. Enter to run. Esc to cancel.
+                    </p>
+                </div>
+            ) : (
+                <Outlet context={context} />
+            )}
         </>
     );
 }

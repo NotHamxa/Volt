@@ -7,9 +7,11 @@ export async function launchApp(app,admin) {
     if (!app) return false;
     try {
         let appLaunchStack = JSON.parse((await store.get("appLaunchStack")) ?? "[]");
-        if (app.path) {
+        if (app.source === "Steam" && app.appId) {
+            exec(`start "" "steam://rungameid/${app.appId}"`, err => { if (err) console.error('Steam launch failed:', err); });
+        } else if (app.path) {
             if (admin) {
-                const command = `powershell -Command "Start-Process -FilePath \\"${app.path}\\" -Verb RunAs"`;
+                const command = `powershell -NoProfile -Command "Start-Process -FilePath \\"${app.path}\\" -Verb RunAs"`;
                 exec(command, err => { if (err) console.error('Admin launch failed:', err); });
             } else {
                 exec(`start "" "${app.path}"`, err => { if (err) console.error('Regular launch failed:', err); });

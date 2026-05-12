@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld("file",{
     openPath:(path) => ipcRenderer.send('open-path', path),
     openInExplorer:(path)=>ipcRenderer.send('open-in-explorer', path),
     openFileWith:(path)=>ipcRenderer.send('open-file-with', path),
+    copyFileToClipboard:(path)=>ipcRenderer.send('copy-file-clipboard', path),
     cacheFolder:(path)=>ipcRenderer.invoke('cache-folder', path),
     getImageB64:(path,width=50)=>ipcRenderer.invoke('get-image-b64', path,width),
 })
@@ -50,6 +51,7 @@ contextBridge.exposeInMainWorld("apps",{
     searchSettings: (query) => ipcRenderer.invoke('search-settings', query),
     searchCommands: (query) => ipcRenderer.invoke('search-commands', query),
     getCustomCommands: () => ipcRenderer.invoke('get-custom-commands'),
+    getPresetCommands: () => ipcRenderer.invoke('get-preset-commands'),
     addCustomCommand: (command) => ipcRenderer.invoke('add-custom-command', command),
     removeCustomCommand: (name) => ipcRenderer.invoke('remove-custom-command', name),
     importScriptFile: () => ipcRenderer.invoke('import-script-file'),
@@ -59,9 +61,10 @@ contextBridge.exposeInMainWorld("apps",{
 
     openApp:(app,admin=false) => ipcRenderer.invoke('launch-app', app,admin),
     openSetting:(setting)=>ipcRenderer.invoke('open-setting', setting),
-    executeCommand:(path)=>ipcRenderer.send('execute-command', path),
+    executeCommand:(command, argValues)=>ipcRenderer.send('execute-command', command, argValues),
     getAppLogo: (app) => ipcRenderer.invoke('get-app-logo', app),
     getUwpAppLogo: (appName)=>ipcRenderer.invoke('get-uwp-app-logo', appName),
+    getSteamGameLogo: (appId)=>ipcRenderer.invoke('get-steam-game-logo', appId),
     getLinkFavicon:(link)=>ipcRenderer.invoke('get-link-favicon', link),
 })
 

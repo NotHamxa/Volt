@@ -1,8 +1,9 @@
 [
-  { "name": "Shutdown", 
-    "type": "commandConfirm", 
-    "appId": null, 
-    "path": "shutdown /s /t 0", 
+  {
+    "name": "Shutdown",
+    "type": "commandConfirm",
+    "appId": null,
+    "path": "shutdown /s /t 0",
     "source": "predefined"
   },
   {
@@ -105,23 +106,30 @@
   },
   {
     "name": "Show IP Configuration",
-    "type": "command",
+    "type": "commandOpen",
     "appId": null,
-    "path": "cmd /k ipconfig",
+    "path": "ipconfig /all",
     "source": "predefined"
   },
   {
-    "name": "Open Network Settings",
+    "name": "Copy Public IP to Clipboard",
     "type": "command",
     "appId": null,
-    "path": "start ms-settings:network",
+    "path": "PowerShell.exe -Command \"(Invoke-RestMethod -Uri 'https://api.ipify.org').Trim() | Set-Clipboard\"",
     "source": "predefined"
   },
   {
     "name": "Show WiFi Profiles",
-    "type": "command",
+    "type": "commandOpen",
     "appId": null,
-    "path": "cmd /k netsh wlan show profiles",
+    "path": "netsh wlan show profiles",
+    "source": "predefined"
+  },
+  {
+    "name": "Show Saved WiFi Passwords",
+    "type": "commandConfirmOpen",
+    "appId": null,
+    "path": "powershell -NoProfile -Command \"(netsh wlan show profiles) | Select-String '\\:(.+)$' | %{ $name=$_.Matches.Groups[1].Value.Trim(); $info=(netsh wlan show profile name=\\\"$name\\\" key=clear); $key=($info | Select-String 'Key Content\\W+\\:(.+)$').Matches.Groups[1].Value.Trim(); [pscustomobject]@{ SSID=$name; Password=$key } } | Format-Table -AutoSize\"",
     "source": "predefined"
   },
   {
@@ -138,11 +146,81 @@
     "path": "sysdm.cpl",
     "source": "predefined"
   },
-   {
+  {
     "name": "Open System Restore",
     "type": "command",
     "appId": null,
     "path": "%windir%\\system32\\restore\\rstrui.exe",
+    "source": "predefined"
+  },
+  {
+    "name": "Show System Info",
+    "type": "commandOpen",
+    "appId": null,
+    "path": "systeminfo",
+    "source": "predefined"
+  },
+  {
+    "name": "List Startup Programs",
+    "type": "commandOpen",
+    "appId": null,
+    "path": "wmic startup get caption,command",
+    "source": "predefined"
+  },
+  {
+    "name": "List Running Processes",
+    "type": "commandOpen",
+    "appId": null,
+    "path": "tasklist",
+    "source": "predefined"
+  },
+  {
+    "name": "Open Hosts File",
+    "type": "command",
+    "appId": null,
+    "path": "notepad %windir%\\System32\\drivers\\etc\\hosts",
+    "source": "predefined"
+  },
+  {
+    "name": "Open Startup Folder",
+    "type": "command",
+    "appId": null,
+    "path": "start shell:startup",
+    "source": "predefined"
+  },
+  {
+    "name": "Take Screenshot (Snip)",
+    "type": "command",
+    "appId": null,
+    "path": "start ms-screenclip:",
+    "source": "predefined"
+  },
+  {
+    "name": "Generate Battery Report",
+    "type": "commandConfirm",
+    "appId": null,
+    "path": "PowerShell.exe -Command \"powercfg /batteryreport /output $env:USERPROFILE\\battery-report.html; Start-Process $env:USERPROFILE\\battery-report.html\"",
+    "source": "predefined"
+  },
+  {
+    "name": "Clear Temp Files",
+    "type": "commandConfirm",
+    "appId": null,
+    "path": "PowerShell.exe -Command \"Remove-Item -Path $env:TEMP\\* -Recurse -Force -ErrorAction SilentlyContinue\"",
+    "source": "predefined"
+  },
+  {
+    "name": "Reset Windows Audio",
+    "type": "commandConfirm",
+    "appId": null,
+    "path": "net stop audiosrv && net start audiosrv",
+    "source": "predefined"
+  },
+  {
+    "name": "GodMode (All Settings)",
+    "type": "command",
+    "appId": null,
+    "path": "explorer shell:::{ED7BA470-8E54-465E-825C-99712043E01C}",
     "source": "predefined"
   }
 ]

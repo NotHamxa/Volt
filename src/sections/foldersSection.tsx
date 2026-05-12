@@ -52,62 +52,61 @@ export default function FoldersSection() {
     const totalFiles = cachedFolders.reduce((sum, f) => sum + (fileCounts[f] || 0), 0);
 
     return (
-        <div className="space-y-8">
-            <div className="flex items-end justify-between">
-                <div>
-                    <h2 className="text-[22px] font-semibold text-white tracking-[-0.03em] mb-1.5">Search Index</h2>
-                    <p className="text-white/40 text-[13px]">
+        <div className="space-y-6">
+            <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                    <p className="text-[12px] text-white/40 leading-relaxed">
                         Add folders to make their contents searchable instantly.
                     </p>
                     {cachedFolders.length > 0 && (
-                        <p className="text-white/25 text-[12px] mt-1">
+                        <p className="text-white/25 text-[11px] mt-1.5">
                             {cachedFolders.length} folder{cachedFolders.length !== 1 ? "s" : ""} indexed
-                            {totalFiles > 0 && <span> &middot; {totalFiles.toLocaleString()} files</span>}
+                            {totalFiles > 0 && <span> · {totalFiles.toLocaleString()} files</span>}
                         </p>
                     )}
                 </div>
-                <Button onClick={onAddFolder} className="bg-white text-black hover:bg-white/90 rounded-xl px-5 h-9 text-[13px] font-medium transition-all active:scale-95">
-                    <Plus size={18} className="mr-2" />
+                <Button onClick={onAddFolder} className="bg-white text-black hover:bg-white/90 rounded-md px-3 h-8 text-[12px] font-medium transition-all active:scale-95 shrink-0">
+                    <Plus size={14} className="mr-1.5" />
                     Add Folder
                 </Button>
             </div>
 
-            <div className="grid gap-3">
+            <div className="grid gap-1.5">
                 {cachedFolders.length === 0 && !loadingCachedFolders.length && (
-                    <div className="py-12 text-center rounded-2xl border border-dashed border-white/[0.07]">
-                        <FolderOpen className="mx-auto text-white/15 mb-4" size={36} strokeWidth={1} />
-                        <p className="text-white/25 text-[13px]">No folders indexed yet.</p>
+                    <div className="py-10 text-center rounded-lg border border-dashed border-white/[0.06]">
+                        <FolderOpen className="mx-auto text-white/15 mb-3" size={28} strokeWidth={1.2} />
+                        <p className="text-white/30 text-[12px]">No folders indexed yet.</p>
                     </div>
                 )}
                 {cachedFolders.map((folder, index) => {
                     const count = fileCounts[folder];
                     return (
-                        <div key={index} className="flex items-center justify-between px-4 py-3 rounded-xl transition-all group bg-white/[0.03] border border-white/[0.07]">
-                            <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                                <div className="p-2 rounded-lg shrink-0 bg-white/[0.06] border border-white/8">
-                                    <Folder size={16} className="text-white/40" />
+                        <div key={index} className="flex items-center justify-between px-3 py-2.5 rounded-md transition-colors group bg-white/[0.025] border border-white/[0.05] hover:border-white/[0.09]">
+                            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                <div className="p-1.5 rounded-md shrink-0 bg-white/[0.04] border border-white/[0.07]">
+                                    <Folder size={13} className="text-white/45" strokeWidth={1.8} />
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                    <span className="text-[13px] truncate text-white/65 font-medium block">{folder}</span>
+                                    <span className="text-[12px] truncate text-white/70 font-medium block">{folder}</span>
                                     {count !== undefined && (
-                                        <span className="text-[11px] text-white/25">{count.toLocaleString()} file{count !== 1 ? "s" : ""}</span>
+                                        <span className="text-[10px] text-white/25">{count.toLocaleString()} file{count !== 1 ? "s" : ""}</span>
                                     )}
                                 </div>
                             </div>
-                            <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-white/8 text-white/30 hover:text-white/60" onClick={() => window.file.openInExplorer(folder)}>
-                                    <ExternalLink size={14} />
+                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md hover:bg-white/[0.06] text-white/30 hover:text-white/65" onClick={() => window.file.openInExplorer(folder)}>
+                                    <ExternalLink size={12} />
                                 </Button>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-red-500/15 text-white/30 hover:text-red-400" onClick={() => deleteFolder(folder)}>
-                                    {removingFolder === folder ? <Spinner /> : <Trash size={14} />}
+                                <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md hover:bg-red-500/12 text-white/30 hover:text-red-400" onClick={() => deleteFolder(folder)}>
+                                    {removingFolder === folder ? <Spinner /> : <Trash size={12} />}
                                 </Button>
                             </div>
                         </div>
                     );
                 })}
                 {loadingCachedFolders.map((folder, index) => (
-                    <div key={`loading-${index}`} className="flex items-center justify-between px-4 py-3 rounded-xl animate-pulse bg-white/[0.02] border border-white/5">
-                        <span className="text-[13px] text-white/25">{folder}</span>
+                    <div key={`loading-${index}`} className="flex items-center justify-between px-3 py-2.5 rounded-md animate-pulse bg-white/[0.015] border border-white/[0.04]">
+                        <span className="text-[12px] text-white/25 truncate">{folder}</span>
                         <Spinner />
                     </div>
                 ))}

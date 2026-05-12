@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Unlock, Lock, Loader2, RefreshCw } from "lucide-react";
-import { FaGithub } from "react-icons/fa6";
+import { GitHub } from "@/components/icons/github.tsx";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip.tsx";
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import logo from "@/assets/icon.png";
@@ -13,14 +13,19 @@ import AllAppsPage from "@/pages/allAppsPage.tsx";
 import SearchPage from "@/pages/searchPage.tsx";
 import WebPage from "@/pages/webPage.tsx";
 import { IntroModal } from "@/components/modal/introModal.tsx";
+import { Walkthrough } from "@/components/walkthrough.tsx";
 import { UpdateModal } from "@/components/modal/updateModal.tsx";
+import { isEscapeCaptured, setEscapeBaseline } from "@/hooks/useEscape.ts";
 import { getChangelogForVersion, getLatestChangelog, ChangelogEntry } from "@/data/changelog.ts";
 import ErrorBoundary from "@/components/ErrorBoundary.tsx";
+import { SearchQueryT } from "@/interfaces/searchQuery.ts";
 
 
 export default function App() {
     const [cacheLoadingStatus, setCacheLoadingStatus] = useState<boolean>(false);
+    const [cacheProgress, setCacheProgress] = useState<{current:number; total:number}>({current:0, total:0});
     const [showIntroModal, setShowIntroModal] = useState(false);
+    const [showWalkthrough, setShowWalkthrough] = useState(false);
     const [showUpdateModal, setShowUpdateModal] = useState(false);
     const [updateModalVersion, setUpdateModalVersion] = useState("");
     const [updateModalChangelog, setUpdateModalChangelog] = useState<ChangelogEntry | null>(null);
@@ -32,6 +37,26 @@ export default function App() {
     const [stage, setStage] = useState<number>(1);
     const [escApp,setEscApp] = useState<boolean>(true);
     const selfQueryChangedRef = useRef<boolean>(false);
+    const [argCommand, setArgCommand] = useState<SearchQueryT | null>(null);
+    const [argInitialValues, setArgInitialValues] = useState<Record<string, string> | undefined>(undefined);
+    const argCommandRef = useRef<SearchQueryT | null>(null);
+    useEffect(() => { argCommandRef.current = argCommand; }, [argCommand]);
+
+    const enterArgMode = (item: SearchQueryT, initial?: Record<string, string>) => {
+        setArgInitialValues(initial);
+        setArgCommand(item);
+    };
+    const exitArgMode = () => {
+        setArgCommand(null);
+        setArgInitialValues(undefined);
+        setTimeout(() => inputRef.current?.focus(), 0);
+    };
+    const runArgCommand = (values: Record<string, string>) => {
+        const item = argCommandRef.current;
+        if (!item) return;
+        window.apps.executeCommand(item, values);
+        exitArgMode();
+    };
 
     const [showLockedIcon, setShowLockedIcon] = useState<boolean>(false);
     const [showUnlockedIcon, setShowUnlockedIcon] = useState<boolean>(false);
@@ -48,7 +73,7 @@ export default function App() {
     });
 
     useEffect(() => {
-        window.electron.toggleEscape(location.pathname !== "/");
+        setEscapeBaseline(location.pathname !== "/");
         setEscApp(location.pathname === "/");
         escAppRef.current = location.pathname === "/";
 
@@ -120,12 +145,17 @@ export default function App() {
         };
 
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === "Escape" && !escAppRef.current){
-                inputRef.current?.focus();
-                setQuery("");
-                navigate('/', { replace: true });
+            if (e.key === "Escape") {
+                // A modal on the global escape stack consumed it — don't
+                // also navigate the page.
+                if (isEscapeCaptured()) return;
+                if (!escAppRef.current) {
+                    inputRef.current?.focus();
+                    setQuery("");
+                    navigate('/', { replace: true });
+                }
             }
-            if (e.key === "Tab") {
+            if (e.key === "Tab" && !argCommandRef.current) {
                 e.preventDefault();
                 setStage(prev => (prev === 1 ? 2 : 1));
                 inputRef.current?.focus();
@@ -154,11 +184,14 @@ export default function App() {
                 cacheAlreadyLoaded = true;
                 handleCacheLoadedEvent();
             });
-            window.electron.setCacheLoadingBar(() => {});
+            window.electron.setCacheLoadingBar((current, total) => {
+                setCacheProgress({current, total});
+            });
 
             const status = await window.electron.getCacheLoadingStatus();
             if (!cacheAlreadyLoaded) {
-                setCacheLoadingStatus(status);
+                setCacheLoadingStatus(status.loading);
+                setCacheProgress({current: status.current, total: status.total});
             }
         };
 
@@ -221,8 +254,12 @@ export default function App() {
     }, []);
 
     if (cacheLoadingStatus) {
+        const hasProgress = cacheProgress.total > 0;
+        const pct = hasProgress
+            ? Math.min(100, Math.round((cacheProgress.current / cacheProgress.total) * 100))
+            : 0;
         return (
-            <div className="w-screen h-screen bg-[rgba(24,24,27,0.99)] flex items-center justify-center rounded-xl">
+            <div className="w-screen h-screen bg-[rgba(20,20,22,0.99)] flex items-center justify-center rounded-xl" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
                 <div className="flex flex-col items-center gap-5">
                     <div className="relative flex items-center justify-center w-16 h-16">
                         <div className="absolute inset-0 rounded-full border border-white/[0.07]" />
@@ -230,9 +267,18 @@ export default function App() {
                         <img src={logo} alt="Volt" className="w-8 h-8 object-contain opacity-60" />
                     </div>
                     <div className="flex flex-col items-center gap-2.5">
-                        <span className="text-[10px] tracking-[0.25em] uppercase text-white/20">Loading</span>
+                        <span className="text-[10px] tracking-[0.25em] uppercase text-white/20">
+                            {hasProgress ? `Loading ${pct}%` : 'Loading'}
+                        </span>
                         <div className="w-32 h-0.5 rounded-full bg-white/[0.06] overflow-hidden">
-                            <div className="h-full bg-white/20 rounded-full animate-pulse" style={{ width: '60%', animationDuration: '1.8s' }} />
+                            {hasProgress ? (
+                                <div
+                                    className="h-full bg-white/30 rounded-full transition-[width] duration-200 ease-out"
+                                    style={{ width: `${pct}%` }}
+                                />
+                            ) : (
+                                <div className="h-full bg-white/20 rounded-full animate-pulse" style={{ width: '40%', animationDuration: '1.4s' }} />
+                            )}
                         </div>
                     </div>
                 </div>
@@ -241,10 +287,18 @@ export default function App() {
     }
 
     return (
-        <div className="w-screen h-screen overflow-hidden bg-[rgba(24,24,27,0.99)] flex flex-col rounded-xl">
+        <div className="w-screen h-screen overflow-hidden bg-[rgba(20,20,22,0.99)] flex flex-col rounded-xl">
             <div className="h-1 w-full shrink-0" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties} />
             <Toaster />
-            <IntroModal open={showIntroModal} setOpen={setShowIntroModal} />
+            <IntroModal
+                open={showIntroModal}
+                setOpen={setShowIntroModal}
+                onStartTour={() => {
+                    navigate('/');
+                    setShowWalkthrough(true);
+                }}
+            />
+            <Walkthrough open={showWalkthrough} onClose={() => setShowWalkthrough(false)} />
             <UpdateModal
                 open={showUpdateModal && !showIntroModal}
                 onClose={() => setShowUpdateModal(false)}
@@ -252,13 +306,13 @@ export default function App() {
                 version={updateModalVersion}
             />
             {(showUnlockedIcon || showLockedIcon) &&
-                <div className="absolute top-3 right-3 flex items-center gap-2 z-50 bg-[rgba(24,24,27,0.92)] px-3 py-2 rounded-lg backdrop-blur-[10px] border border-white/[0.08] shadow-[0_4px_15px_rgba(0,0,0,0.3)] animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="absolute top-3 right-3 flex items-center gap-2 z-50 bg-[rgba(20,20,22,0.92)] px-3 py-2 rounded-lg backdrop-blur-[10px] border border-white/[0.08] shadow-[0_4px_15px_rgba(0,0,0,0.3)] animate-in fade-in slide-in-from-top-2 duration-200">
                     {showLockedIcon && <><Lock size={14} className="text-white/60" /><span className="text-[11px] text-white/50">Locked</span></>}
                     {showUnlockedIcon && <><Unlock size={14} className="text-white/60" /><span className="text-[11px] text-white/50">Unlocked</span></>}
                 </div>
             }
 
-            <div className="grow flex flex-col">
+            <div className="grow min-h-0 flex flex-col">
                 <ErrorBoundary>
                 <Routes>
                     <Route
@@ -270,6 +324,11 @@ export default function App() {
                                 query={query}
                                 setQuery={setQuery}
                                 selfQueryChangedRef={selfQueryChangedRef}
+                                argCommand={argCommand}
+                                argInitialValues={argInitialValues}
+                                enterArgMode={enterArgMode}
+                                exitArgMode={exitArgMode}
+                                runArgCommand={runArgCommand}
                             />
                         }
                     >
@@ -291,7 +350,7 @@ export default function App() {
                 </ErrorBoundary>
             </div>
 
-            <div className="border-t border-white/[0.07] h-10 flex items-center justify-between px-4 w-[800px]">
+            <div className="border-t border-white/[0.07] h-10 shrink-0 flex items-center justify-between px-4 w-[800px]">
                 <button
                     aria-label="GitHub"
                     className="text-white/25 hover:text-white/60 transition-colors duration-150"
@@ -299,7 +358,7 @@ export default function App() {
                         window.electron.openExternal("https://github.com/NotHamxa");
                     }}
                 >
-                    <FaGithub size={18} />
+                    <GitHub width={18} height={18} />
                 </button>
                 <div className="flex items-center gap-3">
                     <TooltipProvider delayDuration={100}>
@@ -318,14 +377,14 @@ export default function App() {
                                         <Loader2 size={13} className="animate-spin" />
                                     </span>
                                 </TooltipTrigger>
-                                <TooltipContent side="top" className="bg-[rgba(24,24,27,0.98)] border border-white/10 text-white/70 text-[11px]">
+                                <TooltipContent side="top" className="bg-[rgba(20,20,22,0.98)] border border-white/10 text-white/70 text-[11px]">
                                     Downloading update… {updateProgress}%
                                 </TooltipContent>
                             </Tooltip>
                         ) : null}
                     </TooltipProvider>
 
-                    <div className="flex items-center space-x-2 text-white/25 text-sm">
+                    <div data-walkthrough="settings-btn" className="flex items-center space-x-2 text-white/25 text-sm">
                         <button
                             onClick={() => {
                                 if (locationRef.current === '/settings') {

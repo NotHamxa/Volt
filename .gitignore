@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Claude
+CLAUDE.md
+CHANGELOG.md
+.claude/

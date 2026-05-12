@@ -2,8 +2,9 @@ import {Dialog, DialogContent, DialogTitle} from "@/components/ui/dialog.tsx";
 import {Label} from "@/components/ui/label.tsx";
 import {Input} from "@/components/ui/input.tsx";
 import {Button} from "@/components/ui/button.tsx";
-import {useState} from "react";
+import {useCallback, useState} from "react";
 import {LinkShortcutType} from "@/interfaces/links.ts";
+import {useEscape} from "@/hooks/useEscape.ts";
 
 interface Props {
     addShortcutOpenModal: boolean;
@@ -22,6 +23,15 @@ export default function AddLinkShortcutModal({
     const [linkName, setLinkName] = useState<string>("");
     const [linkShortcut, setLinkShortcut] = useState<string>("");
     const [error, setError] = useState<string>("");
+
+    const closeModal = useCallback(() => {
+        setLinkName("");
+        setLinkShortcut("");
+        setError("");
+        setAddShortcutOpenModal(false);
+    }, [setAddShortcutOpenModal]);
+
+    useEscape(closeModal, addShortcutOpenModal);
 
     const addLinkShortcut = async () => {
         let normalizedShortcut = linkShortcut.trim();
@@ -65,7 +75,7 @@ export default function AddLinkShortcutModal({
             onOpenChange={setAddShortcutOpenModal}
         >
             <DialogContent
-                className="bg-[rgba(24,24,27,1)]"
+                className="bg-[rgba(20,20,22,1)]"
             >
                 <DialogTitle>
                     <Label className="flex self-center">Add Shortcut</Label>

@@ -31,7 +31,7 @@ declare global {
             openUninstall:()=>void;
             onCacheLoaded:(callback: () => void) => void;
             onCacheReload:(callback: () => void) => void;
-            getCacheLoadingStatus:()=>Promise<boolean>;
+            getCacheLoadingStatus:()=>Promise<{loading:boolean; current:number; total:number}>;
             setCacheLoadingBar: (callback: (currentCacheStep: number, totalCacheSteps: number) => void) => void;
             executeCmd: (command: string) => void;
             setFolderDialogOpen:(isOpen: boolean)=>Promise<void>;
@@ -61,6 +61,7 @@ declare global {
             searchSettings: (query: string) => Promise<SearchQueryT[]>;
             searchCommands: (query: string) => Promise<SearchQueryT[]>;
             getCustomCommands: () => Promise<SearchQueryT[]>;
+            getPresetCommands: () => Promise<SearchQueryT[]>;
             addCustomCommand: (command: SearchQueryT) => Promise<SearchQueryT[]>;
             removeCustomCommand: (name: string) => Promise<SearchQueryT[]>;
             importScriptFile: () => Promise<{content: string; fileName: string; filePath: string} | null>;
@@ -71,14 +72,16 @@ declare global {
             openSettings: (settings: string) => Promise<boolean>;
             getAppLogo:(app: SearchQueryT) => Promise<string>;
             getUwpAppLogo:(app:SearchQueryT) => Promise<string>;
+            getSteamGameLogo:(appId:string) => Promise<string | null>;
             getLinkFavicon:(link:string)=>Promise<string | null>
-            executeCommand:(command:SearchQueryT) => void;
+            executeCommand:(command:SearchQueryT, argValues?:Record<string,string>) => void;
         };
         file:{
             searchFilesAndFolders: (query: string) => Promise<SearchQueryT[]>;
             openPath: (path: string) => void;
             openInExplorer:(path: string) => void;
             openFileWith:(path: string) => void;
+            copyFileToClipboard:(path: string) => void;
             cacheFolder:(path: string) => Promise<boolean>;
             getImageB64:(path:string,width?:number)=>Promise<string | null>;
         }

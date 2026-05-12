@@ -6,6 +6,7 @@ import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/compon
 import {useSortable} from "@dnd-kit/sortable";
 import {CSS} from "@dnd-kit/utilities";
 import {Kbd} from "@/components/ui/kbd.tsx";
+import {useEscapeBarrier} from "@/hooks/useEscape.ts";
 interface IPinnedLinks{
     link:LinkShortcutType;
     removeLink:(link:string)=>void;
@@ -16,6 +17,8 @@ function PinnedLinks({ link, removeLink, setEditLink, index }: IPinnedLinks) {
     const {name,shortcut} = link;
     const [favicon, setFavicon] = useState<string | null>(null);
     const [showKbd, setShowKbd] = useState<boolean>(false);
+    const [menuOpen, setMenuOpen] = useState(false);
+    useEscapeBarrier(menuOpen);
 
     useEffect(() => {
         const onLoad = async () => {
@@ -51,7 +54,7 @@ function PinnedLinks({ link, removeLink, setEditLink, index }: IPinnedLinks) {
 
 
     return (
-        <ContextMenu>
+        <ContextMenu onOpenChange={setMenuOpen}>
             <ContextMenuTrigger asChild>
                 <div className="relative group flex items-center justify-center w-[100px] h-20">
                     {showKbd && (
@@ -78,7 +81,7 @@ function PinnedLinks({ link, removeLink, setEditLink, index }: IPinnedLinks) {
                                     <span className="text-sm">{name}</span>
                                 </button>
                             </TooltipTrigger>
-                            <TooltipContent side="bottom" className="bg-[rgba(24,24,27,0.98)] border border-white/10 text-white/70 text-[11px]">
+                            <TooltipContent side="bottom" className="bg-[rgba(20,20,22,0.98)] border border-white/10 text-white/70 text-[11px]">
                                 {shortcut}
                             </TooltipContent>
                         </Tooltip>

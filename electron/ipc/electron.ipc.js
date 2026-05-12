@@ -33,7 +33,11 @@ export function registerElectronIpc({ hideMainWindow, cache, store }) {
     });
 
     ipcMain.handle("get-loading-cache-status", () => {
-        return cache.loadingAppCache;
+        return {
+            loading: cache.loadingAppCache,
+            current: cache.cacheProgress?.current ?? 0,
+            total: cache.cacheProgress?.total ?? 0,
+        };
     });
 
     ipcMain.on("execute-cmd", async (_, cmd) => {

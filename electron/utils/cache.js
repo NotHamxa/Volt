@@ -74,25 +74,23 @@ const excludedFolders = [
     // Containers / infra
     ".docker", ".vagrant", ".terraform"
 ];
-const normaliseString = (str) => str.toLowerCase().replace(/\s+/g, "");
+const normaliseString = (str) => str.toLowerCase().replace(/[\s\-_.()[\]{}'"!?,:;/\\|]+/g, "");
 
 
 function resolveLnk(lnkPath) {
+    const escapedPath = lnkPath.replace(/'/g, "''");
     return new Promise((resolve, reject) => {
         execFile(
             "powershell.exe",
             [
                 "-NoProfile",
                 "-Command",
-                `
-        $s = (New-Object -ComObject WScript.Shell).CreateShortcut('${lnkPath}');
-        $s.TargetPath
-        `
+                `$s = (New-Object -ComObject WScript.Shell).CreateShortcut('${escapedPath}'); $s.TargetPath`
             ],
-            { windowsHide: true },
+            { windowsHide: true, timeout: 10000, encoding: "utf8" },
             (err, stdout) => {
                 if (err) return reject(err);
-                resolve(stdout.trim());
+                resolve((stdout || "").trim());
             }
         );
     });
@@ -120,19 +118,23 @@ export async function loadApps() {
     }
     function collectUWPApps() {
         return new Promise((resolve, reject) => {
-            exec('powershell -Command "Get-StartApps | ConvertTo-Json"', (error, stdout) => {
+            exec('powershell -NoProfile -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-StartApps | ConvertTo-Json"', { timeout: 15000, encoding: "utf8" }, (error, stdout) => {
                 if (error) return reject(error);
+                const trimmed = (stdout || "").trim();
+                if (!trimmed) return resolve();
                 try {
-                    const uwpApps = JSON.parse(stdout);
+                    const uwpApps = JSON.parse(trimmed);
                     const appList = Array.isArray(uwpApps) ? uwpApps : [uwpApps];
                     appList.forEach(app => {
-                        results.push({
-                            name: app.Name,
-                            source: "UWP",
-                            appId: app.AppID,
-                            path: "",
-                            type: "app"
-                        });
+                        if (app?.Name && !(app.AppID && app.AppID.startsWith("steam://"))) {
+                            results.push({
+                                name: app.Name,
+                                source: "UWP",
+                                appId: app.AppID || "",
+                                path: "",
+                                type: "app"
+                            });
+                        }
                     });
                     resolve();
                 } catch (err) {
@@ -145,7 +147,11 @@ export async function loadApps() {
     for (const dir of startMenuPaths) {
         await collectShortcuts(dir);
     }
-    await collectUWPApps();
+    try {
+        await collectUWPApps();
+    } catch (err) {
+        console.warn("Failed to collect UWP apps (PowerShell may be unavailable):", err.message);
+    }
 
     const deduped = new Map();
     for (const app of results) {

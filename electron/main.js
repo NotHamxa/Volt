@@ -8,7 +8,7 @@ import {deleteFolder} from "./utils/cache.js";
 import { initWindowFocusTracker, captureForegroundWindow, restoreForegroundWindow } from "./utils/windowFocus.js";
 import chokidar from "chokidar";
 import os from "os";
-import {loadAppData, loadFileData, loadCommandsData} from "./utils/startup.js";
+import {loadAppData, initStoreState, loadFolderCache, loadCommandsData, revalidateAppIcons} from "./utils/startup.js";
 import { registerIpc } from "./ipc/index.js";
 import {setupAutoUpdater} from "./utils/updater.js";
 import {createNotificationWindow} from "./utils/notification.js";
@@ -38,7 +38,8 @@ const cache = {
     cachedFolders:[],
     cachedFoldersData:{},
     loadingAppCache:true,
-    firstTimeExperience:false
+    firstTimeExperience:false,
+    cacheProgress: { current: 0, total: 0 },
 }
 const appStates = {
     fixWindowOpen:false,
@@ -237,26 +238,17 @@ app.whenReady().then(async () => {
         folderWatcher,
         store,
     });
-    await loadAppData(mainWindow.webContents,cache);
+
+    // Lightweight sync setup so we can hide the window + register the
+    // re-open hotkey before the slow disk/PowerShell work runs.
+    initStoreState(cache);
     loadCommandsData(cache, store);
-    await loadFileData(cache)
 
     if (!cache.firstTimeExperience)
         hideMainWindow()
     else
         showMainWindow()
 
-    if (process.env.NODE_ENV !== "development") {
-        setupAutoUpdater(mainWindow);
-    }
-    folderWatcher.add(cache.cachedFolders)
-    cache.loadingAppCache = false;
-    mainWindow.webContents.send('cache-loaded');
-
-    const appsWatcher = chokidar.watch(startMenuPaths,{
-        persistent: true,
-        ignoreInitial: true
-    });
     globalShortcut.register(openShortcut, () => {
         if (!mainWindow) return;
         if (mainWindow.isVisible()) {
@@ -264,6 +256,31 @@ app.whenReady().then(async () => {
         } else {
             showMainWindow();
         }
+    });
+    globalShortcut.register("Ctrl+L",handleWindowLock)
+
+    if (process.env.NODE_ENV !== "development") {
+        setupAutoUpdater(mainWindow);
+    }
+
+    // Heavy caching in the background: the window is already dismissible.
+    (async () => {
+        await loadFolderCache(cache);
+        await loadAppData(mainWindow.webContents, cache);
+        folderWatcher.add(cache.cachedFolders);
+        cache.loadingAppCache = false;
+        mainWindow.webContents.send('cache-loaded');
+
+        // Freshness pass: prune dead entries and re-extract icons whose
+        // source file has changed since the cached PNG was written.
+        revalidateAppIcons(mainWindow.webContents, cache).catch(err =>
+            console.warn("revalidateAppIcons failed:", err?.message ?? err)
+        );
+    })();
+
+    const appsWatcher = chokidar.watch(startMenuPaths,{
+        persistent: true,
+        ignoreInitial: true
     });
     appsWatcher.on("add",async _=>{
         console.log("Adding...");
@@ -277,9 +294,6 @@ app.whenReady().then(async () => {
     appsWatcher.on("unlinkDir",async _=>{
         await loadAppData(mainWindow.webContents,cache);
     })
-
-
-    globalShortcut.register("Ctrl+L",handleWindowLock)
 
     app.on("activate", () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();

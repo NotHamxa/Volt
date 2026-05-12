@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/context-menu.tsx";
 import {Label} from "@/components/ui/label.tsx";
 import {isSameApp} from "@/utils/appUtils.ts";
+import {useEscapeBarrier} from "@/hooks/useEscape.ts";
 
 interface IAllAppsComponent {
     setStage: (n: number) => void;
@@ -31,6 +32,8 @@ interface IApp{
 function App({app,pinnedApps,pinApp,unPinApp}:IApp) {
     const [isFocused, setIsFocused] = useState(false);
     const [logo, setLogo] = useState<string>("");
+    const [menuOpen, setMenuOpen] = useState(false);
+    useEscapeBarrier(menuOpen);
     useEffect(() => {
         getLogo()
     }, [app]);
@@ -43,18 +46,19 @@ function App({app,pinnedApps,pinApp,unPinApp}:IApp) {
     };
 
     const getLogo = async () => {
-        if (app.path){
-            const appLogo = await window.apps.getAppLogo(app);
-            setLogo(appLogo);
+        let appLogo: string | null = null;
+        if (app.source === "Steam" && app.appId) {
+            appLogo = await window.apps.getSteamGameLogo(app.appId);
+        } else if (app.source === "UWP") {
+            appLogo = await window.apps.getUwpAppLogo(app);
+        } else if (app.path) {
+            appLogo = await window.apps.getAppLogo(app);
         }
-        else if(app.source==="UWP"){
-            const appLogo = await window.apps.getUwpAppLogo(app)
-            setLogo(appLogo);
-        }
+        if (appLogo) setLogo(appLogo);
     };
 
     return (
-        <ContextMenu>
+        <ContextMenu onOpenChange={setMenuOpen}>
             <ContextMenuTrigger>
                 <button
                     onClick={async () => {

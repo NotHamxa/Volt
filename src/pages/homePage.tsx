@@ -1,7 +1,7 @@
 import { useOutletContext } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import PinnedApps from "@/components/pinnedAppsComponent.tsx";
+import TipBar from "@/components/tipBar.tsx";
 import { MainLayoutContext } from "@/pages/mainPage.tsx";
 
 export default function HomePage() {
@@ -9,20 +9,18 @@ export default function HomePage() {
     const { pinnedApps, setPinnedApps, unPinApp } = useOutletContext<MainLayoutContext>();
 
     return (
-        <motion.div
-            key="home"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-            className="w-full h-full"
+        <div
+            className="w-full h-full flex flex-col relative"
         >
-            <PinnedApps
-                pinnedApps={pinnedApps}
-                setPinnedApps={setPinnedApps}
-                setStage={() => navigate('/all')}
-                unPinApp={unPinApp}
-            />
-        </motion.div>
+            <div className="flex-1 min-h-0 flex flex-col">
+                <PinnedApps
+                    pinnedApps={pinnedApps}
+                    setPinnedApps={setPinnedApps}
+                    setStage={() => navigate('/all')}
+                    unPinApp={unPinApp}
+                />
+            </div>
+            <TipBar />
+        </div>
     );
 }

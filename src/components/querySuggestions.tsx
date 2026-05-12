@@ -17,7 +17,8 @@ import {
     Monitor,
     Bolt,
     ArrowDownToLine,
-    CodeXml
+    CodeXml,
+    SearchX
 } from "lucide-react";
 import { FaRegFilePdf, FaRegFileWord, FaRegFilePowerpoint, FaFolderOpen } from "react-icons/fa6";
 import {
@@ -41,6 +42,11 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog.tsx";
 import { Button } from "@/components/ui/button.tsx";
+import { Google } from "@/components/icons/google.tsx";
+import { useEscapeBarrier } from "@/hooks/useEscape.ts";
+import { tokenize } from "@/utils/tokenize.ts";
+import { useOutletContext } from "react-router-dom";
+import type { MainLayoutContext } from "@/pages/mainPage.tsx";
 
 interface IQuerySuggestions {
     query: string;
@@ -59,6 +65,7 @@ type QueryComponentProps = {
     triggerAction?: boolean;
     triggerContextMenu?: boolean;
     onContextMenuOpenChange?: (open: boolean) => void;
+    onRequestRunCommand?: (item: SearchQueryT) => void;
 };
 
 const getFileIcon = (path: string) => {
@@ -156,6 +163,7 @@ const QueryComponent = memo(({
                                  triggerAction = false,
                                  triggerContextMenu = false,
                                  onContextMenuOpenChange,
+                                 onRequestRunCommand,
                              }: QueryComponentProps) => {
     const { name, type, path } = item;
 
@@ -167,11 +175,15 @@ const QueryComponent = memo(({
     const handleFocus = useCallback(() => setIsFocused(true), []);
     const handleBlur = useCallback(() => setIsFocused(false), []);
 
+    const isCommandType = type === "command" || type === "commandOpen" || type === "commandConfirm" || type === "commandConfirmOpen";
+    const hasArgs = !!item.args && item.args.length > 0;
+
     useEffect(() => {
-        if (triggerAction && type === "commandConfirm") {
+        if (triggerAction && (type === "commandConfirm" || type === "commandConfirmOpen") && !hasArgs) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setShowConfirmation(true);
         }
-    }, [triggerAction, type]);
+    }, [triggerAction, type, hasArgs]);
 
     useEffect(() => {
         if (triggerContextMenu && triggerRef.current) {
@@ -188,16 +200,20 @@ const QueryComponent = memo(({
     }, [triggerContextMenu]);
 
     const handleClick = useCallback(async () => {
-        if (type === "command") {
+        if (isCommandType && hasArgs && onRequestRunCommand) {
+            onRequestRunCommand(item);
+            return;
+        }
+        if (type === "command" || type === "commandOpen") {
             await window.apps.executeCommand(item);
-        } else if (type === "commandConfirm") {
+        } else if (type === "commandConfirm" || type === "commandConfirmOpen") {
             setShowConfirmation(true);
         } else if (type === "app") {
             await window.apps.openApp(item);
         } else if (path) {
             window.file.openPath(path);
         }
-    }, [type, item, path]);
+    }, [type, item, path, isCommandType, hasArgs, onRequestRunCommand]);
 
     const handleConfirm = useCallback(async () => {
         await window.apps.executeCommand(item);
@@ -230,6 +246,10 @@ const QueryComponent = memo(({
 
     const handleOpenWith = useCallback(async () => {
         if (path) window.file.openFileWith(path);
+    }, [path]);
+
+    const handleCopyFile = useCallback(() => {
+        if (path) window.file.copyFileToClipboard(path);
     }, [path]);
 
     useEffect(() => {
@@ -265,7 +285,7 @@ const QueryComponent = memo(({
         if (type === "setting") {
             return <Bolt size={24} />;
         }
-        if (type === "command" || type === "commandConfirm") {
+        if (type === "command" || type === "commandConfirm" || type === "commandOpen" || type === "commandConfirmOpen") {
             return <CodeXml size={24} />;
         }
         return null;
@@ -275,6 +295,7 @@ const QueryComponent = memo(({
         if (type === "file" && path) return getParentFolders(path);
         if (type === "app") return "Application";
         if (type === "setting") return "Setting";
+        if (type === "commandOpen" || type === "commandConfirmOpen") return "Command (opens terminal)";
         if (type === "command" || type === "commandConfirm") return "Command";
         return "";
     }, [type, path]);
@@ -339,28 +360,31 @@ const QueryComponent = memo(({
                     }
                     {path && type !== "setting" && (
                         <>
-                            <ContextMenuSeparator />
+                            {type === "app" && <ContextMenuSeparator />}
                             <ContextMenuItem onClick={handleOpenInExplorer}>
                                 Open file location
                             </ContextMenuItem>
+                            <ContextMenuItem onClick={handleCopyPath}>
+                                Copy path
+                            </ContextMenuItem>
+                            {type === "file" && (
+                                <ContextMenuItem onClick={handleCopyFile}>
+                                    Copy file
+                                </ContextMenuItem>
+                            )}
+                            {type !== "app" && (
+                                <ContextMenuItem onClick={handleOpenWith}>
+                                    Open file with
+                                </ContextMenuItem>
+                            )}
                         </>
-                    )}
-                    {path && type !== "setting" && (
-                        <ContextMenuItem onClick={handleCopyPath}>
-                            Copy path
-                        </ContextMenuItem>
-                    )}
-                    {path && type !== "app" && type !== "setting" && (
-                        <ContextMenuItem onClick={handleOpenWith}>
-                            Open file with
-                        </ContextMenuItem>
                     )}
                 </ContextMenuContent>
             </ContextMenu>
 
-            {type === "commandConfirm" && (
+            {(type === "commandConfirm" || type === "commandConfirmOpen") && (
                 <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
-                    <DialogContent className="sm:max-w-106.25 bg-[rgba(24,24,27,1)]">
+                    <DialogContent className="sm:max-w-106.25 bg-[rgba(20,20,22,1)]">
                         <DialogHeader>
                             <DialogTitle>Confirm Command</DialogTitle>
                             <DialogDescription className="text-white/40">
@@ -420,6 +444,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
     const [files, setFiles] = useState<SearchQueryT[]>([]);
     const [settings, setSettings] = useState<SearchQueryT[]>([]);
     const [commands, setCommands] = useState<SearchQueryT[]>([]);
+    const { enterArgMode } = useOutletContext<MainLayoutContext>();
 
     useEffect(() => {
         const reloadPinnedApps = async () => {
@@ -438,6 +463,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
         const lastWord = words[words.length - 1];
         const hasBang = lastWord.startsWith("!cmd");
         const searchTerm = hasBang ? words.slice(0, -1).join(" ") : query;
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setIsCmdCommand(hasBang);
 
         if (hasBang) {
@@ -446,7 +472,6 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
         }
 
         const getData = async () => {
-            const x = performance.now();
             const result: ProcessedQueryResult | null = await getQueryData(query.trim(), searchFilters);
             if (cancelled || !result) return;
 
@@ -456,8 +481,12 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
             setFiles(result.files);
             setSettings(result.settings);
             setCommands(result.commands);
-            const y = performance.now();
-            window.electron.log("React Call:"+(y-x)+"ms")
+            const extra = result.bestMatch===null?0:1
+            const items = result.apps.length + result.folders.length + result.settings.length +
+                result.settings.length + result.commands.length + extra;
+            if (items < focusedIndex + 1){
+                setFocusedIndex(0);
+            }
         };
 
         const timer = setTimeout(getData, 80);
@@ -468,6 +497,17 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
         };
     }, [query, searchFilters]);
 
+    const googleEntry = useMemo<SearchQueryT | null>(() => {
+        const trimmed = query.trim();
+        if (!trimmed || isCmdCommand) return null;
+        return {
+            name: trimmed,
+            type: "googleSearch",
+            path: `https://www.google.com/search?q=${encodeURIComponent(trimmed)}`,
+            source: "web",
+        };
+    }, [query, isCmdCommand]);
+
     const allResults = useMemo<SearchQueryT[]>(() => [
         ...(bestMatch ? [bestMatch] : []),
         ...apps,
@@ -475,8 +515,8 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
         ...settings,
         ...files,
         ...folders,
-
-    ], [bestMatch, apps, settings, files, folders, commands]);
+        ...(googleEntry ? [googleEntry] : []),
+    ], [bestMatch, apps, settings, files, folders, commands, googleEntry]);
 
     const handleContextMenuOpenChange = useCallback((open: boolean) => {
         setIsContextMenuOpen(open);
@@ -484,6 +524,37 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
             blockNextEnterRef.current = true;
         }
     }, []);
+
+    // Esc on an open context menu should close it (Radix self-handles), not
+    // also navigate the page back.
+    useEscapeBarrier(isContextMenuOpen);
+
+    // Hybrid arg flow: parse positional values from `query` tokens (everything
+    // after the first whitespace-separated token, with quote support). If all
+    // required args are covered, run directly; otherwise transition into the
+    // inline arg-entry bar pre-filled with whatever was parsed.
+    const runCommandRequest = useCallback((item: SearchQueryT) => {
+        if (!item.args || item.args.length === 0) {
+            window.apps.executeCommand(item);
+            return;
+        }
+        const tokens = tokenize(query).slice(1);
+        const initial: Record<string, string> = {};
+        item.args.forEach((a, i) => {
+            const fromQuery = tokens[i];
+            if (fromQuery !== undefined) initial[a.name] = fromQuery;
+        });
+        const missingRequired = item.args.some(a => {
+            const v = initial[a.name];
+            const has = (v ?? a.defaultValue ?? "").trim().length > 0;
+            return a.required && !has;
+        });
+        if (!missingRequired && tokens.length >= item.args.length) {
+            window.apps.executeCommand(item, initial);
+            return;
+        }
+        enterArgMode(item, initial);
+    }, [query, enterArgMode]);
 
     const handleKeyDown = useCallback(async (e: KeyboardEvent) => {
         if (isContextMenuOpen) return;
@@ -504,19 +575,25 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
             window.electron.executeCmd(cmdCommand);
         } else if (e.key === "Enter" && allResults[focusedIndex]) {
             const item = allResults[focusedIndex];
-            if (item.type === "command") {
+            const hasArgs = !!item.args && item.args.length > 0;
+            if (hasArgs && (item.type === "command" || item.type === "commandOpen" || item.type === "commandConfirm" || item.type === "commandConfirmOpen")) {
+                e.preventDefault();
+                runCommandRequest(item);
+            } else if (item.type === "command" || item.type === "commandOpen") {
                 await window.apps.executeCommand(item);
-            } else if (item.type === "commandConfirm") {
+            } else if (item.type === "commandConfirm" || item.type === "commandConfirmOpen") {
                 e.preventDefault();
                 setTriggeredIndex(focusedIndex);
                 setTimeout(() => setTriggeredIndex(-1), 100);
+            } else if (item.type === "googleSearch" && item.path) {
+                window.electron.openExternal(item.path);
             } else if (item.type === "app") {
                 await window.apps.openApp(item);
             } else if (item.path) {
                 window.file.openPath(item.path);
             }
         }
-    }, [isContextMenuOpen, focusedIndex, allResults, isCmdCommand, cmdCommand]);
+    }, [isContextMenuOpen, focusedIndex, allResults, isCmdCommand, cmdCommand, runCommandRequest]);
 
     useEffect(() => {
         window.addEventListener("keydown", handleKeyDown);
@@ -583,7 +660,16 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                 </div>
             ) : (
                 allResults.length === 0 ? (
-                    <div className="text-center py-8 text-[13px] text-white/20">No results found</div>
+                    <div className="flex flex-col items-center justify-center h-[380px] select-none">
+                        <div className="relative mb-4">
+                            <div className="absolute inset-0 blur-xl bg-white/[0.03] rounded-full" />
+                            <div className="relative w-16 h-16 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center">
+                                <SearchX className="w-7 h-7 text-white/30" strokeWidth={1.5} />
+                            </div>
+                        </div>
+                        <div className="text-[13px] font-medium text-white/50">Nothing here</div>
+                        <div className="text-[11px] text-white/20 mt-1">Try a different search</div>
+                    </div>
                 ) : (
                     <>
                         {bestMatch && (
@@ -598,6 +684,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                                     triggerAction={triggeredIndex === 0}
                                     triggerContextMenu={triggeredContextMenuIndex === 0}
                                     onContextMenuOpenChange={handleContextMenuOpenChange}
+                                    onRequestRunCommand={runCommandRequest}
                                 />
                             </div>
                         )}
@@ -618,6 +705,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                                                 triggerAction={triggeredIndex === itemIndex}
                                                 triggerContextMenu={triggeredContextMenuIndex === itemIndex}
                                                 onContextMenuOpenChange={handleContextMenuOpenChange}
+                                                onRequestRunCommand={runCommandRequest}
                                             />
                                         </div>
                                     );
@@ -636,6 +724,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                                                 triggerAction={triggeredIndex === itemIndex}
                                                 triggerContextMenu={triggeredContextMenuIndex === itemIndex}
                                                 onContextMenuOpenChange={handleContextMenuOpenChange}
+                                                onRequestRunCommand={runCommandRequest}
                                             />
                                         </div>
                                     );
@@ -654,6 +743,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                                                 triggerAction={triggeredIndex === itemIndex}
                                                 triggerContextMenu={triggeredContextMenuIndex === itemIndex}
                                                 onContextMenuOpenChange={handleContextMenuOpenChange}
+                                                onRequestRunCommand={runCommandRequest}
                                             />
                                         </div>
                                     );
@@ -673,6 +763,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                                                 triggerAction={triggeredIndex === itemIndex}
                                                 triggerContextMenu={triggeredContextMenuIndex === itemIndex}
                                                 onContextMenuOpenChange={handleContextMenuOpenChange}
+                                                onRequestRunCommand={runCommandRequest}
                                             />
                                         </div>
                                     );
@@ -692,12 +783,36 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                                                 triggerAction={triggeredIndex === itemIndex}
                                                 triggerContextMenu={triggeredContextMenuIndex === itemIndex}
                                                 onContextMenuOpenChange={handleContextMenuOpenChange}
+                                                onRequestRunCommand={runCommandRequest}
                                             />
                                         </div>
                                     );
                                 })}
                             </>
                         )}
+
+                        {googleEntry && (() => {
+                            const itemIndex = allResults.length - 1;
+                            const focused = focusedIndex === itemIndex;
+                            return (
+                                <div ref={el => { itemRefs.current[itemIndex] = el; }} className={apps.length + commands.length + settings.length + files.length + folders.length + (bestMatch ? 1 : 0) > 0 ? "mt-2 pt-2 border-t border-white/[0.05]" : ""}>
+                                    <button
+                                        onClick={() => window.electron.openExternal(googleEntry.path!)}
+                                        tabIndex={0}
+                                        className={`cursor-pointer flex items-center justify-between py-2 px-3 rounded-lg select-none transition-colors duration-150 gap-3 w-full hover:bg-white/10 ${focused ? "bg-white/10 outline outline-[1px] outline-white/[0.18]" : "bg-transparent"}`}
+                                    >
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <Google className="w-6 h-6 shrink-0" />
+                                            <span className="text-[13px] text-white/80 truncate">
+                                                Search Google for{" "}
+                                                <span className="text-white font-medium">"{googleEntry.name}"</span>
+                                            </span>
+                                        </div>
+                                        <span className="ml-auto opacity-70 text-[12px] cursor-default text-white/50 shrink-0">Web</span>
+                                    </button>
+                                </div>
+                            );
+                        })()}
                     </>
                 )
             )}

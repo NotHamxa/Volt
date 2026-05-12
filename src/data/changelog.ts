@@ -10,6 +10,28 @@ export interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
     {
+        version: "1.1.5",
+        date: "2026-04-17",
+        highlights: [
+            "Steam games show up alongside your apps",
+            "More reliable app detection",
+        ],
+        sections: [
+            {
+                title: "New Features",
+                items: [
+                    "Steam library detection — installed Steam games appear alongside regular apps",
+                ],
+            },
+            {
+                title: "Improvements",
+                items: [
+                    "Improved app detection for more reliable results",
+                ],
+            },
+        ],
+    },
+    {
         version: "1.1.4",
         date: "2026-03-24",
         highlights: [

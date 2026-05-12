@@ -1,6 +1,7 @@
 import { ipcMain, shell, dialog } from "electron";
 import fs from "fs";
 import path from "path";
+import { execFile } from "child_process";
 import {searchFilesAndFolders} from "../utils/search.js";
 import {cacheFolder, deleteFolder} from "../utils/cache.js";
 import {Jimp} from "jimp";
@@ -37,6 +38,25 @@ export function registerFilesIpc({
 
     ipcMain.on("open-file-with", async (_, filePath) => {
         openFileWith(filePath);
+    });
+
+    // Puts the actual file (not its path) on the Windows clipboard so it can
+    // be pasted into Explorer, an upload dialog, or apps like Claude.
+    ipcMain.on("copy-file-clipboard", (_, filePath) => {
+        if (!filePath) return;
+        const escaped = filePath.replace(/'/g, "''");
+        execFile(
+            "powershell.exe",
+            [
+                "-NoProfile",
+                "-WindowStyle", "Hidden",
+                "-Command",
+                `Set-Clipboard -LiteralPath '${escaped}'`,
+            ],
+            (err) => {
+                if (err) console.error("copy-file-clipboard failed:", err);
+            }
+        );
     });
 
     ipcMain.handle("set-folder-dialog-open", (_, isOpen) => {

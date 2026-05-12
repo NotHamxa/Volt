@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button.tsx";
 import { Check, X, Keyboard, AlertTriangle, History, Power } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { SettingCard, DeleteHistorySection, ResetAppData } from "@/components/settingsCard.tsx";
+import { SectionLead, GroupLabel, Toggle } from "@/components/settingsLayout.tsx";
 
 interface GeneralSettingsSectionProps {
     setHasUnsaved: (val: boolean) => void;
@@ -82,25 +83,22 @@ export default function GeneralSettingsSection({ setHasUnsaved }: GeneralSetting
     };
 
     return (
-        <div className="space-y-10">
-            <header>
-                <h2 className="text-[22px] font-semibold text-white tracking-[-0.03em] mb-1.5">General</h2>
-                <p className="text-white/40 text-[13px]">Configure how you interact with the application.</p>
-            </header>
+        <div className="space-y-7">
+            <SectionLead>Configure how you interact with the application.</SectionLead>
 
-            <div className="space-y-4">
+            <div className="space-y-2">
                 <SettingCard
                     icon={Keyboard}
                     title="Activation Shortcut"
                     description="The global keyboard combination used to toggle the search bar."
                 >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                         {!listeningToKeyboard && (
-                            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.06] border border-white/[0.09]">
+                            <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.04] border border-white/[0.07]">
                                 {currentOpenBind.split("+").map((k, i) => (
-                                    <span key={i} className="flex items-center gap-1.5">
-                                        {i > 0 && <span className="text-white/20 text-[11px]">+</span>}
-                                        <kbd className="px-1.5 py-0.5 rounded bg-white/[0.08] border border-white/[0.12] text-[11px] font-mono text-white/55 min-w-[24px] text-center">
+                                    <span key={i} className="flex items-center gap-1">
+                                        {i > 0 && <span className="text-white/20 text-[10px]">+</span>}
+                                        <kbd className="px-1.5 py-0.5 rounded bg-white/[0.06] border border-white/[0.1] text-[10px] font-mono text-white/55 min-w-[22px] text-center">
                                             {k.trim()}
                                         </kbd>
                                     </span>
@@ -108,19 +106,19 @@ export default function GeneralSettingsSection({ setHasUnsaved }: GeneralSetting
                             </div>
                         )}
                         {listeningToKeyboard ? (
-                            <div className="flex items-center gap-2 p-1 rounded-xl bg-white/5 border border-white/10">
-                                <span className="px-4 text-[13px] font-mono text-white/60 animate-pulse min-w-25 text-center">
+                            <div className="flex items-center gap-1 p-0.5 rounded-md bg-white/[0.04] border border-white/[0.08]">
+                                <span className="px-3 text-[11px] font-mono text-white/65 animate-pulse min-w-24 text-center">
                                     {openBind || "Recording..."}
                                 </span>
-                                <Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-white/10 text-white/40 hover:text-white/70" onClick={() => setListeningToKeyboard(false)}>
-                                    <X size={14} />
+                                <Button size="icon" variant="ghost" className="h-6 w-6 rounded-sm hover:bg-white/10 text-white/40 hover:text-white/70" onClick={() => setListeningToKeyboard(false)}>
+                                    <X size={12} />
                                 </Button>
-                                <Button size="icon" className="h-8 w-8 bg-white text-black hover:bg-white/90" onClick={confirmChangeBind}>
-                                    {bindLoad ? <Spinner /> : <Check size={14} />}
+                                <Button size="icon" className="h-6 w-6 rounded-sm bg-white text-black hover:bg-white/90" onClick={confirmChangeBind}>
+                                    {bindLoad ? <Spinner /> : <Check size={12} />}
                                 </Button>
                             </div>
                         ) : (
-                            <Button variant="outline" className="h-9 rounded-xl border-white/10 hover:bg-white/8 hover:border-white/15 px-4 text-white/60 hover:text-white/80 text-[13px]" onClick={() => setListeningToKeyboard(true)}>
+                            <Button variant="outline" className="h-8 rounded-md border-white/[0.08] hover:bg-white/[0.05] hover:border-white/[0.15] px-3 text-white/60 hover:text-white/85 text-[12px]" onClick={() => setListeningToKeyboard(true)}>
                                 Change
                             </Button>
                         )}
@@ -133,31 +131,19 @@ export default function GeneralSettingsSection({ setHasUnsaved }: GeneralSetting
                     description="Automatically launch Volt when you sign in to your computer."
                 >
                     <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => toggleOpenOnStartup(!openOnStartup)}
-                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 focus:outline-none ${
-                                openOnStartup ? "bg-white border-white" : "bg-white/10 border-white/10"
-                            }`}
-                            role="switch"
-                            aria-checked={openOnStartup}
-                        >
-                            <span
-                                className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full shadow transition duration-200 ease-in-out mt-[1px] ${
-                                    openOnStartup ? "translate-x-3.5 bg-black" : "translate-x-0.5 bg-white/40"
-                                }`}
-                            />
-                        </button>
+                        <Toggle checked={openOnStartup} onChange={() => toggleOpenOnStartup(!openOnStartup)} />
                         <div className={`transition-all duration-300 ${startupSaved ? "opacity-100 scale-100" : "opacity-0 scale-75"}`}>
-                            <Check size={14} className="text-green-400/70" />
+                            <Check size={12} className="text-green-400/70" />
                         </div>
                     </div>
                 </SettingCard>
 
-                <div className="pt-8 mt-4 border-t border-white/5">
-                    <h3 className="text-[10px] font-semibold uppercase tracking-widest text-red-400/50 mb-6 flex items-center gap-2">
-                        <AlertTriangle size={12} /> Danger Zone
-                    </h3>
-                    <div className="space-y-4">
+                <div className="pt-7">
+                    <div className="flex items-center gap-1.5 mb-3">
+                        <AlertTriangle size={11} className="text-red-400/55" />
+                        <GroupLabel accent="danger">Danger Zone</GroupLabel>
+                    </div>
+                    <div className="space-y-2">
                         <SettingCard
                             isDestructive
                             icon={History}

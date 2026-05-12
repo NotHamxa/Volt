@@ -1,7 +1,7 @@
 import path from "path";
 import os from "os";
 import settings from "../data/settings.json" with { type: 'json' };
-export const normaliseString = (str) => str.toLowerCase().replace(/\s+/g, "");
+export const normaliseString = (str) => str.toLowerCase().replace(/[\s\-_.()[\]{}'"!?,:;/\\|]+/g, "");
 
 const settingsIndex = settings.map(s => ({
     item: s,
@@ -74,22 +74,26 @@ function sortByLaunchHistory(apps, stack) {
 }
 
 function findBestMatch(items, query, stack) {
-    const lq = query.toLowerCase();
-    const matches = items.filter(item => item.name.toLowerCase().startsWith(lq));
+    const nq = normaliseString(query);
+    const matches = items.filter(item => {
+        const norm = item._normalized || normaliseString(item.name);
+        return norm.startsWith(nq);
+    });
     if (!matches.length) return null;
     if (matches.length === 1) return matches[0];
 
     if (stack?.length) {
-        const stackHasMatch = stack.some(n => n.toLowerCase().startsWith(lq));
-        if (stackHasMatch) {
-            let best = matches[0];
-            let bestIdx = stack.lastIndexOf(best.name);
-            for (const m of matches.slice(1)) {
-                const i = stack.lastIndexOf(m.name);
-                if (i !== -1 && (bestIdx === -1 || i > bestIdx)) { best = m; bestIdx = i; }
+        // Among startsWith matches, pick the most recently launched (lowest stack index)
+        let best = null;
+        let bestIdx = Infinity;
+        for (const m of matches) {
+            const i = stack.indexOf(m.name);
+            if (i !== -1 && i < bestIdx) {
+                best = m;
+                bestIdx = i;
             }
-            return bestIdx !== -1 ? best : matches[0];
         }
+        if (best) return best;
     }
     return matches[0];
 }
@@ -112,16 +116,24 @@ export function processSearchQuery(appCache, commandsCache, cachedFolderData, ra
 
     const stack = rawStack ? JSON.parse(rawStack) : [];
 
-    let apps     = filters[0] ? searchApps(appCache, q) : [];
-    let files    = [];
-    let folders  = [];
+    // For commands, when the user has typed extra tokens after the name we
+    // treat the trailing words as positional arguments — match the command
+    // against the first token only so it doesn't fall out of the results.
+    const rawTokens = query.trim().split(/\s+/);
+    const firstToken = rawTokens[0] ?? "";
+    const qCmd = rawTokens.length > 1 ? normaliseString(firstToken).trim() : q;
+    const cmdQueryRaw = rawTokens.length > 1 ? firstToken : query;
+
+    let apps = filters[0] ? searchApps(appCache, q) : [];
+    let files = [];
+    let folders = [];
     if (filters[1] || filters[2]) {
         const allFF = searchFilesAndFolders(q, cachedFolderData);
         if (filters[1]) files   = allFF.filter(f => f.type === "file");
         if (filters[2]) folders = allFF.filter(f => f.type === "folder");
     }
     let settings = filters[3] ? searchSettings(q) : [];
-    let commands = filters[4] ? searchCommands(commandsCache, q) : [];
+    let commands = filters[4] && qCmd ? searchCommands(commandsCache, qCmd) : [];
 
     if (apps.length) apps = sortByLaunchHistory(apps, stack);
 
@@ -130,7 +142,7 @@ export function processSearchQuery(appCache, commandsCache, cachedFolderData, ra
         bestMatch = findBestMatch(apps, query, stack);
         if (bestMatch) apps = apps.filter(a => a !== bestMatch);
     } else if (commands.length && filters[4]) {
-        bestMatch = findBestMatch(commands, query, null);
+        bestMatch = findBestMatch(commands, cmdQueryRaw, null);
         if (bestMatch) commands = commands.filter(c => c !== bestMatch);
     } else if (settings.length && filters[3]) {
         bestMatch = findBestMatch(settings, query, null);
@@ -149,10 +161,10 @@ export function processSearchQuery(appCache, commandsCache, cachedFolderData, ra
     console.log("IPC Search Call: "+(y-x)+"ms")
     return {
         bestMatch: bestMatch ? clean(bestMatch) : null,
-        apps:      apps.slice(0, limit).map(clean),
-        files:     files.slice(0, limit).map(clean),
-        folders:   folders.slice(0, limit).map(clean),
-        settings:  settings.slice(0, limit),
-        commands:  commands.slice(0, limit).map(clean),
+        apps: apps.slice(0, limit).map(clean),
+        files: files.slice(0, limit).map(clean),
+        folders: folders.slice(0, limit).map(clean),
+        settings: settings.slice(0, limit),
+        commands: commands.slice(0, limit).map(clean),
     };
 }

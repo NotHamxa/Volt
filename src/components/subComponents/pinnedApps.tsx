@@ -9,6 +9,7 @@ import {AppWindowIcon, FolderOpen, PinOff, ShieldCheck, Trash2} from "lucide-rea
 import {useSortable} from "@dnd-kit/sortable";
 import {CSS} from "@dnd-kit/utilities";
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip.tsx";
+import {useEscapeBarrier} from "@/hooks/useEscape.ts";
 interface IPinnedApp {
     app: SearchQueryT;
     unPinApp: (app: SearchQueryT) => void;
@@ -37,15 +38,19 @@ export default function SortablePinnedApp({app, unPinApp}: IPinnedApp) {
 
 function PinnedApp({app, unPinApp}: IPinnedApp) {
     const [logo, setLogo] = useState<string>("");
+    const [menuOpen, setMenuOpen] = useState(false);
+    useEscapeBarrier(menuOpen);
 
     const getLogo = async () => {
-        if (app?.path) {
-            const appLogo = await window.apps.getAppLogo(app);
-            setLogo(appLogo);
+        let appLogo: string | null = null;
+        if (app?.source === "Steam" && app?.appId) {
+            appLogo = await window.apps.getSteamGameLogo(app.appId);
         } else if (app?.source === "UWP") {
-            const appLogo = await window.apps.getUwpAppLogo(app);
-            setLogo(appLogo);
+            appLogo = await window.apps.getUwpAppLogo(app);
+        } else if (app?.path) {
+            appLogo = await window.apps.getAppLogo(app);
         }
+        if (appLogo) setLogo(appLogo);
     };
 
     useEffect(() => {
@@ -53,7 +58,7 @@ function PinnedApp({app, unPinApp}: IPinnedApp) {
     },[]);
 
     return (
-        <ContextMenu>
+        <ContextMenu onOpenChange={setMenuOpen}>
             <ContextMenuTrigger>
                 <TooltipProvider delayDuration={500}>
                     <Tooltip>
@@ -73,7 +78,7 @@ function PinnedApp({app, unPinApp}: IPinnedApp) {
                                 <label className="mt-2 text-[12px] max-w-[90px] truncate">{app.name}</label>
                             </button>
                         </TooltipTrigger>
-                        <TooltipContent side="bottom" className="bg-[rgba(24,24,27,0.98)] border border-white/10 text-white/70 text-[11px]">
+                        <TooltipContent side="bottom" className="bg-[rgba(20,20,22,0.98)] border border-white/10 text-white/70 text-[11px]">
                             {app.name}
                         </TooltipContent>
                     </Tooltip>

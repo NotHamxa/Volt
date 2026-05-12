@@ -1,9 +1,10 @@
-import {useEffect, useState} from "react";
+import {useCallback, useEffect, useState} from "react";
 import {Dialog, DialogContent, DialogTitle} from "@/components/ui/dialog.tsx";
 import {Label} from "@/components/ui/label.tsx";
 import {Input} from "@/components/ui/input.tsx";
 import {Button} from "@/components/ui/button.tsx";
 import {LinkShortcutType} from "@/interfaces/links.ts";
+import {useEscape} from "@/hooks/useEscape.ts";
 
 
 interface Props {
@@ -21,6 +22,13 @@ export default function EditLinkShortcutModal({
     const [editName, setEditName] = useState("");
     const [editShortcut, setEditShortcut] = useState("");
     const [error, setError] = useState("");
+
+    const closeModal = useCallback(() => {
+        setError("");
+        setOpen(false);
+    }, [setOpen]);
+
+    useEscape(closeModal, open);
 
     const onEdit = async (): Promise<boolean> => {
         const existing = linkShortcuts.find(
@@ -81,7 +89,7 @@ export default function EditLinkShortcutModal({
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent className="bg-[rgba(24,24,27,1)]">
+            <DialogContent className="bg-[rgba(20,20,22,1)]">
                 <DialogTitle>
                     <Label className="flex self-center">
                         Edit Shortcut

@@ -15,7 +15,7 @@ import WebPage from "@/pages/webPage.tsx";
 import { IntroModal } from "@/components/modal/introModal.tsx";
 import { Walkthrough } from "@/components/walkthrough.tsx";
 import { UpdateModal } from "@/components/modal/updateModal.tsx";
-import { isEscapeCaptured, setEscapeBaseline } from "@/hooks/useEscape.ts";
+import { isEscapeCaptured } from "@/hooks/useEscape.ts";
 import { getChangelogForVersion, getLatestChangelog, ChangelogEntry } from "@/data/changelog.ts";
 import ErrorBoundary from "@/components/ErrorBoundary.tsx";
 import { SearchQueryT } from "@/interfaces/searchQuery.ts";
@@ -35,7 +35,6 @@ export default function App() {
     const [query, setQuery] = useState<string>("");
     const inputRef = useRef<HTMLInputElement>(null);
     const [stage, setStage] = useState<number>(1);
-    const [escApp,setEscApp] = useState<boolean>(true);
     const selfQueryChangedRef = useRef<boolean>(false);
     const [argCommand, setArgCommand] = useState<SearchQueryT | null>(null);
     const [argInitialValues, setArgInitialValues] = useState<Record<string, string> | undefined>(undefined);
@@ -69,8 +68,6 @@ export default function App() {
     const [showUnlockedIcon, setShowUnlockedIcon] = useState<boolean>(false);
     const lockTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const unlockTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const escAppRef = useRef(escApp);
-
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -79,16 +76,6 @@ export default function App() {
         locationRef.current = location.pathname;
     });
 
-    useEffect(() => {
-        setEscapeBaseline(location.pathname !== "/");
-        setEscApp(location.pathname === "/");
-        escAppRef.current = location.pathname === "/";
-
-    }, [location.pathname]);
-
-    useEffect(()=>{
-        window.electron.log(escApp)
-    },[escApp]);
     function setQueryFromBang(value: string) {
         selfQueryChangedRef.current = true;
         setQuery(value);
@@ -148,15 +135,14 @@ export default function App() {
                 inputRef.current.focus();
             }
             navigate('/');
-            window.electron.toggleEscape(true);
         };
 
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === "Escape") {
-                // A modal on the global escape stack consumed it — don't
-                // also navigate the page.
                 if (isEscapeCaptured()) return;
-                if (!escAppRef.current) {
+                if (locationRef.current === '/') {
+                    window.electron.hideWindow();
+                } else {
                     inputRef.current?.focus();
                     setQuery("");
                     navigate('/', { replace: true });

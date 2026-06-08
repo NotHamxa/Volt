@@ -39,7 +39,7 @@ declare global {
             deleteFolder:(path:string)=>Promise<boolean>;
 
             searchQuery:(query:string, filters:boolean[]) => Promise<ProcessedSearchResult>;
-            toggleEscape:(state:boolean)=>Promise<void>;
+            hideWindow:()=>void;
             getAppVersion:()=>Promise<string>;
             getOpenOnStartup:()=>Promise<boolean>;
             setOpenOnStartup:(enabled:boolean)=>Promise<boolean>;

@@ -45,7 +45,6 @@ const cache = {
 const appStates = {
     fixWindowOpen:false,
     windowLocked:false,
-    pauseEscape:false,
     dialogOpen:false,
 }
 
@@ -108,15 +107,11 @@ const showMainWindow = () => {
     setTimeout(() => {
         mainWindow.setOpacity(1);
     }, 50);
-
-    globalShortcut.register("Esc", handleEsc);
 };
 const hideMainWindow = () => {
     if (!mainWindow || appStates.fixWindowOpen || appStates.windowLocked) return;
     mainWindow.hide();
-    globalShortcut.unregister("Esc");
     mainWindow.webContents.send('window-blurred');
-    appStates.pauseEscape = false;
     restoreForegroundWindow();
 };
 const handleWindowLock = ()=>{
@@ -139,25 +134,12 @@ const changeOpenBind = async (binding)=>{
     store.set("openWindowBind", binding);
     return true
 }
-const handleEsc = () => {
-    if (mainWindow?.isVisible() && !appStates.pauseEscape) {
-        hideMainWindow();
-    }
-};
-
-
 ipcMain.handle("set-open-bind", (_, binding) => {
     return changeOpenBind(binding);
 });
-ipcMain.on("toggle-esc-pause", (_, state) => {
-    appStates.pauseEscape = state;
-    if (state){
-        globalShortcut.unregister("Esc");
-    }
-    else{
-        globalShortcut.register("Esc", handleEsc);
-    }
-})
+ipcMain.on("hide-window", () => {
+    hideMainWindow();
+});
 
 
 const createWindow = async () => {
@@ -208,7 +190,6 @@ const createWindow = async () => {
     const devServerURL = "http://localhost:5173";
 
     mainWindow.on('blur', () => {
-        globalShortcut.unregister("Esc");
         if (appStates.fixWindowOpen && !appStates.dialogOpen) mainWindow.focus();
         else if (mainWindow?.isVisible()) hideMainWindow();
     });

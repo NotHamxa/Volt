@@ -8,6 +8,7 @@ export function setupAutoUpdater(mainWindow) {
 
     autoUpdater.autoDownload = true;
     autoUpdater.autoInstallOnAppQuit = true;
+    autoUpdater.disableDifferentialDownload = true;
 
     autoUpdater.on("checking-for-update", () => {
         console.log("Checking for updates...");

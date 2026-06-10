@@ -98,13 +98,12 @@ function findBestMatch(items, query, stack) {
     return matches[0];
 }
 
-function computeLimit(appsLen, foldersLen, filesLen, settingsLen, commandsLen, filters) {
-    const nullSets = [appsLen, foldersLen, filesLen, settingsLen, commandsLen].filter(l => l === 0).length;
-    const selected = filters.filter(Boolean).length;
-    if (selected >= 3 || nullSets === 1) return 5;
-    if (selected === 2 || nullSets === 2) return 7;
-    if (selected === 1 || nullSets === 3) return Math.min(Math.max(appsLen, foldersLen, filesLen, settingsLen, commandsLen), 15);
-    return 3;
+function computeLimit(appsLen, foldersLen, filesLen, settingsLen, commandsLen) {
+    const activeCats = [appsLen, foldersLen, filesLen, settingsLen, commandsLen].filter(l => l > 0).length;
+    if (activeCats <= 1) return 15;
+    if (activeCats === 2) return 10;
+    if (activeCats === 3) return 7;
+    return 5;
 }
 
 const clean = ({ _normalized, ...rest }) => rest;
@@ -155,7 +154,7 @@ export function processSearchQuery(appCache, commandsCache, cachedFolderData, ra
         if (bestMatch) files = files.filter(f => f !== bestMatch);
     }
 
-    const limit = computeLimit(apps.length, folders.length, files.length, settings.length, commands.length, filters);
+    const limit = computeLimit(apps.length, folders.length, files.length, settings.length, commands.length);
 
     const y = performance.now()
     console.log("IPC Search Call: "+(y-x)+"ms")

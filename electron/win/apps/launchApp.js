@@ -1,12 +1,9 @@
 import {exec} from "child_process";
-import Store from "electron-store";
-
-const store = new Store();
+import {recordLaunch} from "../../universal/usage.js";
 
 export async function launchApp(app,admin) {
     if (!app) return false;
     try {
-        let appLaunchStack = JSON.parse((await store.get("appLaunchStack")) ?? "[]");
         if (app.source === "Steam" && app.appId) {
             exec(`start "" "steam://rungameid/${app.appId}"`, err => { if (err) console.error('Steam launch failed:', err); });
         } else if (app.path) {
@@ -22,8 +19,7 @@ export async function launchApp(app,admin) {
             return false;
         }
 
-        appLaunchStack = [app.name,...appLaunchStack.filter(item=>item!==app.name)]
-        store.set("appLaunchStack", JSON.stringify(appLaunchStack));
+        recordLaunch(app);
         return true;
     } catch (err) {
         return false;

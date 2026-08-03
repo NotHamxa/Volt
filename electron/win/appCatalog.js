@@ -4,6 +4,7 @@ import { loadApps } from "./apps/enumerate.js";
 import { getUwpInstallLocations } from "./apps/uwpAppLogo.js";
 import { loadSteamGames, cacheSteamPath } from "./apps/steam.js";
 import { cacheAppIcon, cacheUwpIcon } from "./apps/iconCache.js";
+import { pruneUsage } from "../universal/usage.js";
 
 const store = new Store();
 
@@ -34,13 +35,9 @@ export async function loadAppData(webContents,cache) {
 }
 async function validateCache(webContents,appCache){
     try {
-        let appLaunchStack = JSON.parse((await store.get("appLaunchStack")) ?? "[]");
         let pApps = JSON.parse((await store.get("pinnedApps")) ?? "[]")
         pApps = pApps.filter(app => appCache.some(aCache=>aCache.name===app.name));
-        console.log("appLaunchStack = ", appLaunchStack);
-        appLaunchStack = appLaunchStack.filter(app => appCache.some(aCache=>aCache.name===app));
-        console.log("appLaunchStack = ", appLaunchStack);
-        store.set("appLaunchStack", JSON.stringify(appLaunchStack));
+        pruneUsage(appCache);
         store.set("pinnedApps", JSON.stringify(pApps));
         webContents.send('reloaded-app-cache')
     }

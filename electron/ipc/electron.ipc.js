@@ -1,6 +1,7 @@
 import { app, ipcMain, shell } from "electron";
 import { getGoogleSuggestions } from "../universal/autoSuggestion.js";
 import { processSearchQuery } from "../universal/search.js";
+import { loadUsage } from "../universal/usage.js";
 import { showNotification } from "../universal/notification.js";
 import { checkForUpdates } from "../universal/updater.js";
 import { executeUserCommand } from "../platform.js";
@@ -43,7 +44,7 @@ export function registerElectronIpc({ hideMainWindow, cache, store }) {
             cache.appCache,
             cache.commandsCache,
             cache.cachedFoldersData,
-            store.get("appLaunchStack"),
+            loadUsage(),
             query,
             searchFilters,
         );

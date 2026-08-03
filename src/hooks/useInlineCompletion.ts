@@ -1,24 +1,44 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getSearchHistory } from "@/scripts/bangs.ts";
 import { SearchQueryT } from "@/interfaces/searchQuery.ts";
 
 /**
- * Browser-address-bar style inline completion.
+ * Suggests the rest of an app name or past search as *ghost text*.
  *
- * As the user types, the remainder of the best matching candidate is appended
- * to the input and left selected, so continuing to type overwrites it and
- * Enter / ArrowRight accepts it. Completion is suppressed while deleting —
- * otherwise backspace would immediately re-add what was just removed.
+ * The suggestion is never written into the input's value — the field always
+ * holds exactly what was typed. That makes it impossible for a completion to
+ * swallow the query, which is what happens when you push it into the value and
+ * rely on a text selection to undo it.
  */
-export function useInlineCompletion(
-    inputRef: React.RefObject<HTMLInputElement | null>,
-    setQuery: React.Dispatch<React.SetStateAction<string>>,
-    apps: SearchQueryT[],
-) {
+/**
+ * Picks the completion for `query`, or null when nothing sensibly extends it.
+ * Pure so the typing behaviour can be exercised directly.
+ */
+export function pickCompletion(
+    query: string,
+    appNames: string[],
+    historyTerms: string[],
+): string | null {
+    // Nothing to complete mid-bang, or once a word has been finished.
+    if (!query.trim() || query.includes("!") || /\s$/.test(query)) return null;
+
+    const prefix = query.toLowerCase();
+    let best: string | null = null;
+    const consider = (candidate: string) => {
+        if (candidate.length <= query.length) return;
+        if (!candidate.toLowerCase().startsWith(prefix)) return;
+        // Shortest completion is the least surprising one.
+        if (best === null || candidate.length < best.length) best = candidate;
+    };
+
+    // Apps win over history: launching is the more common intent.
+    for (const name of appNames) consider(name);
+    if (best === null) for (const term of historyTerms) consider(term);
+    return best;
+}
+
+export function useInlineCompletion(query: string, apps: SearchQueryT[]) {
     const [historyTerms, setHistoryTerms] = useState<string[]>([]);
-    // Length of what the user actually typed, ignoring any completion we added.
-    const typedLenRef = useRef(0);
-    const pendingSelectionRef = useRef<[number, number] | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -35,57 +55,15 @@ export function useInlineCompletion(
         };
     }, []);
 
-    // Applied after render so it lands on the value React just committed.
-    useLayoutEffect(() => {
-        const selection = pendingSelectionRef.current;
-        if (!selection || !inputRef.current) return;
-        inputRef.current.setSelectionRange(selection[0], selection[1]);
-        pendingSelectionRef.current = null;
-    });
+    const appNames = useMemo(() => apps.map(a => a.name), [apps]);
 
-    const findCompletion = useCallback((typed: string): string | null => {
-        const prefix = typed.toLowerCase();
-        if (!prefix.trim()) return null;
+    const completion = useMemo(
+        () => pickCompletion(query, appNames, historyTerms),
+        [query, appNames, historyTerms]
+    );
 
-        let best: string | null = null;
-        const consider = (candidate: string) => {
-            if (candidate.length <= typed.length) return;
-            if (!candidate.toLowerCase().startsWith(prefix)) return;
-            // Shortest completion is the least surprising one.
-            if (!best || candidate.length < best.length) best = candidate;
-        };
+    // Keeps whatever casing was typed, appending only the remainder.
+    const suffix = completion ? completion.slice(query.length) : "";
 
-        // Apps win over history: launching is the more common intent.
-        for (const app of apps) consider(app.name);
-        if (best) return best;
-        for (const term of historyTerms) consider(term);
-        return best;
-    }, [apps, historyTerms]);
-
-    /** Drop-in replacement for the input's onChange. */
-    const handleChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-        const typed = event.target.value;
-        const deleting = typed.length < typedLenRef.current;
-        typedLenRef.current = typed.length;
-
-        if (deleting) {
-            setQuery(typed);
-            return;
-        }
-
-        const completion = findCompletion(typed);
-        if (completion) {
-            pendingSelectionRef.current = [typed.length, completion.length];
-            setQuery(completion);
-        } else {
-            setQuery(typed);
-        }
-    }, [findCompletion, setQuery]);
-
-    /** Keeps the tracker honest when the query is changed programmatically. */
-    const resetTypedLength = useCallback((length: number) => {
-        typedLenRef.current = length;
-    }, []);
-
-    return { handleChange, resetTypedLength };
+    return { completion, suffix };
 }

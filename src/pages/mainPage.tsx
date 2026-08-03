@@ -42,19 +42,10 @@ export default function MainLayout({ inputRef, query, setQuery, argCommand, argI
     const [logoMap, setLogoMap] = useState<Map<string, string>>(new Map());
     const location = useLocation();
 
-    const { handleChange, resetTypedLength } = useInlineCompletion(inputRef, setQuery, apps);
+    const { completion, suffix } = useInlineCompletion(query, apps);
 
     // Programmatic reset of the search box (e.g. after pinning from results).
-    const clearQuery = useCallback(() => {
-        resetTypedLength(0);
-        setQuery("");
-    }, [setQuery, resetTypedLength]);
-
-    // The query can also be cleared from outside (Escape, blur, arg mode), so
-    // keep the typed-length tracker in sync or the next keystroke misreads it.
-    useEffect(() => {
-        if (!query) resetTypedLength(0);
-    }, [query, resetTypedLength]);
+    const clearQuery = useCallback(() => setQuery(""), [setQuery]);
 
     useEffect(() => {
         const getAppData = async () => {
@@ -154,13 +145,37 @@ export default function MainLayout({ inputRef, query, setQuery, argCommand, argI
                         ? <img src={faviconUrl} className="w-6 h-6" />
                         : <Search size={20} className="text-white/30 shrink-0" />
                     }
+                    <div className="relative w-full">
+                    {/* Ghost text sits behind the input, showing only the part
+                        that would be added. The typed portion is rendered
+                        invisibly so the suffix lines up with the real caret. */}
+                    {suffix && (
+                        <div
+                            aria-hidden
+                            className="pointer-events-none absolute inset-0 my-2.5 flex h-9 items-center px-3 text-base md:text-sm"
+                        >
+                            <span className="invisible whitespace-pre">{query}</span>
+                            <span className="text-white/25 whitespace-pre">{suffix}</span>
+                        </div>
+                    )}
                     <Input
                         ref={inputRef}
                         value={query}
-                        onChange={handleChange}
+                        onChange={(e) => setQuery(e.target.value)}
                         onKeyDown={(e) => {
                             if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
                                 e.preventDefault();
+                            }
+                            // Accept the ghost only when the caret is already at
+                            // the end, so ArrowRight still moves normally.
+                            if (e.key === 'ArrowRight' && completion) {
+                                const el = e.currentTarget;
+                                const atEnd = el.selectionStart === query.length &&
+                                              el.selectionEnd === query.length;
+                                if (atEnd) {
+                                    e.preventDefault();
+                                    setQuery(completion);
+                                }
                             }
                         }}
                         onBlur={() => {
@@ -176,9 +191,10 @@ export default function MainLayout({ inputRef, query, setQuery, argCommand, argI
                             }, 0);
                         }}
                         placeholder="Search apps, files and the web"
-                        className="w-full my-2.5 block border-0 bg-transparent"
+                        className="w-full my-2.5 block border-0 bg-transparent relative"
                         autoFocus
                     />
+                    </div>
                     {isSearchRoute && query && (
                         <SearchQueryFilter filters={searchFilters} setFilters={setSearchFilters} />
                     )}

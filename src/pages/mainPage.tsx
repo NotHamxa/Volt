@@ -205,7 +205,9 @@ export default function MainLayout({ inputRef, query, setQuery, argCommand, argI
                     )}
                 </div>
             )}
-            {isAiRoute ? null : argCommand ? (
+            {/* Only the search chrome above is hidden on the AI route — the
+                Outlet must still render, since /ai is a child route. */}
+            {argCommand && !isAiRoute ? (
                 <div className="flex-1 min-h-0 flex items-center justify-center px-8">
                     <p className="text-[11px] text-white/30 text-center leading-relaxed">
                         Filling arguments for <span className="text-white/55 font-medium">{argCommand.name}</span>.<br />

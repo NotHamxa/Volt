@@ -91,10 +91,10 @@ export default function AiPage() {
     const messages = chat?.messages ?? [];
 
     return (
-        <div className="w-full h-full flex flex-col">
-            <ScrollArea ref={scrollRef} className="w-full h-[300px] px-4">
+        <div className="flex-1 min-h-0 w-full flex flex-col">
+            <ScrollArea ref={scrollRef} className="flex-1 min-h-0 w-full px-4">
                 {messages.length === 0 ? (
-                    <div className="h-[280px] flex flex-col items-center justify-center gap-2">
+                    <div className="h-full min-h-[200px] flex flex-col items-center justify-center gap-2">
                         <Sparkles size={20} className="text-amber-300/40" />
                         <p className="text-[12px] text-white/35">Ask anything</p>
                         {provider && !provider.available && (
@@ -144,82 +144,81 @@ export default function AiPage() {
                                 e.preventDefault();
                                 submit(prompt);
                             }
-                            // Escape leaves the view; don't let it bubble to the
-                            // launcher's handler and hide the window outright.
-                            if (e.key === "Escape") e.stopPropagation();
+                            // Escape falls through to the launcher's global
+                            // handler, which routes back to the search view.
                         }}
                         placeholder="Ask anything…   (Enter to send, Shift+Enter for a new line)"
                         className="w-full resize-none bg-transparent px-3 pt-2.5 pb-1.5 text-[12.5px] text-white/85 placeholder:text-white/25 outline-none"
                     />
 
                     <div className="flex items-center gap-1.5 px-2 pb-2">
-                <Selector
-                    value={providerId}
-                    onChange={(id) => {
-                        setProviderId(id);
-                        const p = providers.find(x => x.id === id);
-                        setModel(p?.models[0]?.id ?? "");
-                        setSettings(Object.fromEntries((p?.controls ?? []).map(c => [c.id, c.default])));
-                    }}
-                    options={providers.map(p => ({
-                        id: p.id,
-                        label: p.available ? p.label : `${p.label} (unavailable)`,
-                    }))}
-                />
-                {provider && provider.models.length > 0 && (
-                    <Selector value={model} onChange={setModel}
-                              options={provider.models.map(m => ({ id: m.id, label: m.label }))} />
-                )}
-                {/* Only knobs this provider honours */}
-                {provider?.controls.map(control => (
-                    <Selector
-                        key={control.id}
-                        value={settings[control.id] ?? control.default}
-                        onChange={(v) => setSettings(s => ({ ...s, [control.id]: v }))}
-                        options={control.options.map(o => ({ id: o.id, label: o.label }))}
-                    />
-                ))}
+                        <Selector
+                            value={providerId}
+                            onChange={(id) => {
+                                setProviderId(id);
+                                const p = providers.find(x => x.id === id);
+                                setModel(p?.models[0]?.id ?? "");
+                                setSettings(Object.fromEntries((p?.controls ?? []).map(c => [c.id, c.default])));
+                            }}
+                            options={providers.map(p => ({
+                                id: p.id,
+                                label: p.available ? p.label : `${p.label} (unavailable)`,
+                            }))}
+                        />
+                        {provider && provider.models.length > 0 && (
+                            <Selector value={model} onChange={setModel}
+                                      options={provider.models.map(m => ({ id: m.id, label: m.label }))} />
+                        )}
+                        {/* Only knobs this provider honours */}
+                        {provider?.controls.map(control => (
+                            <Selector
+                                key={control.id}
+                                value={settings[control.id] ?? control.default}
+                                onChange={(v) => setSettings(s => ({ ...s, [control.id]: v }))}
+                                options={control.options.map(o => ({ id: o.id, label: o.label }))}
+                            />
+                        ))}
 
-                <div className="ml-auto flex items-center gap-1">
-                    {streaming && (
-                        <button
-                            onClick={cancel}
-                            title="Stop"
-                            className="flex items-center gap-1 px-1.5 py-1 rounded-md text-[10px] text-white/50 hover:text-white/80 hover:bg-white/[0.06] transition-colors cursor-pointer"
-                        >
-                            <Square size={9} /> Stop
-                        </button>
-                    )}
+                        <div className="ml-auto flex items-center gap-1">
+                            {streaming && (
+                                <button
+                                    onClick={cancel}
+                                    title="Stop"
+                                    className="flex items-center gap-1 px-1.5 py-1 rounded-md text-[10px] text-white/50 hover:text-white/80 hover:bg-white/[0.06] transition-colors cursor-pointer"
+                                >
+                                    <Square size={9} /> Stop
+                                </button>
+                            )}
 
-                    <button
-                        onClick={newChat}
-                        title="New chat"
-                        className="p-1 rounded-md text-white/35 hover:text-white/75 hover:bg-white/[0.06] transition-colors cursor-pointer"
-                    >
-                        <Plus size={12} />
-                    </button>
+                            <button
+                                onClick={newChat}
+                                title="New chat"
+                                className="p-1 rounded-md text-white/35 hover:text-white/75 hover:bg-white/[0.06] transition-colors cursor-pointer"
+                            >
+                                <Plus size={12} />
+                            </button>
 
-                    <ChatHistory
-                        chats={chats}
-                        activeId={chat?.id ?? null}
-                        onOpen={openChat}
-                        onDelete={async (id) => {
-                            await window.ai.deleteChat(id);
-                            if (chat?.id === id) newChat();
-                            refreshChats();
-                        }}
-                    />
+                            <ChatHistory
+                                chats={chats}
+                                activeId={chat?.id ?? null}
+                                onOpen={openChat}
+                                onDelete={async (id) => {
+                                    await window.ai.deleteChat(id);
+                                    if (chat?.id === id) newChat();
+                                    refreshChats();
+                                }}
+                            />
 
-                    <button
-                        onClick={() => submit(prompt)}
-                        disabled={!prompt.trim() || streaming}
-                        title="Send"
-                        className="flex items-center justify-center w-6 h-6 rounded-md bg-white/[0.1] hover:bg-white/[0.18] disabled:opacity-25 disabled:cursor-default transition-colors cursor-pointer"
-                    >
-                        <ArrowUp size={12} className="text-white/80" />
-                    </button>
+                            <button
+                                onClick={() => submit(prompt)}
+                                disabled={!prompt.trim() || streaming}
+                                title="Send"
+                                className="flex items-center justify-center w-6 h-6 rounded-md bg-white/[0.1] hover:bg-white/[0.18] disabled:opacity-25 disabled:cursor-default transition-colors cursor-pointer"
+                            >
+                                <ArrowUp size={12} className="text-white/80" />
+                            </button>
+                        </div>
                     </div>
-                </div>
                 </div>
             </div>
         </div>

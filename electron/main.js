@@ -116,7 +116,10 @@ const showMainWindow = () => {
     }, 50);
 };
 const hideMainWindow = () => {
-    if (!mainWindow || appStates.fixWindowOpen || appStates.windowLocked || appStates.aiMode) return;
+    // aiMode is deliberately not checked here: it only suppresses the *blur*
+    // auto-hide (handled in the blur listener). An explicit hide — the hotkey,
+    // Escape, tray — must still work while the AI view is open.
+    if (!mainWindow || appStates.fixWindowOpen || appStates.windowLocked) return;
     mainWindow.hide();
     mainWindow.webContents.send('window-blurred');
     restoreForegroundWindow();

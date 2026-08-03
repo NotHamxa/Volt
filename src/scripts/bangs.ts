@@ -57,6 +57,15 @@ export function resolveBang(query: string): ResolvedSearch | null {
     };
 }
 
+/** Builds a history entry for an arbitrary term against a known bang. */
+export function searchWith(bang: BangData, searchTerm: string): SearchHistoryT {
+    return {
+        searchTerm,
+        searchUrl: buildUrl(bang, searchTerm),
+        site: bang.s,
+    };
+}
+
 /** Turns a resolved search into the shape stored in history. */
 export function toHistoryEntry(resolved: ResolvedSearch): SearchHistoryT {
     return {

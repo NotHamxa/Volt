@@ -18,6 +18,7 @@ import {
     Bolt,
     ArrowDownToLine,
     CodeXml,
+    Search,
     SearchX
 } from "lucide-react";
 import { FaRegFilePdf, FaRegFileWord, FaRegFilePowerpoint, FaFolderOpen } from "react-icons/fa6";
@@ -29,7 +30,7 @@ import {
     ContextMenuTrigger
 } from "@/components/ui/context-menu.tsx";
 import { SearchQueryT } from "@/interfaces/searchQuery.ts";
-import { resolveBang, toHistoryEntry, openSearch, ResolvedSearch } from "@/scripts/bangs.ts";
+import { resolveBang, toHistoryEntry, openSearch, searchWith, ResolvedSearch } from "@/scripts/bangs.ts";
 
 /** The web fallback row: the display entry plus the bang it resolved from. */
 type WebEntry = { entry: SearchQueryT; resolved: ResolvedSearch };
@@ -448,6 +449,8 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
     const [files, setFiles] = useState<SearchQueryT[]>([]);
     const [settings, setSettings] = useState<SearchQueryT[]>([]);
     const [commands, setCommands] = useState<SearchQueryT[]>([]);
+    const [webSuggestions, setWebSuggestions] = useState<string[]>([]);
+    const suggestionCountRef = useRef(0);
     const { enterArgMode } = useOutletContext<MainLayoutContext>();
 
     useEffect(() => {
@@ -491,7 +494,9 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
             // query is non-empty — count it alongside the local results.
             const localCount = result.apps.length + result.folders.length + result.files.length +
                 result.settings.length + result.commands.length + (result.bestMatch ? 1 : 0);
-            const webCount = query.trim() ? 1 : 0;
+            // Read the live suggestion count from a ref rather than a dep, so
+            // suggestions arriving don't re-trigger the search IPC.
+            const webCount = query.trim() ? 1 + suggestionCountRef.current : 0;
             if (focusedIndex >= localCount + webCount) setFocusedIndex(0);
         };
 
@@ -525,9 +530,44 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
     // An explicit bang means the user has already told us where they're going,
     // so it takes the top slot ahead of any local guess.
     const promoteWeb = webEntry?.resolved.hasExplicitBang ?? false;
-    // When the web row is promoted it occupies index 0, pushing every local
-    // result down one. Keyboard indices must stay in sync with render order.
-    const localOffset = promoteWeb ? 1 : 0;
+
+    // Autocomplete only when the user has signalled web intent with a bang —
+    // otherwise every app search would pull in remote suggestions.
+    useEffect(() => {
+        let cancelled = false;
+        const bang = webEntry?.resolved.hasExplicitBang ? webEntry.resolved : null;
+        const timer = setTimeout(async () => {
+            if (!bang?.searchTerm) {
+                if (!cancelled) setWebSuggestions([]);
+                return;
+            }
+            const raw = await window.electron.getGoogleSuggestions(bang.searchTerm);
+            if (cancelled) return;
+            const cleaned = raw
+                .map(s => s.replace(/<\/?b>/g, "").trim())
+                .filter(s => s && s.toLowerCase() !== bang.searchTerm.toLowerCase());
+            setWebSuggestions([...new Set(cleaned)].slice(0, 5));
+        }, 250);
+        return () => { cancelled = true; clearTimeout(timer); };
+    }, [webEntry]);
+
+    const suggestionEntries = useMemo<SearchQueryT[]>(() => {
+        if (!webEntry?.resolved.hasExplicitBang) return [];
+        return webSuggestions.map(s => ({
+            name: s,
+            type: "webSuggestion",
+            path: searchWith(webEntry.resolved.bang, s).searchUrl,
+            source: webEntry.resolved.bang.s,
+        }));
+    }, [webSuggestions, webEntry]);
+
+    // The promoted web block (row + its suggestions) sits above the local
+    // results, so every local index shifts by the block's size.
+    const localOffset = promoteWeb ? 1 + suggestionEntries.length : 0;
+
+    useEffect(() => {
+        suggestionCountRef.current = suggestionEntries.length;
+    }, [suggestionEntries.length]);
 
     const allResults = useMemo<SearchQueryT[]>(() => {
         const web = webEntry ? [webEntry.entry] : [];
@@ -539,8 +579,10 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
             ...files,
             ...folders,
         ];
-        return promoteWeb ? [...web, ...local] : [...local, ...web];
-    }, [bestMatch, apps, settings, files, folders, commands, webEntry, promoteWeb]);
+        return promoteWeb
+            ? [...web, ...suggestionEntries, ...local]
+            : [...local, ...web];
+    }, [bestMatch, apps, settings, files, folders, commands, webEntry, promoteWeb, suggestionEntries]);
 
     const handleContextMenuOpenChange = useCallback((open: boolean) => {
         setIsContextMenuOpen(open);
@@ -611,6 +653,8 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                 setTimeout(() => setTriggeredIndex(-1), 100);
             } else if (item.type === "webSearch" && webEntry) {
                 await openSearch(toHistoryEntry(webEntry.resolved));
+            } else if (item.type === "webSuggestion" && webEntry) {
+                await openSearch(searchWith(webEntry.resolved.bang, item.name));
             } else if (item.type === "app") {
                 await window.apps.openApp(item);
             } else if (item.path) {
@@ -739,6 +783,23 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                 ) : (
                     <>
                         {promoteWeb && renderWebRow(0)}
+
+                        {promoteWeb && suggestionEntries.map((s, index) => {
+                            const itemIndex = index + 1;
+                            const focused = focusedIndex === itemIndex;
+                            return (
+                                <div key={`sug-${s.name}`} ref={el => { itemRefs.current[itemIndex] = el; }}>
+                                    <button
+                                        onClick={() => { if (webEntry) openSearch(searchWith(webEntry.resolved.bang, s.name)); }}
+                                        tabIndex={0}
+                                        className={`cursor-pointer flex items-center py-1.5 pl-11 pr-3 rounded-lg select-none transition-colors duration-150 gap-2 w-full hover:bg-white/10 ${focused ? "bg-white/10 outline outline-[1px] outline-white/[0.18]" : "bg-transparent"}`}
+                                    >
+                                        <Search className="w-3.5 h-3.5 shrink-0 text-white/30" />
+                                        <span className="text-[12px] text-white/60 truncate">{s.name}</span>
+                                    </button>
+                                </div>
+                            );
+                        })}
 
                         {bestMatch && (
                             <div ref={el => { itemRefs.current[localOffset] = el; }}>

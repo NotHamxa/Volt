@@ -101,6 +101,9 @@ export const claudeCodeProvider = registerProvider({
         const bin = findClaudeBinary();
         const options = {
             permissionMode: "bypassPermissions",
+            // Without this the SDK only emits whole assistant messages, so the
+            // answer appears in one lump when the turn finishes.
+            includePartialMessages: true,
             ...(bin ? { pathToClaudeCodeExecutable: bin } : {}),
             ...(model ? { model } : {}),
             // Continue an existing thread rather than resending the transcript.
@@ -112,14 +115,34 @@ export const claudeCodeProvider = registerProvider({
         if (effort) options.env = { ...process.env, CLAUDE_CODE_EFFORT: effort };
 
         let resolvedSession = sessionId ?? null;
+        // Deltas and whole assistant messages both arrive; emitting each token
+        // once means the completed message is only a fallback for turns that
+        // produced no deltas at all.
+        let streamedSinceMessage = false;
         try {
             for await (const message of query({ prompt, options })) {
                 if (message?.session_id && !resolvedSession) resolvedSession = message.session_id;
 
+                if (message?.type === "stream_event") {
+                    const event = message.event;
+                    if (event?.type === "content_block_delta" && event.delta?.type === "text_delta") {
+                        const text = event.delta.text;
+                        if (text) {
+                            streamedSinceMessage = true;
+                            yield { type: "text", text };
+                        }
+                    }
+                    continue;
+                }
+
                 if (message?.type === "assistant") {
-                    for (const block of message.message?.content ?? []) {
-                        if (block?.type === "text" && block.text) {
-                            yield { type: "text", text: block.text };
+                    if (streamedSinceMessage) {
+                        streamedSinceMessage = false;
+                    } else {
+                        for (const block of message.message?.content ?? []) {
+                            if (block?.type === "text" && block.text) {
+                                yield { type: "text", text: block.text };
+                            }
                         }
                     }
                 }

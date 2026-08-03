@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
-import { Sparkles, Square, History, Plus, Trash2, ArrowUp } from "lucide-react";
+import { Square, History, Plus, Trash2, ArrowUp } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { useChat } from "@/ai/useChat.ts";
+import logo from "@/assets/icon.png";
 
 /**
  * AI lives inside the launcher, not a second window — same 800x550 frame, same
@@ -89,50 +90,68 @@ export default function AiPage() {
     }, [chat?.messages.length, partial]);
 
     const messages = chat?.messages ?? [];
+    const empty = messages.length === 0;
 
     return (
-        <div className="flex-1 min-h-0 w-full flex flex-col">
-            <ScrollArea ref={scrollRef} className="flex-1 min-h-0 w-full px-4">
-                {messages.length === 0 ? (
-                    <div className="h-full min-h-[200px] flex flex-col items-center justify-center gap-2">
-                        <Sparkles size={20} className="text-amber-300/40" />
-                        <p className="text-[12px] text-white/35">Ask anything</p>
-                        {provider && !provider.available && (
-                            <p className="text-[10px] text-amber-300/60 text-center max-w-xs mt-1">
-                                {provider.detail}
-                            </p>
-                        )}
-                    </div>
-                ) : (
-                    <div className="flex flex-col gap-4 py-3">
+        // Centred while empty, docked once a conversation starts. The prompt box
+        // keeps the same slot in this children array across both states, so the
+        // textarea node survives the switch and doesn't lose focus mid-thought.
+        <div className={`flex-1 min-h-0 flex flex-col ${empty ? "justify-center" : ""}`}>
+            {empty ? (
+                <div className="flex flex-col items-center gap-2.5 pb-5">
+                    <img src={logo} alt="" className="w-9 h-9 object-contain opacity-70" />
+                    <p className="text-[12px] text-white/35">Ask anything</p>
+                    {provider && !provider.available && (
+                        <p className="text-[10px] text-amber-300/60 text-center max-w-xs">
+                            {provider.detail}
+                        </p>
+                    )}
+                </div>
+            ) : (
+                <ScrollArea ref={scrollRef} className="flex-1 min-h-0 w-full px-5">
+                    <div className="flex flex-col gap-3.5 py-4">
                         {messages.map((m, i) => {
                             const isLast = i === messages.length - 1;
-                            const body = isLast && m.role === "assistant" && streaming ? partial : m.content;
+                            const live = isLast && m.role === "assistant" && streaming;
+                            const body = live ? partial : m.content;
+
+                            if (m.role === "user") {
+                                return (
+                                    <div
+                                        key={i}
+                                        className="self-end max-w-[76%] rounded-2xl rounded-br-md bg-white/[0.07] border border-white/[0.06] px-3.5 py-2 text-[12.5px] leading-relaxed text-white/85 whitespace-pre-wrap break-words"
+                                    >
+                                        {m.content}
+                                    </div>
+                                );
+                            }
+
                             return (
-                                <div key={i} className="flex flex-col gap-1">
-                                    <span className="text-[9px] uppercase tracking-wide text-white/25">
-                                        {m.role === "user" ? "You" : provider?.label ?? "Assistant"}
-                                    </span>
-                                    <div className="text-[12.5px] leading-relaxed text-white/80 whitespace-pre-wrap break-words">
-                                        {body || (streaming && isLast ? "…" : "")}
+                                <div key={i} className="self-start flex gap-2.5 max-w-[88%]">
+                                    <img src={logo} alt="" className="w-4 h-4 mt-0.5 shrink-0 object-contain opacity-50" />
+                                    <div className="text-[12.5px] leading-relaxed text-white/75 whitespace-pre-wrap break-words">
+                                        {body}
+                                        {live && (
+                                            <span className="inline-block w-[7px] h-[13px] ml-0.5 -mb-0.5 rounded-[1px] bg-white/40 animate-pulse" />
+                                        )}
                                     </div>
                                 </div>
                             );
                         })}
                     </div>
-                )}
 
-                {error && (
-                    <div className="mb-3 px-2.5 py-1.5 rounded-lg bg-red-400/[0.08] border border-red-400/20">
-                        <p className="text-[10.5px] text-red-300/80">{error}</p>
-                    </div>
-                )}
-            </ScrollArea>
+                    {error && (
+                        <div className="mb-3 px-2.5 py-1.5 rounded-lg bg-red-400/[0.08] border border-red-400/20">
+                            <p className="text-[10.5px] text-red-300/80">{error}</p>
+                        </div>
+                    )}
+                </ScrollArea>
+            )}
 
             {/* Its own prompt box — the launcher's search input stays out of
                 the way while this view is open. */}
-            <div className="mt-auto px-4 pt-1">
-                <div className="rounded-xl border border-white/[0.09] bg-white/[0.03] focus-within:border-white/[0.16] transition-colors">
+            <div className={`shrink-0 px-5 ${empty ? "" : "pb-3"}`}>
+                <div className={`mx-auto w-full rounded-2xl border border-white/[0.08] bg-white/[0.045] backdrop-blur-xl shadow-[0_4px_20px_rgba(0,0,0,0.25)] focus-within:border-white/[0.16] focus-within:bg-white/[0.06] transition-colors ${empty ? "max-w-[560px]" : ""}`}>
                     <textarea
                         ref={inputRef}
                         value={prompt}
@@ -147,11 +166,11 @@ export default function AiPage() {
                             // Escape falls through to the launcher's global
                             // handler, which routes back to the search view.
                         }}
-                        placeholder="Ask anything…   (Enter to send, Shift+Enter for a new line)"
-                        className="w-full resize-none bg-transparent px-3 pt-2.5 pb-1.5 text-[12.5px] text-white/85 placeholder:text-white/25 outline-none"
+                        placeholder="Ask anything…"
+                        className="w-full resize-none bg-transparent px-3.5 pt-3 pb-1.5 text-[12.5px] leading-relaxed text-white/85 placeholder:text-white/25 outline-none"
                     />
 
-                    <div className="flex items-center gap-1.5 px-2 pb-2">
+                    <div className="flex items-center gap-1.5 px-2.5 pb-2">
                         <Selector
                             value={providerId}
                             onChange={(id) => {
@@ -213,13 +232,17 @@ export default function AiPage() {
                                 onClick={() => submit(prompt)}
                                 disabled={!prompt.trim() || streaming}
                                 title="Send"
-                                className="flex items-center justify-center w-6 h-6 rounded-md bg-white/[0.1] hover:bg-white/[0.18] disabled:opacity-25 disabled:cursor-default transition-colors cursor-pointer"
+                                className="flex items-center justify-center w-6 h-6 rounded-md bg-white/[0.12] hover:bg-white/[0.2] disabled:opacity-25 disabled:cursor-default transition-colors cursor-pointer"
                             >
                                 <ArrowUp size={12} className="text-white/80" />
                             </button>
                         </div>
                     </div>
                 </div>
+
+                {empty && error && (
+                    <p className="mx-auto max-w-[560px] mt-2 text-[10.5px] text-red-300/80">{error}</p>
+                )}
             </div>
         </div>
     );

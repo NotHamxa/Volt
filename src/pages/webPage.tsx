@@ -1,5 +1,5 @@
 import { MutableRefObject } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router';
 import BangSuggestions from "@/components/bangSuggestions.tsx";
 
 interface WebPageProps {

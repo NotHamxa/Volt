@@ -1,4 +1,4 @@
-import { useOutletContext, useSearchParams } from 'react-router-dom';
+import { useOutletContext, useSearchParams } from 'react-router';
 import QuerySuggestions from "@/components/querySuggestions.tsx";
 import { MainLayoutContext } from "@/pages/mainPage.tsx";
 

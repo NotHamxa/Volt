@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, ReactNode, useLayoutEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { Settings, Hash, FolderOpen, Info, Terminal, Lightbulb, ArrowLeft } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { useEscape } from "@/hooks/useEscape.ts";

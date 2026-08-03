@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Lightbulb, ChevronRight, X, BellOff } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { tips } from "@/data/tips";
 
 const STORE_INDEX_KEY = "tipIndex";

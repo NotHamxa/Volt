@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Unlock, Lock, Loader2, RefreshCw } from "lucide-react";
 import { GitHub } from "@/components/icons/github.tsx";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip.tsx";
-import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { Routes, Route, useNavigate, useLocation } from 'react-router';
 import logo from "@/assets/icon.png";
 
 import SettingsPage from "@/pages/settingsPage.tsx";

@@ -1,13 +1,28 @@
-ignoredBuiltDependencies:
-  - electron
-  - electron-winstaller
-  - esbuild
-  - extract-file-icon
-  - lzma-native
+allowBuilds:
+  electron: true
+  electron-winstaller: true
+  esbuild: true
+  extract-file-icon: true
+  lzma-native: true
 
-onlyBuiltDependencies:
-  - electron
-  - electron-winstaller
-  - esbuild
-  - extract-file-icon
-  - lzma-native
+# Force patched versions of transitive deps whose parents still pin
+# vulnerable releases. Scoped per major so parents keep a compatible API.
+overrides:
+  brace-expansion@1: ^1.1.18
+  brace-expansion@2: ^2.1.4
+  brace-expansion@5: ^5.0.9
+  minimatch@3: ^3.1.5
+  minimatch@7: ^7.4.9
+  picomatch@2: ^2.3.2
+  tar@7: ^7.5.22
+  undici@6: ^6.28.0
+  tmp@0.2: ^0.2.7
+  form-data@4: ^4.0.6
+  lodash@4: ^4.18.1
+  rollup@4: ^4.62.4
+  js-yaml@3: ^3.15.1
+  js-yaml@4: ^4.3.1
+  yaml@1: ^1.10.3
+  postcss@8: ^8.5.25
+  "@babel/core@7": ^7.29.7
+  fast-uri@3: ^3.1.5

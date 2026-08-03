@@ -1,5 +1,5 @@
-import { useOutletContext } from 'react-router-dom';
-import { useNavigate } from 'react-router-dom';
+import { useOutletContext } from 'react-router';
+import { useNavigate } from 'react-router';
 import PinnedApps from "@/components/pinnedAppsComponent.tsx";
 import TipBar from "@/components/tipBar.tsx";
 import { MainLayoutContext } from "@/pages/mainPage.tsx";

@@ -1,4 +1,4 @@
-import { useOutletContext, useSearchParams, useNavigate } from 'react-router-dom';
+import { useOutletContext, useSearchParams, useNavigate } from 'react-router';
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { SearchQueryT } from "@/interfaces/searchQuery.ts";

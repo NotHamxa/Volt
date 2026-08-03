@@ -197,10 +197,28 @@ const createWindow = async () => {
         else if (mainWindow?.isVisible()) hideMainWindow();
     });
 
-    mainWindow.webContents.on('before-input-event', (_, input) => {
+    // Volt is a fixed-size launcher, so zooming only breaks the layout. Covers
+    // Ctrl +/-/0 (with or without Shift, and the numpad variants).
+    const ZOOM_KEYS = new Set(['+', '=', '-', '_', '0', 'Add', 'Subtract']);
+
+    mainWindow.webContents.on('before-input-event', (event, input) => {
         if (input.type === 'keyDown' && input.key === 'F4' && input.alt) {
             app.quit();
+            return;
         }
+        if ((input.control || input.meta) && ZOOM_KEYS.has(input.key)) {
+            event.preventDefault();
+        }
+    });
+
+    // Ctrl+wheel and pinch bypass the keyboard entirely.
+    mainWindow.webContents.on('zoom-changed', () => {
+        mainWindow.webContents.setZoomFactor(1);
+    });
+
+    mainWindow.webContents.on('did-finish-load', () => {
+        mainWindow.webContents.setZoomFactor(1);
+        mainWindow.webContents.setVisualZoomLevelLimits(1, 1).catch(() => {});
     });
 
     // The renderer only ever loads the local bundle (or the dev server). Any

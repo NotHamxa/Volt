@@ -55,54 +55,56 @@ export default function TipBar() {
     const tip = tips[index];
 
     return (
-        // A quiet footer line rather than a raised card: the tip is ambient, so
-        // it shouldn't compete with the results above it. Controls stay hidden
-        // until the row is hovered.
-        <div className="group flex items-center gap-2 px-5 pb-2.5 pt-1 select-none">
-            <Lightbulb size={11} className="text-amber-300/45 shrink-0" strokeWidth={2} />
+        // Pinned to the bottom of the home area rather than sitting in flow —
+        // in flow it pushes past its container and collides with the app footer.
+        // Still a quiet line, not a raised card: the tip is ambient.
+        <div className="absolute left-5 right-5 bottom-2 z-10 pointer-events-none">
+            <div className="group flex items-center gap-2 px-2 py-1.5 rounded-md bg-[rgba(18,18,20,0.75)] backdrop-blur-sm select-none pointer-events-auto">
+                <Lightbulb size={11} className="text-amber-300/45 shrink-0" strokeWidth={2} />
 
-            <p className="text-[11px] text-white/35 truncate min-w-0">
-                {tip.title}
-            </p>
+                <p className="text-[11px] text-white/35 truncate min-w-0">
+                    {tip.title}
+                </p>
 
-            {tip.keys && (
-                <div className="flex items-center gap-1 shrink-0">
-                    {tip.keys.map((k, i) => (
-                        <span
-                            key={i}
-                            className="inline-flex items-center px-1.5 py-[1px] text-[9px] rounded-md bg-white/[0.05] border border-white/[0.08] text-white/40 font-mono"
-                        >
-                            {k}
-                        </span>
-                    ))}
+                {tip.keys && (
+                    <div className="flex items-center gap-1 shrink-0">
+                        {tip.keys.map((k, i) => (
+                            <span
+                                key={i}
+                                className="inline-flex items-center px-1.5 py-[1px] text-[9px] rounded-md bg-white/[0.05] border border-white/[0.08] text-white/40 font-mono"
+                            >
+                                {k}
+                            </span>
+                        ))}
+                    </div>
+                )}
+
+                <div className="flex items-center gap-0.5 shrink-0 ml-auto opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                    <button
+                        onClick={next}
+                        className="p-1 rounded-md text-white/30 hover:text-white/70 hover:bg-white/[0.05] transition-colors"
+                        title="Next tip"
+                        aria-label="Next tip"
+                    >
+                        <ChevronRight size={12} />
+                    </button>
+                    <button
+                        onClick={dismissSession}
+                        className="p-1 rounded-md text-white/30 hover:text-white/70 hover:bg-white/[0.05] transition-colors"
+                        title="Hide for this session"
+                        aria-label="Hide tip"
+                    >
+                        <X size={11} />
+                    </button>
+                    <button
+                        onClick={dismissForever}
+                        className="p-1 rounded-md text-white/25 hover:text-red-300/70 hover:bg-red-400/[0.06] transition-colors"
+                        title="Don't show tips again"
+                        aria-label="Don't show again"
+                    >
+                        <BellOff size={11} />
+                    </button>
                 </div>
-            )}
-
-            <div className="flex items-center gap-0.5 shrink-0 ml-auto opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-                <button
-                    onClick={next}
-                    className="p-1 rounded-md text-white/30 hover:text-white/70 hover:bg-white/[0.05] transition-colors"
-                    title="Next tip"
-                    aria-label="Next tip"
-                >
-                    <ChevronRight size={12} />
-                </button>
-                <button
-                    onClick={dismissSession}
-                    className="p-1 rounded-md text-white/30 hover:text-white/70 hover:bg-white/[0.05] transition-colors"
-                    title="Hide for this session"
-                    aria-label="Hide tip"
-                >
-                    <X size={11} />
-                </button>
-                <button
-                    onClick={dismissForever}
-                    className="p-1 rounded-md text-white/25 hover:text-red-300/70 hover:bg-red-400/[0.06] transition-colors"
-                    title="Don't show tips again"
-                    aria-label="Don't show again"
-                >
-                    <BellOff size={11} />
-                </button>
             </div>
         </div>
     );

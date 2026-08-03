@@ -46,20 +46,131 @@ export function findCodexBinary() {
     return cachedPath;
 }
 
-// Left to the CLI's own default unless the user picks one, so this list can't
-// go stale in the way a hard-coded catalogue would. The sentinel is a real
+const SANDBOX_CONTROL = {
+    id: "sandbox",
+    label: "Sandbox",
+    type: "select",
+    options: [
+        { id: "read-only", label: "Read only" },
+        { id: "workspace-write", label: "Workspace write" },
+    ],
+    default: "read-only",
+};
+
+// Only reached when the app-server can't be asked. The sentinel is a real
 // string rather than "" because Radix's Select rejects empty values.
 const DEFAULT_MODEL = "default";
-const MODELS = [
-    { id: DEFAULT_MODEL, label: "CLI default" },
-    { id: "gpt-5-codex", label: "gpt-5-codex" },
-    { id: "gpt-5", label: "gpt-5" },
+const FALLBACK_MODELS = [
+    { id: DEFAULT_MODEL, label: "CLI default", controls: [SANDBOX_CONTROL] },
 ];
 
-const SANDBOX = [
-    { id: "read-only", label: "Read only" },
-    { id: "workspace-write", label: "Workspace write" },
-];
+const titleCase = (value) => value.charAt(0).toUpperCase() + value.slice(1);
+
+/**
+ * The real catalogue, from the CLI's app-server rather than a list typed out
+ * here. `codex exec` has no models command, but `codex app-server` speaks
+ * newline-delimited JSON-RPC and answers `model/list` with each model's
+ * supported reasoning efforts — which genuinely differ between them.
+ *
+ * Cached for the process lifetime: this costs a spawn and a handshake.
+ */
+let modelCache = null;
+
+async function fetchModels() {
+    if (modelCache) return modelCache;
+
+    const bin = findCodexBinary();
+    if (!bin) return FALLBACK_MODELS;
+
+    const child = spawn(bin, ["app-server"], { stdio: ["pipe", "pipe", "ignore"], windowsHide: true });
+    const pending = new Map();
+    let nextId = 1;
+
+    const call = (method, params) => new Promise((resolve, reject) => {
+        const id = nextId++;
+        pending.set(id, { resolve, reject });
+        child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id, method, params })}\n`);
+    });
+
+    let buffer = "";
+    child.stdout.on("data", (data) => {
+        buffer += data.toString("utf8");
+        let index;
+        while ((index = buffer.indexOf("\n")) !== -1) {
+            const line = buffer.slice(0, index).trim();
+            buffer = buffer.slice(index + 1);
+            if (!line) continue;
+            let message;
+            try {
+                message = JSON.parse(line);
+            } catch {
+                continue; // notifications and log lines share the pipe
+            }
+            const waiter = pending.get(message.id);
+            if (!waiter) continue;
+            pending.delete(message.id);
+            if (message.error) waiter.reject(new Error(message.error.message ?? "app-server error"));
+            else waiter.resolve(message.result);
+        }
+    });
+    child.on("error", (err) => {
+        for (const { reject } of pending.values()) reject(err);
+        pending.clear();
+    });
+
+    const timeout = setTimeout(() => {
+        for (const { reject } of pending.values()) reject(new Error("timed out"));
+        pending.clear();
+        try { child.kill(); } catch { /* already gone */ }
+    }, 15000);
+    timeout.unref?.();
+
+    try {
+        await call("initialize", {
+            clientInfo: { name: "volt", title: "Volt", version: "1.0.0" },
+        });
+
+        const models = [];
+        let cursor = null;
+        // Paginated, so keep asking until the server stops handing back a cursor.
+        do {
+            const page = await call("model/list", cursor ? { cursor } : {});
+            models.push(...(page?.data ?? []));
+            cursor = page?.nextCursor ?? null;
+        } while (cursor && models.length < 200);
+
+        const visible = models.filter(m => !m.hidden && m.id);
+        if (!visible.length) return FALLBACK_MODELS;
+
+        modelCache = visible.map(m => ({
+            id: m.id,
+            label: m.displayName ?? m.id,
+            controls: [...effortControl(m), SANDBOX_CONTROL],
+        }));
+        return modelCache;
+    } finally {
+        clearTimeout(timeout);
+        try { child.stdin.end(); } catch { /* already closed */ }
+        try { child.kill(); } catch { /* already gone */ }
+    }
+}
+
+/** Each model advertises its own levels — sol offers "ultra", luna doesn't. */
+function effortControl(model) {
+    const levels = (model.supportedReasoningEfforts ?? [])
+        .map(entry => (typeof entry === "string" ? entry : entry?.reasoningEffort))
+        .filter(Boolean);
+    if (!levels.length) return [];
+    return [{
+        id: "effort",
+        label: "Reasoning",
+        type: "select",
+        options: levels.map(level => ({ id: level, label: titleCase(level) })),
+        default: levels.includes(model.defaultReasoningEffort)
+            ? model.defaultReasoningEffort
+            : levels[0],
+    }];
+}
 
 /**
  * Turns a child process's stdout into lines. Chunks split mid-line, so the
@@ -119,17 +230,22 @@ export const codexProvider = registerProvider({
     },
 
     async models() {
-        return MODELS;
+        try {
+            return await fetchModels();
+        } catch (err) {
+            console.warn("Could not read the Codex model list:", err?.message ?? err);
+            return FALLBACK_MODELS;
+        }
     },
 
     billing() {
         return codexAuthMode();
     },
 
+    // Models carry their own reasoning levels; the sandbox is the only knob
+    // that applies uniformly.
     controls() {
-        return [
-            { id: "sandbox", label: "Sandbox", type: "select", options: SANDBOX, default: "read-only" },
-        ];
+        return [SANDBOX_CONTROL];
     },
 
     async *send({ prompt, sessionId, model, settings, signal }) {
@@ -141,6 +257,8 @@ export const codexProvider = registerProvider({
 
         const args = ["exec", "--json", "--skip-git-repo-check", "--color", "never"];
         if (model && model !== DEFAULT_MODEL) args.push("--model", model);
+        // Reasoning effort has no flag of its own; it's a config override.
+        if (settings?.effort) args.push("-c", `model_reasoning_effort="${settings.effort}"`);
         args.push("--sandbox", settings?.sandbox ?? "read-only");
         // A resumed thread takes the prompt after the session id.
         if (sessionId) args.push("resume", sessionId, prompt);

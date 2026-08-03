@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
-import { Square, PanelLeft, Plus, Trash2, ArrowUp, MessageCircle } from "lucide-react";
+import { Square, PanelLeft, Plus, Trash2, ArrowUp, MessageCircle, RotateCcw } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import {
     InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea,
@@ -13,7 +13,18 @@ import { Spinner } from "@/components/ui/spinner.tsx";
 import { Kbd } from "@/components/ui/kbd.tsx";
 import { useChat } from "@/ai/useChat.ts";
 import { Markdown } from "@/ai/markdown.tsx";
+import { CopyButton } from "@/ai/copyButton.tsx";
 import logo from "@/assets/icon.png";
+
+/**
+ * Which knobs apply to a given model. Providers whose controls are uniform
+ * declare them once; Claude declares them per model, because the levels each
+ * one accepts genuinely differ.
+ */
+function controlsFor(provider: AiProviderInfo | null | undefined, modelId: string): AiControl[] {
+    if (!provider) return [];
+    return provider.models.find(m => m.id === modelId)?.controls ?? provider.controls;
+}
 
 /**
  * AI lives inside the launcher, not a second window — same 800x550 frame, same
@@ -24,7 +35,7 @@ import logo from "@/assets/icon.png";
  */
 export default function AiPage() {
     const [prompt, setPrompt] = useState("");
-    const { chat, streaming, partial, error, send, cancel, openChat, newChat } = useChat();
+    const { chat, streaming, partial, error, send, rerun, cancel, openChat, newChat } = useChat();
     const [searchParams, setSearchParams] = useSearchParams();
 
     const [providers, setProviders] = useState<AiProviderInfo[]>([]);
@@ -42,6 +53,10 @@ export default function AiPage() {
         () => providers.find(p => p.id === providerId) ?? null,
         [providers, providerId],
     );
+
+    // A model can narrow its provider's knobs — Claude's Haiku takes no effort
+    // level at all — so the model's own list wins when it declares one.
+    const controls = useMemo(() => controlsFor(provider, model), [provider, model]);
 
     const refreshChats = useCallback(async () => {
         setChats(await window.ai.listChats());
@@ -63,10 +78,11 @@ export default function AiPage() {
             if (chosen) {
                 setProviderId(chosen.id);
                 const savedModel = chosen.models.some(m => m.id === prefs.model) ? prefs.model : null;
-                setModel(savedModel ?? chosen.models[0]?.id ?? "");
+                const modelId = savedModel ?? chosen.models[0]?.id ?? "";
+                setModel(modelId);
                 const saved = prefs.settings[chosen.id] ?? {};
                 setSettings(Object.fromEntries(
-                    chosen.controls.map(c => [c.id, saved[c.id] ?? c.default]),
+                    controlsFor(chosen, modelId).map(c => [c.id, saved[c.id] ?? c.default]),
                 ));
             }
             await refreshChats();
@@ -122,10 +138,13 @@ export default function AiPage() {
         const provider = providers.find(p => p.id === loaded.providerId);
         if (!provider) return;
         setProviderId(provider.id);
-        setModel(provider.models.some(m => m.id === loaded.model) ? loaded.model! : provider.models[0]?.id ?? "");
+        const modelId = provider.models.some(m => m.id === loaded.model)
+            ? loaded.model!
+            : provider.models[0]?.id ?? "";
+        setModel(modelId);
         const stored = loaded.settings ?? {};
         setSettings(Object.fromEntries(
-            provider.controls.map(c => [c.id, stored[c.id] ?? c.default]),
+            controlsFor(provider, modelId).map(c => [c.id, stored[c.id] ?? c.default]),
         ));
     }, [openChat, providers]);
 
@@ -207,11 +226,13 @@ export default function AiPage() {
 
                                 if (m.role === "user") {
                                     return (
-                                        <div
-                                            key={i}
-                                            className="self-end max-w-[76%] rounded-2xl rounded-br-md bg-white/[0.07] border border-white/[0.06] px-3.5 py-2 text-[12.5px] leading-relaxed text-white/85 whitespace-pre-wrap break-words"
-                                        >
-                                            {m.content}
+                                        <div key={i} className="group/msg self-end flex items-start gap-1 max-w-[82%]">
+                                            <div className="opacity-0 group-hover/msg:opacity-100 focus-within:opacity-100 transition-opacity mt-1">
+                                                <CopyButton getText={() => m.content} label="Copy message" />
+                                            </div>
+                                            <div className="rounded-2xl rounded-br-md bg-white/[0.07] border border-white/[0.06] px-3.5 py-2 text-[12.5px] leading-relaxed text-white/85 whitespace-pre-wrap break-words">
+                                                {m.content}
+                                            </div>
                                         </div>
                                     );
                                 }
@@ -220,7 +241,7 @@ export default function AiPage() {
                                 return (
                                     // min-w-0 so a wide table scrolls inside its
                                     // own box instead of stretching the row.
-                                    <div key={i} className="self-start flex gap-2.5 w-full min-w-0">
+                                    <div key={i} className="group/msg self-start flex gap-2.5 w-full min-w-0">
                                         <img src={logo} alt="" className="w-4 h-4 mt-0.5 shrink-0 object-contain opacity-50" />
                                         {live && !body ? (
                                             <span className="flex items-center gap-1.5 text-[11.5px] text-white/35">
@@ -231,6 +252,24 @@ export default function AiPage() {
                                                 <Markdown>{body}</Markdown>
                                                 {live && (
                                                     <span className="inline-block w-[7px] h-[13px] -mt-0.5 rounded-[1px] bg-white/40 animate-pulse" />
+                                                )}
+                                                {/* Actions stay hidden until the
+                                                    message is hovered, so a quiet
+                                                    transcript stays quiet. */}
+                                                {!live && body && (
+                                                    <div className="flex items-center gap-0.5 mt-1 -ml-1 opacity-0 group-hover/msg:opacity-100 focus-within:opacity-100 transition-opacity">
+                                                        <CopyButton getText={() => body} label="Copy message" />
+                                                        {isLast && !streaming && (
+                                                            <button
+                                                                onClick={() => rerun({ providerId, model: model || undefined, settings })}
+                                                                aria-label="Ask again"
+                                                                title="Ask again"
+                                                                className="flex items-center justify-center w-6 h-6 rounded-md text-white/35 hover:text-white/80 transition-colors cursor-pointer"
+                                                            >
+                                                                <RotateCcw size={11} />
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 )}
                                             </div>
                                         )}
@@ -280,10 +319,13 @@ export default function AiPage() {
                                     value={providerId}
                                     onChange={(id) => {
                                         const p = providers.find(x => x.id === id);
+                                        const first = p?.models[0]?.id ?? "";
                                         applyConfig({
                                             providerId: id,
-                                            model: p?.models[0]?.id ?? "",
-                                            settings: Object.fromEntries((p?.controls ?? []).map(c => [c.id, c.default])),
+                                            model: first,
+                                            settings: Object.fromEntries(
+                                                controlsFor(p, first).map(c => [c.id, c.default]),
+                                            ),
                                         });
                                     }}
                                     options={providers.map(p => ({
@@ -294,12 +336,19 @@ export default function AiPage() {
                                 {provider && provider.models.length > 0 && (
                                     <ControlSelect
                                         value={model}
-                                        onChange={(m) => applyConfig({ model: m })}
+                                        onChange={(m) => applyConfig({
+                                            model: m,
+                                            // The new model may offer different
+                                            // levels, or none at all.
+                                            settings: Object.fromEntries(
+                                                controlsFor(provider, m).map(c => [c.id, settings[c.id] ?? c.default]),
+                                            ),
+                                        })}
                                         options={provider.models.map(m => ({ id: m.id, label: m.label }))}
                                     />
                                 )}
                                 {/* Only knobs this provider honours */}
-                                {provider?.controls.map(control => (
+                                {controls.map(control => (
                                     <ControlSelect
                                         key={control.id}
                                         value={settings[control.id] ?? control.default}

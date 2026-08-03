@@ -89,6 +89,25 @@ export function finishAssistantMessage(id, { content, sessionId }) {
 }
 
 /**
+ * Drops the trailing assistant turn so the same prompt can be asked again.
+ *
+ * For stateless providers this genuinely regenerates: the transcript sent
+ * upstream no longer contains the discarded answer. Session-based CLIs still
+ * hold it in their own thread, so there a rerun reads as "ask that again"
+ * rather than a clean retry — which is the closest they offer without throwing
+ * away the conversation's context.
+ */
+export function trimForRerun(id) {
+    const chat = readChat(id);
+    if (!chat) return null;
+    while (chat.messages.length && chat.messages[chat.messages.length - 1].role === "assistant") {
+        chat.messages.pop();
+    }
+    writeChat(chat);
+    return chat;
+}
+
+/**
  * Remembers the provider/model/controls a conversation is using.
  *
  * Switching model mid-thread is a deliberate choice, and reopening the chat

@@ -58,6 +58,13 @@ export default function AiSection() {
         return chosen ?? providers.find(p => p.available) ?? providers[0] ?? null;
     }, [providers, prefs.providerId]);
 
+    // Claude's effort levels differ per model, so the defaults panel has to ask
+    // the selected model, not the provider.
+    const defaultModelId = prefs.model ?? defaultProvider?.models[0]?.id ?? "";
+    const defaultControls = defaultProvider
+        ? defaultProvider.models.find(m => m.id === defaultModelId)?.controls ?? defaultProvider.controls
+        : [];
+
     const savePrefs = async (patch: Partial<AiPrefs>) => {
         setPrefsState(await window.ai.setPrefs(patch));
     };
@@ -158,7 +165,7 @@ export default function AiSection() {
                     </Row>
                 )}
 
-                {defaultProvider?.controls.map(control => (
+                {defaultControls.map(control => (
                     <Row key={control.id} label={control.label} hint={defaultProvider.label}>
                         <SettingSelect
                             value={prefs.settings[defaultProvider.id]?.[control.id] ?? control.default}

@@ -1,6 +1,7 @@
-import { memo } from "react";
+import { memo, useRef, type ReactNode } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { CopyButton } from "@/ai/copyButton.tsx";
 
 /**
  * Renders an assistant turn as markdown.
@@ -68,11 +69,7 @@ const components: Components = {
         );
     },
 
-    pre: ({ children }) => (
-        <pre className="my-2 p-2.5 rounded-lg bg-black/35 border border-white/[0.07] overflow-x-auto scrollbar-thin-shadcn">
-            {children}
-        </pre>
-    ),
+    pre: ({ children }) => <CodeBlock>{children}</CodeBlock>,
 
     // Tables are the most likely thing to exceed 800px, so the wrapper — not
     // the page — takes the horizontal scroll.
@@ -88,6 +85,35 @@ const components: Components = {
     ),
     td: ({ children }) => <td className="px-2.5 py-1.5 align-top text-white/65">{children}</td>,
 };
+
+/**
+ * A fenced block with its own copy button.
+ *
+ * The text is read off the rendered DOM rather than reassembled from React
+ * children — children are a nested tree of elements, and flattening them back
+ * to source drops newlines. The DOM already holds exactly what's on screen.
+ */
+function CodeBlock({ children }: { children: ReactNode }) {
+    const ref = useRef<HTMLPreElement>(null);
+
+    return (
+        <div className="group/code relative my-2">
+            <pre
+                ref={ref}
+                className="p-2.5 pr-9 rounded-lg bg-black/35 border border-white/[0.07] overflow-x-auto scrollbar-thin-shadcn"
+            >
+                {children}
+            </pre>
+            <div className="absolute top-1.5 right-1.5 opacity-0 group-hover/code:opacity-100 focus-within:opacity-100 transition-opacity">
+                <CopyButton
+                    label="Copy code"
+                    getText={() => ref.current?.innerText ?? ""}
+                    className="bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.07]"
+                />
+            </div>
+        </div>
+    );
+}
 
 /**
  * Memoised on the text: during a stream every token re-renders the transcript,

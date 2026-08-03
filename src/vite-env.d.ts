@@ -64,7 +64,8 @@ declare global {
         billing: AiBilling | null;
         available: boolean;
         detail: string | null;
-        models: Array<{ id: string; label: string }>;
+        /** A model may narrow the provider's controls, or drop them entirely. */
+        models: Array<{ id: string; label: string; controls?: AiControl[] }>;
         controls: AiControl[];
     };
 
@@ -102,6 +103,7 @@ declare global {
             appendMessage: (id: string, message: AiMessage) => Promise<AiChat | null>;
             finishMessage: (id: string, payload: { content: string; sessionId?: string }) => Promise<AiChat | null>;
             updateChatConfig: (id: string, config: { providerId?: string; model?: string | null; settings?: Record<string, string> }) => Promise<AiChat | null>;
+            trimForRerun: (id: string) => Promise<AiChat | null>;
         };
         electron: {
             log:(data:any) => void;

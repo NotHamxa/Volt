@@ -52,18 +52,71 @@ async function loadSdk() {
     return sdk;
 }
 
-const MODELS = [
-    { id: "claude-opus-5", label: "Claude Opus 5" },
-    { id: "claude-sonnet-5", label: "Claude Sonnet 5" },
-    { id: "claude-haiku-4-5", label: "Claude Haiku 4.5" },
+const EFFORT_LABELS = {
+    low: "Low", medium: "Medium", high: "High", xhigh: "Extra high", max: "Max",
+};
+
+/** Used only if the SDK can't be asked — an offline or broken install. */
+const FALLBACK_MODELS = [
+    { id: "default", label: "Default (recommended)", controls: effortControl(["low", "medium", "high", "xhigh"]) },
+    { id: "sonnet", label: "Sonnet", controls: effortControl(["low", "medium", "high", "xhigh"]) },
+    { id: "haiku", label: "Haiku", controls: [] },
 ];
 
-const EFFORT = [
-    { id: "low", label: "Low" },
-    { id: "medium", label: "Medium" },
-    { id: "high", label: "High" },
-    { id: "xhigh", label: "Extra high" },
-];
+function effortControl(levels) {
+    if (!levels?.length) return [];
+    return [{
+        id: "effort",
+        label: "Effort",
+        type: "select",
+        options: levels.map(level => ({ id: level, label: EFFORT_LABELS[level] ?? level })),
+        // "high" where offered, otherwise the strongest the model allows.
+        default: levels.includes("high") ? "high" : levels[levels.length - 1],
+    }];
+}
+
+/**
+ * The real catalogue, straight from the CLI — which models exist, and which
+ * effort levels each one actually accepts. Hard-coding this was wrong in a way
+ * that showed: Haiku supports no effort at all, so offering the control there
+ * was offering a knob that does nothing.
+ *
+ * supportedModels() lives on a live session, so a short-lived one is opened
+ * with a prompt iterable that never yields, then torn down. Cached for the
+ * process lifetime because that costs a CLI spawn.
+ */
+let modelCache = null;
+
+async function fetchModels() {
+    if (modelCache) return modelCache;
+
+    const { query } = await loadSdk();
+    const bin = findClaudeBinary();
+    const idle = (async function* () { await new Promise(() => {}); })();
+    const session = query({
+        prompt: idle,
+        options: bin ? { pathToClaudeCodeExecutable: bin } : {},
+    });
+
+    try {
+        const infos = await Promise.race([
+            session.supportedModels(),
+            new Promise((_, reject) =>
+                setTimeout(() => reject(new Error("timed out")), 15000).unref?.()),
+        ]);
+        modelCache = infos.map(info => ({
+            id: info.value,
+            label: info.displayName ?? info.value,
+            controls: effortControl(info.supportsEffort ? info.supportedEffortLevels : []),
+        }));
+        return modelCache;
+    } finally {
+        // Both are needed: interrupt ends the turn, return closes the
+        // transport. Without them the spawned CLI would linger.
+        try { await session.interrupt?.(); } catch { /* already gone */ }
+        try { await session.return?.(); } catch { /* already gone */ }
+    }
+}
 
 export const claudeCodeProvider = registerProvider({
     // The id is persisted in saved chats and prefs — renaming it would
@@ -83,17 +136,21 @@ export const claudeCodeProvider = registerProvider({
     },
 
     async models() {
-        return MODELS;
+        try {
+            return await fetchModels();
+        } catch (err) {
+            console.warn("Could not read the Claude model list:", err?.message ?? err);
+            return FALLBACK_MODELS;
+        }
     },
 
     billing() {
         return claudeAuthMode();
     },
 
+    // Every model carries its own controls, so there is nothing provider-wide.
     controls() {
-        return [
-            { id: "effort", label: "Effort", type: "select", options: EFFORT, default: "high" },
-        ];
+        return [];
     },
 
     async *send({ prompt, sessionId, model, settings, signal }) {
@@ -118,8 +175,9 @@ export const claudeCodeProvider = registerProvider({
             ...(signal ? { abortController: toController(signal) } : {}),
         };
 
-        const effort = settings?.effort;
-        if (effort) options.env = { ...process.env, CLAUDE_CODE_EFFORT: effort };
+        // A first-class option, not an env var — it accepts the same levels the
+        // model reported as supported.
+        if (settings?.effort) options.effort = settings.effort;
 
         let resolvedSession = sessionId ?? null;
         // Deltas and whole assistant messages both arrive; emitting each token

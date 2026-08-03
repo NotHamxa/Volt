@@ -12,6 +12,10 @@
  * renders what the adapter declares rather than a fixed set, so no provider
  * shows a control it will silently ignore.
  *
+ * Controls can also vary *within* a provider — Claude's Haiku accepts no effort
+ * level while Opus accepts five — so a model may carry its own list. When it
+ * does, that wins over the provider-wide one.
+ *
  * @typedef {{ type: "text", text: string }
  *          | { type: "error", message: string }
  *          | { type: "done", sessionId?: string }} Chunk
@@ -22,7 +26,7 @@
  *   kind: "subscription-sdk" | "subscription-cli" | "api",
  *   needsKey: boolean,
  *   isAvailable: () => Promise<{ available: boolean, detail?: string }>,
- *   models: () => Promise<Array<{ id: string, label: string }>>,
+ *   models: () => Promise<Array<{ id: string, label: string, controls?: AiControl[] }>>,
  *   controls: () => Array<{ id: string, label: string, type: "select", options: Array<{ id: string, label: string }>, default: string }>,
  *   billing?: () => { mode: "subscription" | "api-key" | "unknown", label: string },
  *   send: (opts: { prompt: string, sessionId?: string|null, model?: string, settings?: Record<string,string>, signal?: AbortSignal }) => AsyncIterable<Chunk>,

@@ -71,33 +71,10 @@ export function useChat() {
         partialRef.current = "";
     }, []);
 
-    const send = useCallback(async (
-        prompt: string,
-        opts: { providerId: string; model?: string; settings?: Record<string, string> },
-    ) => {
-        const text = prompt.trim();
-        if (!text || streaming) return;
+    type SendOpts = { providerId: string; model?: string; settings?: Record<string, string> };
 
-        setError(null);
-
-        // Start a chat lazily so an empty window doesn't litter the history.
-        let active = chatRef.current;
-        if (!active) {
-            active = await window.ai.createChat({
-                providerId: opts.providerId,
-                model: opts.model ?? null,
-                // Stamped at creation so reopening the chat restores this setup.
-                settings: opts.settings,
-            });
-        }
-
-        const withUser = await window.ai.appendMessage(active.id, { role: "user", content: text });
-        if (withUser) {
-            // An empty assistant turn gives the transcript something to stream into.
-            withUser.messages.push({ role: "assistant", content: "" });
-            setChat({ ...withUser });
-        }
-
+    /** Fires the request for a chat whose transcript is already in the right shape. */
+    const startTurn = useCallback(async (active: AiChat, text: string, opts: SendOpts) => {
         const requestId = crypto.randomUUID();
         requestIdRef.current = requestId;
         partialRef.current = "";
@@ -121,12 +98,62 @@ export function useChat() {
             setStreaming(false);
             requestIdRef.current = null;
         }
-    }, [streaming]);
+    }, []);
+
+    const send = useCallback(async (prompt: string, opts: SendOpts) => {
+        const text = prompt.trim();
+        if (!text || streaming) return;
+
+        setError(null);
+
+        // Start a chat lazily so an empty window doesn't litter the history.
+        let active = chatRef.current;
+        if (!active) {
+            active = await window.ai.createChat({
+                providerId: opts.providerId,
+                model: opts.model ?? null,
+                // Stamped at creation so reopening the chat restores this setup.
+                settings: opts.settings,
+            });
+        }
+
+        const withUser = await window.ai.appendMessage(active.id, { role: "user", content: text });
+        if (withUser) {
+            // An empty assistant turn gives the transcript something to stream into.
+            withUser.messages.push({ role: "assistant", content: "" });
+            setChat({ ...withUser });
+            active = withUser;
+        }
+
+        await startTurn(active, text, opts);
+    }, [streaming, startTurn]);
+
+    /**
+     * Asks the last question again, discarding the answer it produced. The user
+     * turn is left in place, so this replaces the reply rather than duplicating
+     * the prompt.
+     */
+    const rerun = useCallback(async (opts: SendOpts) => {
+        const current = chatRef.current;
+        if (!current || streaming) return;
+
+        const lastUser = [...current.messages].reverse().find(m => m.role === "user");
+        if (!lastUser?.content.trim()) return;
+
+        setError(null);
+        const trimmed = await window.ai.trimForRerun(current.id);
+        if (!trimmed) return;
+
+        trimmed.messages.push({ role: "assistant", content: "" });
+        setChat({ ...trimmed });
+
+        await startTurn(trimmed, lastUser.content, opts);
+    }, [streaming, startTurn]);
 
     const cancel = useCallback(async () => {
         const id = requestIdRef.current;
         if (id) await window.ai.cancel(id);
     }, []);
 
-    return { chat, streaming, partial, error, send, cancel, openChat, newChat };
+    return { chat, streaming, partial, error, send, rerun, cancel, openChat, newChat };
 }

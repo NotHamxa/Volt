@@ -91,6 +91,7 @@ contextBridge.exposeInMainWorld('ai', {
     appendMessage: (id, message) => ipcRenderer.invoke('ai-append-message', id, message),
     finishMessage: (id, payload) => ipcRenderer.invoke('ai-finish-message', id, payload),
     updateChatConfig: (id, config) => ipcRenderer.invoke('ai-update-chat-config', id, config),
+    trimForRerun: (id) => ipcRenderer.invoke('ai-trim-for-rerun', id),
     onChunk: (cb) => {
         const handler = (_e, chunk) => cb(chunk);
         ipcRenderer.on('ai-chunk', handler);

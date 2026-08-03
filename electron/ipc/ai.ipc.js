@@ -2,7 +2,7 @@ import { ipcMain } from "electron";
 import { describeProviders, getProvider } from "../universal/ai/provider.js";
 import {
     createChat, readChat, listChats, deleteChat,
-    appendMessage, finishAssistantMessage, updateChatConfig,
+    appendMessage, finishAssistantMessage, updateChatConfig, trimForRerun,
 } from "../universal/ai/chatStore.js";
 import { keyStatus, setKey, clearKey, encryptionAvailable } from "../universal/ai/credentials.js";
 import { getPrefs, setPrefs } from "../universal/ai/prefs.js";
@@ -99,6 +99,7 @@ export function registerAiIpc({ mainWindow, appStates }) {
     ipcMain.handle("ai-append-message", (_, id, message) => appendMessage(id, message));
     ipcMain.handle("ai-finish-message", (_, id, payload) => finishAssistantMessage(id, payload ?? {}));
     ipcMain.handle("ai-update-chat-config", (_, id, config) => updateChatConfig(id, config ?? {}));
+    ipcMain.handle("ai-trim-for-rerun", (_, id) => trimForRerun(id));
 
     // While the AI view is open the launcher must not hide on blur, or a
     // streaming answer disappears the moment you click elsewhere.

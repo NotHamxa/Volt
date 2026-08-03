@@ -61,7 +61,9 @@ export default function MainLayout({ inputRef, query, setQuery, argCommand, argI
                         logo = await window.apps.getSteamGameLogo(item.appId) ?? undefined;
                     } else if (item.source === "UWP") {
                         logo = await window.apps.getUwpAppLogo(item);
-                    } else if (item.path) {
+                    } else {
+                        // Covers AppsFolder entries with no path too: getAppLogo
+                        // checks the icon cache first, which the shell pass fills.
                         logo = await window.apps.getAppLogo(item);
                     }
                     return [`${item.path ?? ""}|${item.appId ?? ""}`, logo] as const;

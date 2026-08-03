@@ -1,6 +1,7 @@
 import os from "os";
 import path from "path";
 import fs from "fs";
+import fsp from "fs/promises";
 import { exec, execFile } from "child_process";
 
 // Locations Volt scans for installed applications. Also watched at runtime so
@@ -37,22 +38,32 @@ export function resolveLnk(lnkPath) {
 
 export async function loadApps() {
     const results = [];
+    // Every filesystem call is guarded individually: this walks hundreds of
+    // entries, and a single unreadable file or broken link used to throw all
+    // the way out and leave the app cache empty.
     async function collectShortcuts(dir) {
-        if (!fs.existsSync(dir)) return;
-        const items = fs.readdirSync(dir);
-        for (const item of items) {
-            const fullPath = path.join(dir, item);
-            const stat = fs.statSync(fullPath);
-            if (stat.isDirectory()) {
-                await collectShortcuts(fullPath);
-            } else if ([".lnk"].some(ext => fullPath.toLowerCase().endsWith(ext))) {
-                results.push({
-                    name: path.basename(fullPath, ".lnk"),
-                    source: "StartMenu",
-                    appId: "",
-                    path: fullPath,
-                    type: "app"
-                });
+        let items;
+        try {
+            items = await fsp.readdir(dir, { withFileTypes: true });
+        } catch {
+            return;
+        }
+        for (const entry of items) {
+            const fullPath = path.join(dir, entry.name);
+            try {
+                if (entry.isDirectory()) {
+                    await collectShortcuts(fullPath);
+                } else if (entry.name.toLowerCase().endsWith(".lnk")) {
+                    results.push({
+                        name: path.basename(entry.name, path.extname(entry.name)),
+                        source: "StartMenu",
+                        appId: "",
+                        path: fullPath,
+                        type: "app"
+                    });
+                }
+            } catch (err) {
+                console.warn("Skipping unreadable entry:", fullPath, err?.message);
             }
         }
     }
@@ -63,14 +74,19 @@ export async function loadApps() {
                 const trimmed = (stdout || "").trim();
                 if (!trimmed) return resolve();
                 try {
-                    const uwpApps = JSON.parse(trimmed);
-                    const appList = Array.isArray(uwpApps) ? uwpApps : [uwpApps];
+                    const startApps = JSON.parse(trimmed);
+                    const appList = Array.isArray(startApps) ? startApps : [startApps];
                     appList.forEach(app => {
                         if (app?.Name && !(app.AppID && app.AppID.startsWith("steam://"))) {
+                            const appId = app.AppID || "";
                             results.push({
                                 name: app.Name,
-                                source: "UWP",
-                                appId: app.AppID || "",
+                                // Get-StartApps returns the whole AppsFolder list, not
+                                // just packaged apps. Only an AppID containing "!" is a
+                                // real package — mislabelling the rest as UWP sent them
+                                // down an icon path that could never resolve them.
+                                source: appId.includes("!") ? "UWP" : "StartApps",
+                                appId,
                                 path: "",
                                 type: "app"
                             });
@@ -93,12 +109,22 @@ export async function loadApps() {
         console.warn("Failed to collect UWP apps (PowerShell may be unavailable):", err.message);
     }
 
-    const deduped = new Map();
+    // Merge rather than discard: the .lnk gives a launchable path, Get-StartApps
+    // gives the AppUserModelID the shell needs to render an icon. Keeping only
+    // one of the two threw away half of what each app needs.
+    const merged = new Map();
     for (const app of results) {
-        const existing = deduped.get(app.name);
-        if (!existing || (!existing.path && app.path)) {
-            deduped.set(app.name, app);
+        const key = app.name.toLowerCase();
+        const existing = merged.get(key);
+        if (!existing) {
+            merged.set(key, { ...app });
+            continue;
         }
+        if (!existing.path && app.path) existing.path = app.path;
+        if (!existing.appId && app.appId) existing.appId = app.appId;
+        // A packaged app is the more specific classification, so let it win.
+        if (app.source === "UWP") existing.source = "UWP";
+        else if (existing.source === "StartApps" && app.source === "StartMenu") existing.source = "StartMenu";
     }
-    return Array.from(deduped.values());
+    return Array.from(merged.values());
 }

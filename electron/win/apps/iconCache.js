@@ -1,5 +1,6 @@
 import path from "path";
 import fs from "fs";
+import { createHash } from "node:crypto";
 import { promisify } from "node:util";
 import xml2js from "xml2js";
 import { app } from "electron";
@@ -11,6 +12,29 @@ const parseString = promisify(xml2js.parseString);
 
 const validImageExtensions = [".png", ".jpg", ".jpeg"];
 
+export { appDataPath };
+
+/**
+ * Filename for an app's cached icon. Derived from name + identity so two apps
+ * sharing a name get separate files, and hashed so characters that are illegal
+ * in a filename (`/`, `:`, `?` …) can't produce an unwritable path.
+ */
+export function iconFileName(appData) {
+    const identity = `${appData?.name ?? ""}|${appData?.appId ?? ""}|${appData?.path ?? ""}`.toLowerCase();
+    const hash = createHash("sha1").update(identity).digest("hex").slice(0, 12);
+    const readable = String(appData?.name ?? "app").replace(/[^a-z0-9._-]+/gi, "_").slice(0, 48);
+    return `${readable}-${hash}.png`;
+}
+
+export function iconFilePath(appData) {
+    return path.join(appDataPath, iconFileName(appData));
+}
+
+export function ensureIconDir() {
+    if (!fs.existsSync(appDataPath)) fs.mkdirSync(appDataPath, { recursive: true });
+    return appDataPath;
+}
+
 export async function cacheAppIcon(app, appIconsCache) {
     if (!app.path)
         return appIconsCache;
@@ -20,10 +44,8 @@ export async function cacheAppIcon(app, appIconsCache) {
             return appIconsCache;
         }
         const base64Data = appIcon.split(',')[1];
-        const iconPath = path.join(appDataPath, `${app.name}.png`);
-        if (!fs.existsSync(appDataPath)) {
-            fs.mkdirSync(appDataPath, { recursive: true });
-        }
+        const iconPath = iconFilePath(app);
+        ensureIconDir();
         fs.writeFileSync(iconPath, Buffer.from(base64Data, 'base64'));
         appIconsCache[app.name] = iconPath;
         return appIconsCache
@@ -103,10 +125,8 @@ export async function cacheUwpIcon(installPath, name, appIconsCache) {
             scoredIcons.sort((a, b) => b.score - a.score);
             const iconPath = scoredIcons[0].file;
 
-            const targetPath = path.join(appDataPath, `${name}.png`);
-            if (!fs.existsSync(appDataPath)) {
-                fs.mkdirSync(appDataPath, { recursive: true });
-            }
+            const targetPath = path.join(appDataPath, iconFileName({ name, appId: "", path: installPath }));
+            ensureIconDir();
             if (await copyAppLogo(iconPath,targetPath)){
                 appIconsCache[name] = targetPath;
                 return appIconsCache;

@@ -3,7 +3,8 @@ import Store from "electron-store";
 import { loadApps } from "./apps/enumerate.js";
 import { getUwpInstallLocations } from "./apps/uwpAppLogo.js";
 import { loadSteamGames, cacheSteamPath } from "./apps/steam.js";
-import { cacheAppIcon, cacheUwpIcon } from "./apps/iconCache.js";
+import { cacheAppIcon, cacheUwpIcon, iconFilePath, ensureIconDir } from "./apps/iconCache.js";
+import { extractShellIcons } from "./apps/shellIcon.js";
 import { pruneUsage } from "../universal/usage.js";
 
 const store = new Store();
@@ -82,7 +83,19 @@ async function loadAppIconsCache(webContents,cache) {
             reportProgress();
         }
     }
-    if (uwpIconsToCache.length > 0) {
+    // Ask the shell first, including for packaged apps: it renders the same
+    // icon Start does. The manifest's Properties.Logo is the StoreLogo, which
+    // is a solid branded tile rather than the transparent app icon.
+    await fillMissingIconsFromShell(cache);
+
+    // Only fall back to the manifest for packaged apps the shell couldn't draw.
+    const uwpStillMissing = uwpIconsToCache.filter(a => {
+        const existing = cache.appIconsCache[a.name];
+        return !existing || !fs.existsSync(existing);
+    });
+
+    if (uwpStillMissing.length > 0) {
+        const uwpIconsToCache = uwpStillMissing;
         let uwpIconsInstallPath = [];
         try {
             uwpIconsInstallPath = await getUwpInstallLocations(uwpIconsToCache);
@@ -102,6 +115,46 @@ async function loadAppIconsCache(webContents,cache) {
         }
     }
     store.set("appIconsCache", JSON.stringify(cache.appIconsCache));
+}
+
+/**
+ * Last-resort icon pass, batched into a single PowerShell run. Steam keeps its
+ * own artwork, so it is skipped; everything else that reached this point has
+ * exhausted the file-extraction and manifest routes.
+ */
+async function fillMissingIconsFromShell(cache) {
+    const pending = [];
+    for (const appData of cache.appCache) {
+        if (appData.source === "Steam") continue;
+        const existing = cache.appIconsCache[appData.name];
+        if (existing && fs.existsSync(existing)) continue;
+
+        // A shell item needs something to parse: an AppUserModelID for
+        // AppsFolder entries, or the shortcut/executable path otherwise.
+        const parsingName = appData.appId
+            ? `shell:AppsFolder\\${appData.appId}`
+            : appData.path;
+        if (!parsingName) continue;
+
+        pending.push({
+            key: appData.name,
+            parsingName,
+            outPath: iconFilePath(appData),
+        });
+    }
+
+    if (!pending.length) return;
+    ensureIconDir();
+
+    try {
+        const written = await extractShellIcons(pending);
+        for (const entry of pending) {
+            if (written.has(entry.key)) cache.appIconsCache[entry.key] = entry.outPath;
+        }
+        console.log(`Shell icons: ${written.size}/${pending.length} recovered`);
+    } catch (err) {
+        console.warn("Shell icon pass failed:", err?.message);
+    }
 }
 
 // Background pass: drop icons for apps no longer present, and re-extract icons

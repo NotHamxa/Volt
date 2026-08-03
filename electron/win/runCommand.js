@@ -2,7 +2,7 @@ import {exec, spawn} from "child_process";
 import os from "os";
 import path from "path";
 import fs from "fs";
-import {showNotification} from "./notification.js";
+import {showNotification} from "../universal/notification.js";
 
 const commandNotifications = {
     "Shutdown":                     { icon: '⏻',  title: 'Shutting down...',           message: 'Your PC will shut down shortly' },

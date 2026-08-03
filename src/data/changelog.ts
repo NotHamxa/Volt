@@ -10,6 +10,22 @@ export interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
     {
+        version: "1.1.7",
+        date: "2026-06-11",
+        highlights: [
+            "Bug fixes",
+        ],
+        sections: [
+            {
+                title: "Bug Fixes",
+                items: [
+                    "Search results no longer cap at 5 when multiple filter types are active - results now scale based on how many categories actually match",
+                    "Fixed update installer falling back to a full download after a failed differential attempt - updates now download correctly on the first try",
+                ],
+            },
+        ],
+    },
+    {
         version: "1.1.6",
         date: "2026-05-13",
         highlights: [

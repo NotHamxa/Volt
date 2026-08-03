@@ -1,9 +1,9 @@
 import { app, ipcMain, shell } from "electron";
-import { getGoogleSuggestions } from "../utils/autoSuggestion.js";
-import { executeUserCommand } from "../utils/cmd.js";
-import { processSearchQuery } from "../utils/search.js";
-import { showNotification } from "../utils/notification.js";
-import { checkForUpdates } from "../utils/updater.js";
+import { getGoogleSuggestions } from "../universal/autoSuggestion.js";
+import { processSearchQuery } from "../universal/search.js";
+import { showNotification } from "../universal/notification.js";
+import { checkForUpdates } from "../universal/updater.js";
+import { executeUserCommand } from "../platform.js";
 
 export function registerElectronIpc({ hideMainWindow, cache, store }) {
     ipcMain.on("log", (_, data) => console.log(data));

@@ -1,12 +1,8 @@
 import { ipcMain, shell, dialog } from "electron";
-import {searchApps, searchCommands, searchSettings} from "../utils/search.js";
-import {launchApp} from "../utils/apps/launchApp.js";
-import {getAppLogo} from "../utils/apps/appLogo.js";
-import {getUwpAppIcon} from "../utils/apps/uwpAppLogo.js";
-import {getSteamGameIcon} from "../utils/apps/steam.js";
-import {fetchFavicon} from "../utils/linkFavicon.js";
-import {executeCommand} from "../utils/runCommand.js";
-import {addCustomCommand, removeCustomCommand, getCustomCommands, importCustomCommands} from "../utils/startup.js";
+import {searchApps, searchCommands, searchSettings} from "../universal/search.js";
+import {fetchFavicon} from "../universal/linkFavicon.js";
+import {addCustomCommand, removeCustomCommand, getCustomCommands, importCustomCommands} from "../universal/startup.js";
+import {launchApp, getAppLogo, getUwpAppIcon, getSteamGameIcon, executeCommand} from "../platform.js";
 import fs from "fs";
 
 export function registerAppsIpc({

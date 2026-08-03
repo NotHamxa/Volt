@@ -4,16 +4,22 @@ const {autoUpdater} = pkg;
 import Store from "electron-store";
 import path from "path";
 import {fileURLToPath} from "url";
-import {deleteFolder} from "./utils/cache.js";
-import { initWindowFocusTracker, captureForegroundWindow, restoreForegroundWindow } from "./utils/windowFocus.js";
+import {deleteFolder} from "./universal/folderCache.js";
 import chokidar from "chokidar";
-import os from "os";
-import {loadAppData, initStoreState, loadFolderCache, loadCommandsData, revalidateAppIcons} from "./utils/startup.js";
-import {sendInstallTelemetryIfNeeded} from "./utils/telemetry.js";
+import {initStoreState, loadFolderCache, loadCommandsData} from "./universal/startup.js";
+import {sendInstallTelemetryIfNeeded} from "./universal/telemetry.js";
 import { registerIpc } from "./ipc/index.js";
-import {setupAutoUpdater} from "./utils/updater.js";
-import {createNotificationWindow} from "./utils/notification.js";
-import {normaliseString} from "./utils/search.js";
+import {setupAutoUpdater} from "./universal/updater.js";
+import {createNotificationWindow} from "./universal/notification.js";
+import {normaliseString} from "./universal/search.js";
+import {
+    initWindowFocusTracker,
+    captureForegroundWindow,
+    restoreForegroundWindow,
+    loadAppData,
+    revalidateAppIcons,
+    appWatchPaths,
+} from "./platform.js";
 if (!app.requestSingleInstanceLock()) {
     app.quit();
     process.exit(0);
@@ -21,11 +27,6 @@ if (!app.requestSingleInstanceLock()) {
 const store = new Store();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const startMenuPaths = [
-    path.join(os.homedir(), "AppData/Roaming/Microsoft/Windows/Start Menu/Programs"),
-    "C:/ProgramData/Microsoft/Windows/Start Menu/Programs",
-    "C:/Users/Public/Desktop"
-];
 let openShortcut = store.get("openWindowBind");
 if (!openShortcut) {
     store.set("openWindowBind", "Ctrl+Space");
@@ -267,7 +268,7 @@ app.whenReady().then(async () => {
         );
     })();
 
-    const appsWatcher = chokidar.watch(startMenuPaths,{
+    const appsWatcher = chokidar.watch(appWatchPaths,{
         persistent: true,
         ignoreInitial: true
     });

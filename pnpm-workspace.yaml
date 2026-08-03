@@ -1,0 +1,13 @@
+ignoredBuiltDependencies:
+  - electron
+  - electron-winstaller
+  - esbuild
+  - extract-file-icon
+  - lzma-native
+
+onlyBuiltDependencies:
+  - electron
+  - electron-winstaller
+  - esbuild
+  - extract-file-icon
+  - lzma-native

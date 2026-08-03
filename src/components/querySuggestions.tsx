@@ -29,6 +29,10 @@ import {
     ContextMenuTrigger
 } from "@/components/ui/context-menu.tsx";
 import { SearchQueryT } from "@/interfaces/searchQuery.ts";
+import { resolveBang, toHistoryEntry, openSearch, ResolvedSearch } from "@/scripts/bangs.ts";
+
+/** The web fallback row: the display entry plus the bang it resolved from. */
+type WebEntry = { entry: SearchQueryT; resolved: ResolvedSearch };
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { getQueryData } from "@/scripts/query.ts";
 import type { ProcessedQueryResult } from "@/scripts/query.ts";
@@ -481,12 +485,14 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
             setFiles(result.files);
             setSettings(result.settings);
             setCommands(result.commands);
-            const extra = result.bestMatch===null?0:1
-            const items = result.apps.length + result.folders.length + result.files.length +
-                result.settings.length + result.commands.length + extra;
-            if (items < focusedIndex + 1){
-                setFocusedIndex(0);
-            }
+
+            // Keep the highlight in range as results shrink. getData only runs
+            // for non-!cmd queries, so the web row is present whenever the
+            // query is non-empty — count it alongside the local results.
+            const localCount = result.apps.length + result.folders.length + result.files.length +
+                result.settings.length + result.commands.length + (result.bestMatch ? 1 : 0);
+            const webCount = query.trim() ? 1 : 0;
+            if (focusedIndex >= localCount + webCount) setFocusedIndex(0);
         };
 
         const timer = setTimeout(getData, 80);
@@ -497,26 +503,44 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
         };
     }, [query, searchFilters]);
 
-    const googleEntry = useMemo<SearchQueryT | null>(() => {
-        const trimmed = query.trim();
-        if (!trimmed || isCmdCommand) return null;
+    // The web fallback. Always present so the web is one Enter away, but it
+    // only outranks local results when the user typed an explicit bang.
+    const webEntry = useMemo<WebEntry | null>(() => {
+        if (isCmdCommand) return null;
+        const resolved = resolveBang(query);
+        if (!resolved) return null;
         return {
-            name: trimmed,
-            type: "googleSearch",
-            path: `https://www.google.com/search?q=${encodeURIComponent(trimmed)}`,
-            source: "web",
+            entry: {
+                name: resolved.hasExplicitBang && resolved.searchTerm
+                    ? `${resolved.bang.s}: ${resolved.searchTerm}`
+                    : resolved.searchTerm,
+                type: "webSearch",
+                path: resolved.url,
+                source: resolved.bang.s,
+            },
+            resolved,
         };
     }, [query, isCmdCommand]);
 
-    const allResults = useMemo<SearchQueryT[]>(() => [
-        ...(bestMatch ? [bestMatch] : []),
-        ...apps,
-        ...commands,
-        ...settings,
-        ...files,
-        ...folders,
-        ...(googleEntry ? [googleEntry] : []),
-    ], [bestMatch, apps, settings, files, folders, commands, googleEntry]);
+    // An explicit bang means the user has already told us where they're going,
+    // so it takes the top slot ahead of any local guess.
+    const promoteWeb = webEntry?.resolved.hasExplicitBang ?? false;
+    // When the web row is promoted it occupies index 0, pushing every local
+    // result down one. Keyboard indices must stay in sync with render order.
+    const localOffset = promoteWeb ? 1 : 0;
+
+    const allResults = useMemo<SearchQueryT[]>(() => {
+        const web = webEntry ? [webEntry.entry] : [];
+        const local = [
+            ...(bestMatch ? [bestMatch] : []),
+            ...apps,
+            ...commands,
+            ...settings,
+            ...files,
+            ...folders,
+        ];
+        return promoteWeb ? [...web, ...local] : [...local, ...web];
+    }, [bestMatch, apps, settings, files, folders, commands, webEntry, promoteWeb]);
 
     const handleContextMenuOpenChange = useCallback((open: boolean) => {
         setIsContextMenuOpen(open);
@@ -585,15 +609,15 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                 e.preventDefault();
                 setTriggeredIndex(focusedIndex);
                 setTimeout(() => setTriggeredIndex(-1), 100);
-            } else if (item.type === "googleSearch" && item.path) {
-                window.electron.openExternal(item.path);
+            } else if (item.type === "webSearch" && webEntry) {
+                await openSearch(toHistoryEntry(webEntry.resolved));
             } else if (item.type === "app") {
                 await window.apps.openApp(item);
             } else if (item.path) {
                 window.file.openPath(item.path);
             }
         }
-    }, [isContextMenuOpen, focusedIndex, allResults, isCmdCommand, cmdCommand, runCommandRequest]);
+    }, [isContextMenuOpen, focusedIndex, allResults, isCmdCommand, cmdCommand, runCommandRequest, webEntry]);
 
     useEffect(() => {
         window.addEventListener("keydown", handleKeyDown);
@@ -648,6 +672,48 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
         }
     }, [focusedIndex]);
 
+    const renderWebRow = (itemIndex: number) => {
+        if (!webEntry) return null;
+        const { resolved } = webEntry;
+        const focused = focusedIndex === itemIndex;
+        const localCount = apps.length + commands.length + settings.length +
+            files.length + folders.length + (bestMatch ? 1 : 0);
+        const faviconUrl = resolved.hasExplicitBang && resolved.bang.d
+            ? `https://www.google.com/s2/favicons?sz=24&domain_url=${encodeURIComponent(resolved.bang.d)}`
+            : null;
+
+        return (
+            <div
+                key="web-row"
+                ref={el => { itemRefs.current[itemIndex] = el; }}
+                className={!promoteWeb && localCount > 0 ? "mt-2 pt-2 border-t border-white/[0.05]" : ""}
+            >
+                <button
+                    onClick={() => openSearch(toHistoryEntry(resolved))}
+                    tabIndex={0}
+                    className={`cursor-pointer flex items-center justify-between py-2 px-3 rounded-lg select-none transition-colors duration-150 gap-3 w-full hover:bg-white/10 ${focused ? "bg-white/10 outline outline-[1px] outline-white/[0.18]" : "bg-transparent"}`}
+                >
+                    <div className="flex items-center gap-2 min-w-0">
+                        {faviconUrl
+                            ? <img src={faviconUrl} alt="" className="w-6 h-6 shrink-0 rounded" />
+                            : <Google className="w-6 h-6 shrink-0" />}
+                        <span className="text-[13px] text-white/80 truncate">
+                            {resolved.searchTerm ? (
+                                <>
+                                    Search {resolved.bang.s} for{" "}
+                                    <span className="text-white font-medium">"{resolved.searchTerm}"</span>
+                                </>
+                            ) : (
+                                <>Open <span className="text-white font-medium">{resolved.bang.s}</span></>
+                            )}
+                        </span>
+                    </div>
+                    <span className="ml-auto opacity-70 text-[12px] cursor-default text-white/50 shrink-0">Web</span>
+                </button>
+            </div>
+        );
+    };
+
     return (
         <TooltipProvider>
         <ScrollArea ref={scrollAreaRef} className="w-full h-[420px] px-4">
@@ -672,17 +738,19 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                     </div>
                 ) : (
                     <>
+                        {promoteWeb && renderWebRow(0)}
+
                         {bestMatch && (
-                            <div ref={el => { itemRefs.current[0] = el; }}>
+                            <div ref={el => { itemRefs.current[localOffset] = el; }}>
                                 <QueryComponent
                                     item={bestMatch}
-                                    highlighted={focusedIndex === 0}
+                                    highlighted={focusedIndex === localOffset}
                                     pinApp={pinApp}
                                     unPinApp={unPinApp}
                                     isAppPinned={bestMatch.type === "app" ? isAppPinned(bestMatch) : false}
                                     logo={bestMatch.type === "app" ? logoMap.get(getLogoKey(bestMatch)) : undefined}
-                                    triggerAction={triggeredIndex === 0}
-                                    triggerContextMenu={triggeredContextMenuIndex === 0}
+                                    triggerAction={triggeredIndex === localOffset}
+                                    triggerContextMenu={triggeredContextMenuIndex === localOffset}
                                     onContextMenuOpenChange={handleContextMenuOpenChange}
                                     onRequestRunCommand={runCommandRequest}
                                 />
@@ -692,7 +760,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                         {apps.length > 0 && searchFilters[0] && (
                             <>
                                 {apps.map((app, index) => {
-                                    const itemIndex = index + (bestMatch ? 1 : 0);
+                                    const itemIndex = index + localOffset + (bestMatch ? 1 : 0);
                                     return (
                                         <div key={`${app.name}-${app.path}-${index}`} ref={el => { itemRefs.current[itemIndex] = el; }}>
                                             <QueryComponent
@@ -715,7 +783,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                         {commands.length > 0 && searchFilters[4] && (
                             <>
                                 {commands.map((command, index) => {
-                                    const itemIndex = index + (bestMatch ? 1 : 0) + apps.length;
+                                    const itemIndex = index + localOffset + (bestMatch ? 1 : 0) + apps.length;
                                     return (
                                         <div key={`${command.name}-${index}`} ref={el => { itemRefs.current[itemIndex] = el; }}>
                                             <QueryComponent
@@ -734,7 +802,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                         {settings.length > 0 && searchFilters[3] && (
                             <>
                                 {settings.map((file, index) => {
-                                    const itemIndex = index + (bestMatch ? 1 : 0) + commands.length + apps.length;
+                                    const itemIndex = index + localOffset + (bestMatch ? 1 : 0) + commands.length + apps.length;
                                     return (
                                         <div key={`${file.name}-${index}`} ref={el => { itemRefs.current[itemIndex] = el; }}>
                                             <QueryComponent
@@ -754,7 +822,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                         {files.length > 0 && searchFilters[1] && (
                             <>
                                 {files.map((file, index) => {
-                                    const itemIndex = index + (bestMatch ? 1 : 0) + commands.length + apps.length + settings.length;
+                                    const itemIndex = index + localOffset + (bestMatch ? 1 : 0) + commands.length + apps.length + settings.length;
                                     return (
                                         <div key={`${file.name}-${file.path}-${index}`} ref={el => { itemRefs.current[itemIndex] = el; }}>
                                             <QueryComponent
@@ -774,7 +842,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                         {folders.length > 0 && searchFilters[2] && (
                             <>
                                 {folders.map((folder, index) => {
-                                    const itemIndex = index + (bestMatch ? 1 : 0) + apps.length + commands.length + files.length + settings.length;
+                                    const itemIndex = index + localOffset + (bestMatch ? 1 : 0) + apps.length + commands.length + files.length + settings.length;
                                     return (
                                         <div key={`${folder.name}-${folder.path}-${index}`} ref={el => { itemRefs.current[itemIndex] = el; }}>
                                             <QueryComponent
@@ -791,28 +859,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                             </>
                         )}
 
-                        {googleEntry && (() => {
-                            const itemIndex = allResults.length - 1;
-                            const focused = focusedIndex === itemIndex;
-                            return (
-                                <div ref={el => { itemRefs.current[itemIndex] = el; }} className={apps.length + commands.length + settings.length + files.length + folders.length + (bestMatch ? 1 : 0) > 0 ? "mt-2 pt-2 border-t border-white/[0.05]" : ""}>
-                                    <button
-                                        onClick={() => window.electron.openExternal(googleEntry.path!)}
-                                        tabIndex={0}
-                                        className={`cursor-pointer flex items-center justify-between py-2 px-3 rounded-lg select-none transition-colors duration-150 gap-3 w-full hover:bg-white/10 ${focused ? "bg-white/10 outline outline-[1px] outline-white/[0.18]" : "bg-transparent"}`}
-                                    >
-                                        <div className="flex items-center gap-2 min-w-0">
-                                            <Google className="w-6 h-6 shrink-0" />
-                                            <span className="text-[13px] text-white/80 truncate">
-                                                Search Google for{" "}
-                                                <span className="text-white font-medium">"{googleEntry.name}"</span>
-                                            </span>
-                                        </div>
-                                        <span className="ml-auto opacity-70 text-[12px] cursor-default text-white/50 shrink-0">Web</span>
-                                    </button>
-                                </div>
-                            );
-                        })()}
+                        {!promoteWeb && renderWebRow(allResults.length - 1)}
                     </>
                 )
             )}

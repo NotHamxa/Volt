@@ -4,6 +4,8 @@ import {
     createChat, readChat, listChats, deleteChat,
     appendMessage, finishAssistantMessage,
 } from "../universal/ai/chatStore.js";
+import { keyStatus, setKey, clearKey, encryptionAvailable } from "../universal/ai/credentials.js";
+import { getPrefs, setPrefs } from "../universal/ai/prefs.js";
 import "../universal/ai/claudeCode.js"; // registers the provider
 
 // One controller per in-flight turn so a request can be cancelled individually.
@@ -61,6 +63,20 @@ export function registerAiIpc({ mainWindow, appStates }) {
 
         return { ok: true };
     });
+
+    // --- credentials -------------------------------------------------------
+    // Deliberately no "get key" channel. The renderer learns only whether a key
+    // exists; the value stays in the main process and is attached there.
+    ipcMain.handle("ai-key-status", () => ({
+        encryptionAvailable: encryptionAvailable(),
+        keys: keyStatus(),
+    }));
+    ipcMain.handle("ai-set-key", (_, providerId, key) => setKey(providerId, key));
+    ipcMain.handle("ai-clear-key", (_, providerId) => clearKey(providerId));
+
+    // --- preferences -------------------------------------------------------
+    ipcMain.handle("ai-get-prefs", () => getPrefs());
+    ipcMain.handle("ai-set-prefs", (_, patch) => setPrefs(patch));
 
     // --- chats -------------------------------------------------------------
     ipcMain.handle("ai-list-chats", () => listChats());

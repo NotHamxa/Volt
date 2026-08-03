@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, ReactNode, useLayoutEffect } from "react";
 import { useNavigate } from "react-router";
-import { Settings, Hash, FolderOpen, Info, Terminal, Lightbulb, ArrowLeft } from "lucide-react";
+import { Settings, Hash, FolderOpen, Info, Terminal, Lightbulb, Sparkles, ArrowLeft } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { useEscape } from "@/hooks/useEscape.ts";
 import GeneralSettingsSection from "@/sections/generalSection.tsx";
@@ -9,8 +9,9 @@ import QuickBangsSection from "@/sections/bangsSection.tsx";
 import AboutSection from "@/sections/aboutSection.tsx";
 import CommandsSection from "@/sections/commandsSection.tsx";
 import TipsSection from "@/sections/tipsSection.tsx";
+import AiSection from "@/sections/aiSection.tsx";
 
-type SectionId = "settings" | "folders" | "commands" | "bangs" | "tips" | "about";
+type SectionId = "settings" | "folders" | "commands" | "bangs" | "ai" | "tips" | "about";
 
 interface NavItem {
     id: SectionId;
@@ -24,6 +25,7 @@ const NAV: NavItem[] = [
     { id: "folders",  label: "Search Index",     short: "Index",   icon: FolderOpen },
     { id: "commands", label: "Commands",         short: "Cmds",    icon: Terminal },
     { id: "bangs",    label: "Quick Bangs",      short: "Bangs",   icon: Hash },
+    { id: "ai",       label: "AI",               short: "AI",      icon: Sparkles },
     { id: "tips",     label: "Tips & Shortcuts", short: "Tips",    icon: Lightbulb },
     { id: "about",    label: "About",            short: "About",   icon: Info },
 ];
@@ -178,6 +180,9 @@ export default function SettingsPage() {
                         </AnimatedSection>
                         <AnimatedSection active={activeSection === "bangs"}>
                             <QuickBangsSection />
+                        </AnimatedSection>
+                        <AnimatedSection active={activeSection === "ai"}>
+                            <AiSection />
                         </AnimatedSection>
                         <AnimatedSection active={activeSection === "tips"}>
                             <TipsSection />

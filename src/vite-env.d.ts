@@ -59,9 +59,21 @@ declare global {
         controls: AiControl[];
     };
 
+    type AiPrefs = {
+        providerId: string | null;
+        model: string | null;
+        /** Per provider id → { controlId: value } */
+        settings: Record<string, Record<string, string>>;
+    };
+
     interface Window {
         ai: {
             listProviders: () => Promise<AiProviderInfo[]>;
+            keyStatus: () => Promise<{ encryptionAvailable: boolean; keys: Record<string, boolean> }>;
+            setKey: (providerId: string, key: string) => Promise<{ ok: boolean; detail?: string }>;
+            clearKey: (providerId: string) => Promise<boolean>;
+            getPrefs: () => Promise<AiPrefs>;
+            setPrefs: (patch: Partial<AiPrefs>) => Promise<AiPrefs>;
             send: (request: {
                 requestId: string;
                 providerId: string;

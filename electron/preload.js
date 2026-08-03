@@ -78,6 +78,12 @@ contextBridge.exposeInMainWorld('ai', {
     send: (request) => ipcRenderer.invoke('ai-send', request),
     cancel: (requestId) => ipcRenderer.invoke('ai-cancel', requestId),
     setMode: (active) => ipcRenderer.send('ai-set-mode', active),
+    // Presence only — the key itself never crosses this bridge.
+    keyStatus: () => ipcRenderer.invoke('ai-key-status'),
+    setKey: (providerId, key) => ipcRenderer.invoke('ai-set-key', providerId, key),
+    clearKey: (providerId) => ipcRenderer.invoke('ai-clear-key', providerId),
+    getPrefs: () => ipcRenderer.invoke('ai-get-prefs'),
+    setPrefs: (patch) => ipcRenderer.invoke('ai-set-prefs', patch),
     listChats: () => ipcRenderer.invoke('ai-list-chats'),
     getChat: (id) => ipcRenderer.invoke('ai-get-chat', id),
     createChat: (opts) => ipcRenderer.invoke('ai-create-chat', opts),

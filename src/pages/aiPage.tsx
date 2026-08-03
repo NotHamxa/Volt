@@ -47,13 +47,25 @@ export default function AiPage() {
 
     useEffect(() => {
         (async () => {
-            const list = await window.ai.listProviders();
+            const [list, prefs] = await Promise.all([
+                window.ai.listProviders(),
+                window.ai.getPrefs(),
+            ]);
             setProviders(list);
-            const first = list.find(p => p.available) ?? list[0];
-            if (first) {
-                setProviderId(first.id);
-                setModel(first.models[0]?.id ?? "");
-                setSettings(Object.fromEntries(first.controls.map(c => [c.id, c.default])));
+
+            // Settings pick the starting point; fall back to whatever is usable
+            // if the saved provider has since disappeared.
+            const chosen = list.find(p => p.id === prefs.providerId)
+                ?? list.find(p => p.available)
+                ?? list[0];
+            if (chosen) {
+                setProviderId(chosen.id);
+                const savedModel = chosen.models.some(m => m.id === prefs.model) ? prefs.model : null;
+                setModel(savedModel ?? chosen.models[0]?.id ?? "");
+                const saved = prefs.settings[chosen.id] ?? {};
+                setSettings(Object.fromEntries(
+                    chosen.controls.map(c => [c.id, saved[c.id] ?? c.default]),
+                ));
             }
             await refreshChats();
         })();

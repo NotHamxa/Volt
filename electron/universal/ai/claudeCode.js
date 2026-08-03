@@ -2,6 +2,7 @@ import path from "path";
 import fs from "fs";
 import os from "os";
 import { registerProvider } from "./provider.js";
+import { claudeAuthMode } from "./cliAuth.js";
 
 /**
  * Claude via the Agent SDK, driving the user's *already installed* claude.exe.
@@ -83,6 +84,10 @@ export const claudeCodeProvider = registerProvider({
 
     async models() {
         return MODELS;
+    },
+
+    billing() {
+        return claudeAuthMode();
     },
 
     controls() {

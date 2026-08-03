@@ -24,6 +24,7 @@
  *   isAvailable: () => Promise<{ available: boolean, detail?: string }>,
  *   models: () => Promise<Array<{ id: string, label: string }>>,
  *   controls: () => Array<{ id: string, label: string, type: "select", options: Array<{ id: string, label: string }>, default: string }>,
+ *   billing?: () => { mode: "subscription" | "api-key" | "unknown", label: string },
  *   send: (opts: { prompt: string, sessionId?: string|null, model?: string, settings?: Record<string,string>, signal?: AbortSignal }) => AsyncIterable<Chunk>,
  * }} AiProvider
  */
@@ -61,11 +62,18 @@ export async function describeProviders() {
                 models = await p.models();
             } catch { /* a provider with no model list is still usable */ }
         }
+        // Optional: CLI providers report whether they bill a plan or a key.
+        let billing = null;
+        try {
+            billing = p.billing?.() ?? null;
+        } catch { /* a provider that can't tell us simply doesn't */ }
+
         return {
             id: p.id,
             label: p.label,
             kind: p.kind,
             needsKey: p.needsKey,
+            billing,
             available: availability.available,
             detail: availability.detail ?? null,
             models,

@@ -26,12 +26,15 @@ function deriveTitle(prompt) {
     return line.length > 60 ? `${line.slice(0, 59)}…` : line;
 }
 
-export function createChat({ providerId, model }) {
+export function createChat({ providerId, model, settings }) {
     const chat = {
         id: randomUUID(),
         title: "New chat",
         providerId,
         model: model ?? null,
+        // The provider's own knobs (effort, sandbox) as they stood for this
+        // conversation, so reopening it restores the setup it was written with.
+        settings: settings ?? {},
         // The provider's own thread id — lets a follow-up resume rather than
         // resend the whole transcript.
         sessionId: null,
@@ -81,6 +84,30 @@ export function finishAssistantMessage(id, { content, sessionId }) {
     if (last && last.role === "assistant") last.content = content;
     else chat.messages.push({ role: "assistant", content });
     if (sessionId) chat.sessionId = sessionId;
+    writeChat(chat);
+    return chat;
+}
+
+/**
+ * Remembers the provider/model/controls a conversation is using.
+ *
+ * Switching model mid-thread is a deliberate choice, and reopening the chat
+ * later should land you back on it rather than on the global default.
+ */
+export function updateChatConfig(id, { providerId, model, settings }) {
+    const chat = readChat(id);
+    if (!chat) return null;
+
+    // A provider swap invalidates the old provider's thread id — resuming a
+    // Claude session against Codex would either fail or reply out of context.
+    // Compared before the assignment, or it could never be true.
+    const switchedProvider = providerId !== undefined && providerId !== chat.providerId;
+
+    if (providerId !== undefined) chat.providerId = providerId;
+    if (model !== undefined) chat.model = model;
+    if (settings !== undefined) chat.settings = { ...(chat.settings ?? {}), ...settings };
+    if (switchedProvider) chat.sessionId = null;
+
     writeChat(chat);
     return chat;
 }

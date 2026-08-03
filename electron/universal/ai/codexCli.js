@@ -3,6 +3,7 @@ import fs from "fs";
 import os from "os";
 import { spawn } from "child_process";
 import { registerProvider } from "./provider.js";
+import { codexAuthMode } from "./cliAuth.js";
 
 /**
  * Codex through the user's installed CLI, driven by `codex exec --json`.
@@ -119,6 +120,10 @@ export const codexProvider = registerProvider({
 
     async models() {
         return MODELS;
+    },
+
+    billing() {
+        return codexAuthMode();
     },
 
     controls() {

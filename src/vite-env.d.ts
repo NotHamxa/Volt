@@ -34,6 +34,8 @@ declare global {
         providerId: string;
         model: string | null;
         sessionId: string | null;
+        /** The provider's own controls as this conversation last used them. */
+        settings: Record<string, string>;
         createdAt: number;
         updatedAt: number;
         messages: AiMessage[];
@@ -48,11 +50,18 @@ declare global {
         messageCount: number;
     };
 
+    /** How a CLI provider pays for a turn — a plan you already have, or per token. */
+    type AiBilling = {
+        mode: "subscription" | "api-key" | "unknown";
+        label: string;
+    };
+
     type AiProviderInfo = {
         id: string;
         label: string;
         kind: "subscription-sdk" | "subscription-cli" | "api";
         needsKey: boolean;
+        billing: AiBilling | null;
         available: boolean;
         detail: string | null;
         models: Array<{ id: string; label: string }>;
@@ -88,10 +97,11 @@ declare global {
             setMode: (active: boolean) => void;
             listChats: () => Promise<AiChatSummary[]>;
             getChat: (id: string) => Promise<AiChat | null>;
-            createChat: (opts: { providerId: string; model?: string | null }) => Promise<AiChat>;
+            createChat: (opts: { providerId: string; model?: string | null; settings?: Record<string, string> }) => Promise<AiChat>;
             deleteChat: (id: string) => Promise<boolean>;
             appendMessage: (id: string, message: AiMessage) => Promise<AiChat | null>;
             finishMessage: (id: string, payload: { content: string; sessionId?: string }) => Promise<AiChat | null>;
+            updateChatConfig: (id: string, config: { providerId?: string; model?: string | null; settings?: Record<string, string> }) => Promise<AiChat | null>;
         };
         electron: {
             log:(data:any) => void;

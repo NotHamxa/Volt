@@ -52,6 +52,7 @@ export function useChat() {
         return detach;
     }, []);
 
+    /** Returns the loaded chat so the caller can restore its provider setup. */
     const openChat = useCallback(async (id: string) => {
         const loaded = await window.ai.getChat(id);
         if (loaded) {
@@ -60,6 +61,7 @@ export function useChat() {
             setPartial("");
             partialRef.current = "";
         }
+        return loaded;
     }, []);
 
     const newChat = useCallback(() => {
@@ -81,7 +83,12 @@ export function useChat() {
         // Start a chat lazily so an empty window doesn't litter the history.
         let active = chatRef.current;
         if (!active) {
-            active = await window.ai.createChat({ providerId: opts.providerId, model: opts.model ?? null });
+            active = await window.ai.createChat({
+                providerId: opts.providerId,
+                model: opts.model ?? null,
+                // Stamped at creation so reopening the chat restores this setup.
+                settings: opts.settings,
+            });
         }
 
         const withUser = await window.ai.appendMessage(active.id, { role: "user", content: text });

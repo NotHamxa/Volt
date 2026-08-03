@@ -95,6 +95,38 @@ export default function AiPage() {
         setPrompt("");
     }, [providerId, streaming, send, model, settings]);
 
+    /**
+     * A conversation remembers its own setup. Changing provider or model is a
+     * deliberate choice for *this* thread, so it's written to the chat rather
+     * than to the global defaults — reopening it lands you back where you were.
+     */
+    const applyConfig = useCallback((patch: {
+        providerId?: string;
+        model?: string;
+        settings?: Record<string, string>;
+    }) => {
+        if (patch.providerId !== undefined) setProviderId(patch.providerId);
+        if (patch.model !== undefined) setModel(patch.model);
+        if (patch.settings !== undefined) setSettings(patch.settings);
+        const activeId = chat?.id;
+        if (activeId) window.ai.updateChatConfig(activeId, patch);
+    }, [chat?.id]);
+
+    // Opening a stored chat restores the provider, model and controls it was
+    // last used with. Guarded against a provider that has since gone away.
+    const openStoredChat = useCallback(async (id: string) => {
+        const loaded = await openChat(id);
+        if (!loaded) return;
+        const provider = providers.find(p => p.id === loaded.providerId);
+        if (!provider) return;
+        setProviderId(provider.id);
+        setModel(provider.models.some(m => m.id === loaded.model) ? loaded.model! : provider.models[0]?.id ?? "");
+        const stored = loaded.settings ?? {};
+        setSettings(Object.fromEntries(
+            provider.controls.map(c => [c.id, stored[c.id] ?? c.default]),
+        ));
+    }, [openChat, providers]);
+
     // Arrived from the launcher's "Ask AI" row with a question already typed.
     useEffect(() => {
         const seed = searchParams.get("prompt");
@@ -120,7 +152,7 @@ export default function AiPage() {
             <ChatSidebar
                 chats={chats}
                 activeId={chat?.id ?? null}
-                onOpen={(id) => { openChat(id); inputRef.current?.focus(); }}
+                onOpen={(id) => { openStoredChat(id); inputRef.current?.focus(); }}
                 onNew={() => { newChat(); inputRef.current?.focus(); }}
                 onDelete={async (id) => {
                     await window.ai.deleteChat(id);
@@ -225,10 +257,12 @@ export default function AiPage() {
                                 <ControlSelect
                                     value={providerId}
                                     onChange={(id) => {
-                                        setProviderId(id);
                                         const p = providers.find(x => x.id === id);
-                                        setModel(p?.models[0]?.id ?? "");
-                                        setSettings(Object.fromEntries((p?.controls ?? []).map(c => [c.id, c.default])));
+                                        applyConfig({
+                                            providerId: id,
+                                            model: p?.models[0]?.id ?? "",
+                                            settings: Object.fromEntries((p?.controls ?? []).map(c => [c.id, c.default])),
+                                        });
                                     }}
                                     options={providers.map(p => ({
                                         id: p.id,
@@ -238,7 +272,7 @@ export default function AiPage() {
                                 {provider && provider.models.length > 0 && (
                                     <ControlSelect
                                         value={model}
-                                        onChange={setModel}
+                                        onChange={(m) => applyConfig({ model: m })}
                                         options={provider.models.map(m => ({ id: m.id, label: m.label }))}
                                     />
                                 )}
@@ -247,7 +281,7 @@ export default function AiPage() {
                                     <ControlSelect
                                         key={control.id}
                                         value={settings[control.id] ?? control.default}
-                                        onChange={(v) => setSettings(s => ({ ...s, [control.id]: v }))}
+                                        onChange={(v) => applyConfig({ settings: { ...settings, [control.id]: v } })}
                                         options={control.options.map(o => ({ id: o.id, label: o.label }))}
                                     />
                                 ))}

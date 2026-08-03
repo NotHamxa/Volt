@@ -13,6 +13,12 @@ import { SectionLead, GroupLabel } from "@/components/settingsLayout.tsx";
  * Keys are written through the main process into the OS keychain and are never
  * read back here — the bridge reports only whether one exists.
  */
+/** needsKey is the honest split: sign in with a tool you have, or paste a key. */
+const GROUPS = [
+    { title: "CLIs & local", hint: "signed in through the tool itself", needsKey: false },
+    { title: "API keys", hint: "billed per token", needsKey: true },
+];
+
 export default function AiSection() {
     const [providers, setProviders] = useState<AiProviderInfo[]>([]);
     const [loading, setLoading] = useState(true);
@@ -93,17 +99,33 @@ export default function AiSection() {
                     </button>
                 </div>
 
-                {providers.length === 0 ? (
+                {providers.length === 0 && (
                     <p className="text-[11.5px] text-white/30">No providers are registered.</p>
-                ) : providers.map(p => (
-                    <ProviderCard
-                        key={p.id}
-                        provider={p}
-                        hasKey={Boolean(keys[p.id])}
-                        canEncrypt={canEncrypt}
-                        onChanged={load}
-                    />
-                ))}
+                )}
+
+                {/* Split by how you authenticate: sign in through a tool you
+                    already have, or paste a key. */}
+                {GROUPS.map(group => {
+                    const members = providers.filter(p => p.needsKey === group.needsKey);
+                    if (members.length === 0) return null;
+                    return (
+                        <div key={group.title} className="flex flex-col gap-2">
+                            <div className="flex items-baseline gap-2 mt-1">
+                                <span className="text-[11px] font-medium text-white/45">{group.title}</span>
+                                <span className="text-[10px] text-white/20">{group.hint}</span>
+                            </div>
+                            {members.map(p => (
+                                <ProviderCard
+                                    key={p.id}
+                                    provider={p}
+                                    hasKey={Boolean(keys[p.id])}
+                                    canEncrypt={canEncrypt}
+                                    onChanged={load}
+                                />
+                            ))}
+                        </div>
+                    );
+                })}
             </div>
 
             <div className="flex flex-col gap-3">
@@ -200,15 +222,29 @@ function ProviderCard({ provider, hasKey, canEncrypt, onChanged }: {
                     <div className="flex items-center gap-2">
                         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${ready ? "bg-emerald-400/70" : "bg-white/20"}`} />
                         <h3 className="text-[12.5px] font-medium text-white/80 tracking-tight">{provider.label}</h3>
-                        <span className="px-1.5 py-px rounded text-[9.5px] uppercase tracking-wide text-white/30 bg-white/[0.05] border border-white/[0.06]">
-                            {provider.needsKey ? "API key" : "Subscription"}
-                        </span>
+                        {/* For a CLI, what matters is which wallet it draws on —
+                            a plan you already pay for, or per-token billing. */}
+                        {provider.needsKey ? (
+                            <Badge tone="neutral">API key</Badge>
+                        ) : provider.billing?.mode === "subscription" ? (
+                            <Badge tone="good">{provider.billing.label}</Badge>
+                        ) : provider.billing?.mode === "api-key" ? (
+                            <Badge tone="warn">{provider.billing.label}</Badge>
+                        ) : (
+                            <Badge tone="neutral">Local / CLI</Badge>
+                        )}
                     </div>
                     <p className="text-[11px] text-white/35 leading-relaxed mt-1 break-all">
                         {provider.needsKey
                             ? (hasKey ? "Key stored in your system keychain." : "Add a key to enable this provider.")
                             : (provider.detail ?? (ready ? "Ready." : "Not detected."))}
                     </p>
+                    {!provider.needsKey && provider.billing?.mode === "api-key" && (
+                        <p className="text-[10.5px] text-amber-300/55 leading-relaxed mt-1">
+                            This CLI is signed in with an API key, so turns are billed per token
+                            rather than drawn from a plan.
+                        </p>
+                    )}
                 </div>
                 {provider.needsKey && hasKey && (
                     <button
@@ -256,6 +292,19 @@ function ProviderCard({ provider, hasKey, canEncrypt, onChanged }: {
 
             {problem && <p className="mt-2 text-[10.5px] text-red-300/80">{problem}</p>}
         </div>
+    );
+}
+
+function Badge({ tone, children }: { tone: "good" | "warn" | "neutral"; children: React.ReactNode }) {
+    const tones = {
+        good: "text-emerald-300/70 bg-emerald-400/[0.08] border-emerald-400/20",
+        warn: "text-amber-300/70 bg-amber-400/[0.08] border-amber-400/20",
+        neutral: "text-white/30 bg-white/[0.05] border-white/[0.06]",
+    };
+    return (
+        <span className={`shrink-0 px-1.5 py-px rounded text-[9.5px] uppercase tracking-wide border ${tones[tone]}`}>
+            {children}
+        </span>
     );
 }
 

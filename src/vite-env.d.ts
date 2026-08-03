@@ -4,12 +4,8 @@ import {SearchQueryT} from "@/interfaces/searchQuery.ts";
 export {};
 
 type ProcessedSearchResult = {
-    bestMatch: SearchQueryT | null;
-    apps:      SearchQueryT[];
-    files:     SearchQueryT[];
-    folders:   SearchQueryT[];
-    settings:  SearchQueryT[];
-    commands:  SearchQueryT[];
+    /** Score-ordered, strongest match first, regardless of type. */
+    results: SearchQueryT[];
 }
 
 declare global {

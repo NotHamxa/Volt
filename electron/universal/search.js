@@ -174,7 +174,7 @@ function collect(out, items, nq, bucket) {
  * longer discarded just because other categories happen to have matches.
  */
 export function processSearchQuery(appCache, commandsCache, cachedFolderData, usage, query, filters, now = Date.now()) {
-    const empty = { bestMatch: null, apps: [], files: [], folders: [], settings: [], commands: [] };
+    const empty = { results: [] };
     const q = normaliseString(query).trim();
     if (!q) return empty;
 
@@ -217,25 +217,17 @@ export function processSearchQuery(appCache, commandsCache, cachedFolderData, us
         String(a.item.name).localeCompare(String(b.item.name))
     );
 
-    const best = scored[0];
-    const buckets = { apps: [], files: [], folders: [], settings: [], commands: [] };
-    let taken = 0;
-
+    // One list in score order — the strongest match first, whatever its type.
+    // Per-type caps stop a single category filling the whole thing.
+    const results = [];
+    const perType = {};
     for (const entry of scored) {
-        if (entry === best) continue;
-        if (taken >= GLOBAL_LIMIT) break;
-        const bucket = buckets[entry.bucket];
-        if (bucket.length >= TYPE_CAP) continue;
-        bucket.push(clean(entry.item));
-        taken++;
+        if (results.length >= GLOBAL_LIMIT) break;
+        const used = perType[entry.bucket] ?? 0;
+        if (used >= TYPE_CAP) continue;
+        perType[entry.bucket] = used + 1;
+        results.push(clean(entry.item));
     }
 
-    return {
-        bestMatch: clean(best.item),
-        apps: buckets.apps,
-        files: buckets.files,
-        folders: buckets.folders,
-        settings: buckets.settings,
-        commands: buckets.commands,
-    };
+    return { results };
 }

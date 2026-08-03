@@ -1,12 +1,8 @@
 import { SearchQueryT } from "@/interfaces/searchQuery.ts";
 
+/** Results in score order, strongest match first, regardless of type. */
 export interface ProcessedQueryResult {
-    bestMatch: SearchQueryT | null;
-    apps:      SearchQueryT[];
-    files:     SearchQueryT[];
-    folders:   SearchQueryT[];
-    settings:  SearchQueryT[];
-    commands:  SearchQueryT[];
+    results: SearchQueryT[];
 }
 
 let _ipcInFlight = false;

@@ -18,6 +18,7 @@ import {
     Bolt,
     ArrowDownToLine,
     CodeXml,
+    Globe,
     Search,
     SearchX
 } from "lucide-react";
@@ -34,6 +35,23 @@ import { resolveBang, toHistoryEntry, openSearch, searchWith, ResolvedSearch } f
 
 /** The web fallback row: the display entry plus the bang it resolved from. */
 type WebEntry = { entry: SearchQueryT; resolved: ResolvedSearch };
+
+/**
+ * Favicon with a real fallback. Remounted per `src` (via a key at the call
+ * site) so the failure flag resets when the row changes.
+ */
+const FaviconOrIcon = ({ src, children }: { src: string | null; children: React.ReactNode }) => {
+    const [failed, setFailed] = useState(false);
+    if (!src || failed) return <>{children}</>;
+    return (
+        <img
+            src={src}
+            alt=""
+            className="w-6 h-6 shrink-0 rounded"
+            onError={() => setFailed(true)}
+        />
+    );
+};
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { getQueryData } from "@/scripts/query.ts";
 import type { ProcessedQueryResult } from "@/scripts/query.ts";
@@ -443,12 +461,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
     const blockNextEnterRef = useRef(false);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     const itemRefs = useRef<(HTMLElement | null)[]>([]);
-    const [bestMatch, setBestMatch] = useState<SearchQueryT | null>(null);
-    const [apps, setApps] = useState<SearchQueryT[]>([]);
-    const [folders, setFolders] = useState<SearchQueryT[]>([]);
-    const [files, setFiles] = useState<SearchQueryT[]>([]);
-    const [settings, setSettings] = useState<SearchQueryT[]>([]);
-    const [commands, setCommands] = useState<SearchQueryT[]>([]);
+    const [results, setResults] = useState<SearchQueryT[]>([]);
     const [webSuggestions, setWebSuggestions] = useState<string[]>([]);
     const suggestionCountRef = useRef(0);
     const { enterArgMode } = useOutletContext<MainLayoutContext>();
@@ -482,18 +495,10 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
             const result: ProcessedQueryResult | null = await getQueryData(query.trim(), searchFilters);
             if (cancelled || !result) return;
 
-            setBestMatch(result.bestMatch);
-            setApps(result.apps);
-            setFolders(result.folders);
-            setFiles(result.files);
-            setSettings(result.settings);
-            setCommands(result.commands);
+            setResults(result.results);
 
-            // Keep the highlight in range as results shrink. getData only runs
-            // for non-!cmd queries, so the web row is present whenever the
-            // query is non-empty — count it alongside the local results.
-            const localCount = result.apps.length + result.folders.length + result.files.length +
-                result.settings.length + result.commands.length + (result.bestMatch ? 1 : 0);
+            // Keep the highlight in range as results shrink.
+            const localCount = result.results.length;
             // Read the live suggestion count from a ref rather than a dep, so
             // suggestions arriving don't re-trigger the search IPC.
             const webCount = query.trim() ? 1 + suggestionCountRef.current : 0;
@@ -575,18 +580,10 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
 
     const allResults = useMemo<SearchQueryT[]>(() => {
         const web = webEntry ? [webEntry.entry] : [];
-        const local = [
-            ...(bestMatch ? [bestMatch] : []),
-            ...apps,
-            ...commands,
-            ...settings,
-            ...files,
-            ...folders,
-        ];
         return promoteWeb
-            ? [...web, ...webBlockEntries, ...local]
-            : [...local, ...web, ...webBlockEntries];
-    }, [bestMatch, apps, settings, files, folders, commands, webEntry, promoteWeb, webBlockEntries]);
+            ? [...web, ...webBlockEntries, ...results]
+            : [...results, ...web, ...webBlockEntries];
+    }, [results, webEntry, promoteWeb, webBlockEntries]);
 
     const handleContextMenuOpenChange = useCallback((open: boolean) => {
         setIsContextMenuOpen(open);
@@ -756,14 +753,16 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
         if (!webEntry) return null;
         const { resolved } = webEntry;
         const focused = focusedIndex === itemIndex;
-        const localCount = apps.length + commands.length + settings.length +
-            files.length + folders.length + (bestMatch ? 1 : 0);
-        const faviconDomain = resolved.isDirectUrl
-            ? resolved.host
-            : resolved.hasExplicitBang ? resolved.bang.d : null;
-        const faviconUrl = faviconDomain
-            ? `https://www.google.com/s2/favicons?sz=24&domain_url=${encodeURIComponent(faviconDomain)}`
+        const localCount = results.length;
+        // Only bangs get a favicon: their domain comes from the bang list and is
+        // stable. A typed address is still half-written on most keystrokes, and
+        // the favicon service answers those with a generic globe of its own.
+        const faviconUrl = resolved.hasExplicitBang && resolved.bang.d
+            ? `https://www.google.com/s2/favicons?sz=24&domain_url=${encodeURIComponent(resolved.bang.d)}`
             : null;
+        const fallbackIcon = resolved.isDirectUrl
+            ? <Globe className="w-5 h-5 shrink-0 text-white/40" />
+            : <Google className="w-6 h-6 shrink-0" />;
 
         return (
             <div
@@ -777,9 +776,9 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                     className={`cursor-pointer flex items-center justify-between py-2 px-3 rounded-lg select-none transition-colors duration-150 gap-3 w-full hover:bg-white/10 ${focused ? "bg-white/10 outline outline-[1px] outline-white/[0.18]" : "bg-transparent"}`}
                 >
                     <div className="flex items-center gap-2 min-w-0">
-                        {faviconUrl
-                            ? <img src={faviconUrl} alt="" className="w-6 h-6 shrink-0 rounded" />
-                            : <Google className="w-6 h-6 shrink-0" />}
+                        <FaviconOrIcon key={faviconUrl ?? "none"} src={faviconUrl}>
+                            {fallbackIcon}
+                        </FaviconOrIcon>
                         <span className="text-[13px] text-white/80 truncate">
                             {resolved.isDirectUrl ? (
                                 <>Go to <span className="text-white font-medium">{resolved.searchTerm}</span></>
@@ -827,124 +826,29 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                     <>
                         {promoteWeb && renderWebBlock(0)}
 
-                        {bestMatch && (
-                            <div ref={el => { itemRefs.current[localOffset] = el; }}>
-                                <QueryComponent
-                                    item={bestMatch}
-                                    highlighted={focusedIndex === localOffset}
-                                    pinApp={pinApp}
-                                    unPinApp={unPinApp}
-                                    isAppPinned={bestMatch.type === "app" ? isAppPinned(bestMatch) : false}
-                                    logo={bestMatch.type === "app" ? logoMap.get(getLogoKey(bestMatch)) : undefined}
-                                    triggerAction={triggeredIndex === localOffset}
-                                    triggerContextMenu={triggeredContextMenuIndex === localOffset}
-                                    onContextMenuOpenChange={handleContextMenuOpenChange}
-                                    onRequestRunCommand={runCommandRequest}
-                                />
-                            </div>
-                        )}
-
-                        {apps.length > 0 && searchFilters[0] && (
-                            <>
-                                {apps.map((app, index) => {
-                                    const itemIndex = index + localOffset + (bestMatch ? 1 : 0);
-                                    return (
-                                        <div key={`${app.name}-${app.path}-${index}`} ref={el => { itemRefs.current[itemIndex] = el; }}>
-                                            <QueryComponent
-                                                item={app}
-                                                highlighted={focusedIndex === itemIndex}
-                                                isAppPinned={isAppPinned(app)}
-                                                logo={logoMap.get(getLogoKey(app))}
-                                                pinApp={pinApp}
-                                                unPinApp={unPinApp}
-                                                triggerAction={triggeredIndex === itemIndex}
-                                                triggerContextMenu={triggeredContextMenuIndex === itemIndex}
-                                                onContextMenuOpenChange={handleContextMenuOpenChange}
-                                                onRequestRunCommand={runCommandRequest}
-                                            />
-                                        </div>
-                                    );
-                                })}
-                            </>
-                        )}
-                        {commands.length > 0 && searchFilters[4] && (
-                            <>
-                                {commands.map((command, index) => {
-                                    const itemIndex = index + localOffset + (bestMatch ? 1 : 0) + apps.length;
-                                    return (
-                                        <div key={`${command.name}-${index}`} ref={el => { itemRefs.current[itemIndex] = el; }}>
-                                            <QueryComponent
-                                                item={command}
-                                                highlighted={focusedIndex === itemIndex}
-                                                triggerAction={triggeredIndex === itemIndex}
-                                                triggerContextMenu={triggeredContextMenuIndex === itemIndex}
-                                                onContextMenuOpenChange={handleContextMenuOpenChange}
-                                                onRequestRunCommand={runCommandRequest}
-                                            />
-                                        </div>
-                                    );
-                                })}
-                            </>
-                        )}
-                        {settings.length > 0 && searchFilters[3] && (
-                            <>
-                                {settings.map((file, index) => {
-                                    const itemIndex = index + localOffset + (bestMatch ? 1 : 0) + commands.length + apps.length;
-                                    return (
-                                        <div key={`${file.name}-${index}`} ref={el => { itemRefs.current[itemIndex] = el; }}>
-                                            <QueryComponent
-                                                item={file}
-                                                highlighted={focusedIndex === itemIndex}
-                                                triggerAction={triggeredIndex === itemIndex}
-                                                triggerContextMenu={triggeredContextMenuIndex === itemIndex}
-                                                onContextMenuOpenChange={handleContextMenuOpenChange}
-                                                onRequestRunCommand={runCommandRequest}
-                                            />
-                                        </div>
-                                    );
-                                })}
-                            </>
-                        )}
-
-                        {files.length > 0 && searchFilters[1] && (
-                            <>
-                                {files.map((file, index) => {
-                                    const itemIndex = index + localOffset + (bestMatch ? 1 : 0) + commands.length + apps.length + settings.length;
-                                    return (
-                                        <div key={`${file.name}-${file.path}-${index}`} ref={el => { itemRefs.current[itemIndex] = el; }}>
-                                            <QueryComponent
-                                                item={file}
-                                                highlighted={focusedIndex === itemIndex}
-                                                triggerAction={triggeredIndex === itemIndex}
-                                                triggerContextMenu={triggeredContextMenuIndex === itemIndex}
-                                                onContextMenuOpenChange={handleContextMenuOpenChange}
-                                                onRequestRunCommand={runCommandRequest}
-                                            />
-                                        </div>
-                                    );
-                                })}
-                            </>
-                        )}
-
-                        {folders.length > 0 && searchFilters[2] && (
-                            <>
-                                {folders.map((folder, index) => {
-                                    const itemIndex = index + localOffset + (bestMatch ? 1 : 0) + apps.length + commands.length + files.length + settings.length;
-                                    return (
-                                        <div key={`${folder.name}-${folder.path}-${index}`} ref={el => { itemRefs.current[itemIndex] = el; }}>
-                                            <QueryComponent
-                                                item={folder}
-                                                highlighted={focusedIndex === itemIndex}
-                                                triggerAction={triggeredIndex === itemIndex}
-                                                triggerContextMenu={triggeredContextMenuIndex === itemIndex}
-                                                onContextMenuOpenChange={handleContextMenuOpenChange}
-                                                onRequestRunCommand={runCommandRequest}
-                                            />
-                                        </div>
-                                    );
-                                })}
-                            </>
-                        )}
+                        {results.map((item, index) => {
+                            const itemIndex = index + localOffset;
+                            const isApp = item.type === "app";
+                            return (
+                                <div
+                                    key={`${item.type}-${item.name}-${item.path ?? ""}-${index}`}
+                                    ref={el => { itemRefs.current[itemIndex] = el; }}
+                                >
+                                    <QueryComponent
+                                        item={item}
+                                        highlighted={focusedIndex === itemIndex}
+                                        pinApp={pinApp}
+                                        unPinApp={unPinApp}
+                                        isAppPinned={isApp ? isAppPinned(item) : false}
+                                        logo={isApp ? logoMap.get(getLogoKey(item)) : undefined}
+                                        triggerAction={triggeredIndex === itemIndex}
+                                        triggerContextMenu={triggeredContextMenuIndex === itemIndex}
+                                        onContextMenuOpenChange={handleContextMenuOpenChange}
+                                        onRequestRunCommand={runCommandRequest}
+                                    />
+                                </div>
+                            );
+                        })}
 
                         {!promoteWeb && renderWebBlock(allResults.length - webBlockEntries.length - 1)}
                     </>

@@ -89,6 +89,7 @@ type QueryComponentProps = {
     triggerContextMenu?: boolean;
     onContextMenuOpenChange?: (open: boolean) => void;
     onRequestRunCommand?: (item: SearchQueryT) => void;
+    onExecuteCommand?: (item: SearchQueryT) => Promise<void>;
 };
 
 const getFileIcon = (path: string) => {
@@ -187,6 +188,7 @@ const QueryComponent = memo(({
                                  triggerContextMenu = false,
                                  onContextMenuOpenChange,
                                  onRequestRunCommand,
+                                 onExecuteCommand,
                              }: QueryComponentProps) => {
     const { name, type, path } = item;
 
@@ -228,7 +230,7 @@ const QueryComponent = memo(({
             return;
         }
         if (type === "command" || type === "commandOpen") {
-            await window.apps.executeCommand(item);
+            await onExecuteCommand?.(item);
         } else if (type === "commandConfirm" || type === "commandConfirmOpen") {
             setShowConfirmation(true);
         } else if (type === "app") {
@@ -236,12 +238,12 @@ const QueryComponent = memo(({
         } else if (path) {
             window.file.openPath(path);
         }
-    }, [type, item, path, isCommandType, hasArgs, onRequestRunCommand]);
+    }, [type, item, path, isCommandType, hasArgs, onRequestRunCommand, onExecuteCommand]);
 
     const handleConfirm = useCallback(async () => {
-        await window.apps.executeCommand(item);
+        await onExecuteCommand?.(item);
         setShowConfirmation(false);
-    }, [item]);
+    }, [item, onExecuteCommand]);
 
     const handleCancel = useCallback(() => {
         setShowConfirmation(false);
@@ -612,9 +614,24 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
         if (webEntry) openSearch(searchWith(webEntry.resolved.bang, item.name));
     }, [webEntry]);
 
+    // Single entry point for running a command. Guards against a second Enter
+    // landing while the first is still in flight, and clears the query on
+    // success so the same command can't be fired again from a stale list.
+    const runningRef = useRef(false);
+    const runCommand = useCallback(async (item: SearchQueryT, argValues?: Record<string, string>) => {
+        if (runningRef.current) return;
+        runningRef.current = true;
+        try {
+            const result = await window.apps.executeCommand(item, argValues);
+            if (result?.ok) clearQuery();
+        } finally {
+            runningRef.current = false;
+        }
+    }, [clearQuery]);
+
     const runCommandRequest = useCallback((item: SearchQueryT) => {
         if (!item.args || item.args.length === 0) {
-            window.apps.executeCommand(item);
+            runCommand(item);
             return;
         }
         const tokens = tokenize(query).slice(1);
@@ -629,11 +646,11 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
             return a.required && !has;
         });
         if (!missingRequired && tokens.length >= item.args.length) {
-            window.apps.executeCommand(item, initial);
+            runCommand(item, initial);
             return;
         }
         enterArgMode(item, initial);
-    }, [query, enterArgMode]);
+    }, [query, enterArgMode, runCommand]);
 
     const handleKeyDown = useCallback(async (e: KeyboardEvent) => {
         if (isContextMenuOpen) return;
@@ -652,6 +669,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
             setTimeout(() => setTriggeredContextMenuIndex(-1), 100);
         } else if (e.key === "Enter" && isCmdCommand) {
             window.electron.executeCmd(cmdCommand);
+            clearQuery();
         } else if (e.key === "Enter" && allResults[focusedIndex]) {
             const item = allResults[focusedIndex];
             const hasArgs = !!item.args && item.args.length > 0;
@@ -659,7 +677,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                 e.preventDefault();
                 runCommandRequest(item);
             } else if (item.type === "command" || item.type === "commandOpen") {
-                await window.apps.executeCommand(item);
+                await runCommand(item);
             } else if (item.type === "commandConfirm" || item.type === "commandConfirmOpen") {
                 e.preventDefault();
                 setTriggeredIndex(focusedIndex);
@@ -674,7 +692,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                 window.file.openPath(item.path);
             }
         }
-    }, [isContextMenuOpen, focusedIndex, allResults, isCmdCommand, cmdCommand, runCommandRequest, webEntry, openBlockEntry]);
+    }, [isContextMenuOpen, focusedIndex, allResults, isCmdCommand, cmdCommand, runCommandRequest, webEntry, openBlockEntry, runCommand, clearQuery]);
 
     useEffect(() => {
         window.addEventListener("keydown", handleKeyDown);
@@ -851,6 +869,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                                         triggerContextMenu={triggeredContextMenuIndex === itemIndex}
                                         onContextMenuOpenChange={handleContextMenuOpenChange}
                                         onRequestRunCommand={runCommandRequest}
+                                        onExecuteCommand={runCommand}
                                     />
                                 </div>
                             );

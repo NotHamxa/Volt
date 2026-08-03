@@ -66,8 +66,8 @@ export function registerElectronIpc({ hideMainWindow, cache, store }) {
         };
     });
 
-    ipcMain.on("execute-cmd", async (_, cmd) => {
-        executeUserCommand(cmd);
+    ipcMain.on("execute-cmd", (_, cmd) => {
+        if (executeUserCommand(cmd)) hideMainWindow();
     });
 
     ipcMain.on("open-uninstall", async () => {

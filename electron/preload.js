@@ -59,7 +59,7 @@ contextBridge.exposeInMainWorld("apps",{
 
     openApp:(app,admin=false) => ipcRenderer.invoke('launch-app', app,admin),
     openSetting:(setting)=>ipcRenderer.invoke('open-setting', setting),
-    executeCommand:(command, argValues)=>ipcRenderer.send('execute-command', command, argValues),
+    executeCommand:(command, argValues)=>ipcRenderer.invoke('execute-command', command, argValues),
     getAppLogo: (app) => ipcRenderer.invoke('get-app-logo', app),
     getUwpAppLogo: (appName)=>ipcRenderer.invoke('get-uwp-app-logo', appName),
     getSteamGameLogo: (appId)=>ipcRenderer.invoke('get-steam-game-logo', appId),

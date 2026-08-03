@@ -33,6 +33,21 @@ export function sendCommandNotification(commandName) {
     showNotification({ icon: notif.icon, title: notif.title, message: notif.message });
 }
 
+/** Truncated so a wall of stderr doesn't blow out the notification window. */
+function summarise(detail) {
+    const text = String(detail ?? "").trim().replace(/\s+/g, " ");
+    if (!text) return "The command did not complete successfully";
+    return text.length > 140 ? `${text.slice(0, 139)}…` : text;
+}
+
+function sendCommandFailure(commandName, detail) {
+    showNotification({
+        icon: '⚠️',
+        title: `${commandName} failed`,
+        message: summarise(detail),
+    });
+}
+
 // Heuristic: does this script look like PowerShell vs CMD/batch?
 function looksLikePowerShell(script) {
     if (!script) return false;
@@ -79,23 +94,32 @@ export async function executeCommandOpen(item, argValues) {
     const shell = resolveShell(item);
     const script = substituteArgs(item.path, item.args, argValues, shell);
     const ext = shell === "powershell" ? ".ps1" : ".bat";
-    const tempPath = writeTempScript(script, ext);
 
-    // `start "" <prog>` detaches into a new console window. cmd.exe runs the
-    // start verb. The empty title arg ("") prevents start from interpreting a
-    // quoted path as the title.
-    const args = shell === "powershell"
-        ? ["/c", "start", "", "powershell.exe", "-NoExit", "-ExecutionPolicy", "Bypass", "-File", tempPath]
-        : ["/c", "start", "", "cmd.exe", "/K", tempPath];
+    try {
+        const tempPath = writeTempScript(script, ext);
 
-    const child = spawn("cmd.exe", args, {
-        detached: true,
-        stdio: "ignore",
-        windowsHide: false,
-    });
-    child.unref();
-    sendCommandNotification(item.name);
-    return true;
+        // `start "" <prog>` detaches into a new console window. cmd.exe runs the
+        // start verb. The empty title arg ("") prevents start from interpreting a
+        // quoted path as the title.
+        const args = shell === "powershell"
+            ? ["/c", "start", "", "powershell.exe", "-NoExit", "-ExecutionPolicy", "Bypass", "-File", tempPath]
+            : ["/c", "start", "", "cmd.exe", "/K", tempPath];
+
+        const child = spawn("cmd.exe", args, {
+            detached: true,
+            stdio: "ignore",
+            windowsHide: false,
+        });
+        // Detached, so the script's own exit code belongs to the terminal it
+        // opened. Only the spawn itself can be reported on from here.
+        child.on("error", err => sendCommandFailure(item.name, err?.message));
+        child.unref();
+        sendCommandNotification(item.name);
+        return { ok: true };
+    } catch (err) {
+        sendCommandFailure(item.name, err?.message);
+        return { ok: false, detail: String(err?.message ?? err) };
+    }
 }
 
 export async function executeCommand(item, argValues){
@@ -106,27 +130,35 @@ export async function executeCommand(item, argValues){
     const script = substituteArgs(item.path, item.args, argValues, shell);
     const shellExe = shell === "powershell" ? "powershell.exe" : "cmd.exe";
     return new Promise((resolve) => {
+        // Notify once per run: success or failure, never both, never neither.
+        const succeed = () => {
+            sendCommandNotification(item.name);
+            resolve({ ok: true });
+        };
+        const fail = (detail) => {
+            console.error(`Command failed: ${item.name}`, detail);
+            sendCommandFailure(item.name, detail);
+            resolve({ ok: false, detail: String(detail ?? "") });
+        };
+
         if (shell === "powershell") {
             // Pipe the script via stdin to avoid temp files for the no-window path.
             const child = spawn("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "-"], {
                 windowsHide: true,
             });
+            let stderr = "";
+            child.stderr?.on("data", chunk => { stderr += chunk; });
             child.stdin.write(script);
             child.stdin.end();
             child.on("close", code => {
-                if (code !== 0) console.error(`PowerShell command failed (exit ${code}): ${item.name}`);
-                sendCommandNotification(item.name);
-                resolve(code === 0);
+                if (code === 0) succeed();
+                else fail(stderr || `Exited with code ${code}`);
             });
-            child.on("error", err => {
-                console.error(`PowerShell command error: ${item.name}`, err);
-                resolve(false);
-            });
+            child.on("error", err => fail(err?.message));
         } else {
-            exec(script, { shell: shellExe }, (error) => {
-                if (error) console.error(`Command failed: ${item.name}`, error);
-                sendCommandNotification(item.name);
-                resolve(!error);
+            exec(script, { shell: shellExe }, (error, _stdout, stderr) => {
+                if (!error) succeed();
+                else fail(stderr || error.message);
             });
         }
     });

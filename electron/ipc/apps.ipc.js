@@ -148,8 +148,12 @@ export function registerAppsIpc({
         return openExternalSafely(setting, new Set(["ms-settings:"]));
     });
 
-    ipcMain.on("execute-command", async (_, command, argValues) => {
-        return await executeCommand(command, argValues);
+    // `handle`, not `on`: the renderer needs the outcome so it can report it and
+    // avoid re-running. Dismissing on success mirrors launching an app.
+    ipcMain.handle("execute-command", async (_, command, argValues) => {
+        const result = await executeCommand(command, argValues);
+        if (result?.ok) hideMainWindow();
+        return result ?? { ok: false, detail: "No result" };
     });
 
     ipcMain.handle("get-app-logo", (_, app) => {

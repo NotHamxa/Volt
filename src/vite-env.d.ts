@@ -69,7 +69,7 @@ declare global {
             getUwpAppLogo:(app:SearchQueryT) => Promise<string>;
             getSteamGameLogo:(appId:string) => Promise<string | null>;
             getLinkFavicon:(link:string)=>Promise<string | null>
-            executeCommand:(command:SearchQueryT, argValues?:Record<string,string>) => void;
+            executeCommand:(command:SearchQueryT, argValues?:Record<string,string>) => Promise<{ ok: boolean; detail?: string }>;
         };
         file:{
             searchFilesAndFolders: (query: string) => Promise<SearchQueryT[]>;

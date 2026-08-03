@@ -542,26 +542,34 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
     // otherwise every app search would pull in remote suggestions.
     useEffect(() => {
         let cancelled = false;
-        const bang = webEntry?.resolved.hasExplicitBang ? webEntry.resolved : null;
+        const resolved = webEntry?.resolved ?? null;
+        // Fetch when the user has signalled web intent with a bang, or when
+        // nothing matched locally — that's a web query by elimination, and the
+        // list would otherwise be a single row above a lot of empty space.
+        const term = resolved?.searchTerm?.trim() ?? "";
+        const wanted = Boolean(term) && !resolved?.isDirectUrl &&
+            (resolved?.hasExplicitBang || results.length === 0);
+        const limit = resolved?.hasExplicitBang ? 5 : 8;
+
         const timer = setTimeout(async () => {
-            if (!bang?.searchTerm) {
+            if (!wanted) {
                 if (!cancelled) setWebSuggestions([]);
                 return;
             }
-            const raw = await window.electron.getGoogleSuggestions(bang.searchTerm);
+            const raw = await window.electron.getGoogleSuggestions(term);
             if (cancelled) return;
             const cleaned = raw
                 .map(s => s.replace(/<\/?b>/g, "").trim())
-                .filter(s => s && s.toLowerCase() !== bang.searchTerm.toLowerCase());
-            setWebSuggestions([...new Set(cleaned)].slice(0, 5));
+                .filter(s => s && s.toLowerCase() !== term.toLowerCase());
+            setWebSuggestions([...new Set(cleaned)].slice(0, limit));
         }, 250);
         return () => { cancelled = true; clearTimeout(timer); };
-    }, [webEntry]);
+    }, [webEntry, results.length]);
 
-    // Remote suggestions only, and only behind an explicit bang. Past searches
-    // are surfaced as inline completion in the input, not as rows here.
+    // Past searches are surfaced as inline completion in the input, so these
+    // rows are remote suggestions only.
     const webBlockEntries = useMemo<SearchQueryT[]>(() => {
-        if (!webEntry?.resolved.hasExplicitBang) return [];
+        if (!webEntry || !webSuggestions.length) return [];
         return webSuggestions.map(s => ({
             name: s,
             type: "webSuggestion",

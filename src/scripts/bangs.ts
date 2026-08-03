@@ -140,8 +140,10 @@ async function readHistory(): Promise<SearchHistoryT[]> {
     }
 }
 
+// Identity is the destination. Comparing the label too would let the same URL
+// pile up under different site names as the resolver changes.
 function isSameEntry(a: SearchHistoryT, b: SearchHistoryT) {
-    return a.searchUrl === b.searchUrl && a.searchTerm === b.searchTerm && a.site === b.site;
+    return a.searchUrl === b.searchUrl;
 }
 
 /** Moves `entry` to the front of history, de-duplicating and capping the list. */
@@ -149,6 +151,7 @@ export async function recordSearch(entry: SearchHistoryT): Promise<void> {
     const history = (await readHistory()).filter(item => !isSameEntry(item, entry));
     const updated = [entry, ...history].slice(0, HISTORY_LIMIT);
     window.electronStore.set(HISTORY_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new CustomEvent("searchHistoryChanged"));
 }
 
 /** Records the search, then hands the URL to the OS browser. */
@@ -164,6 +167,7 @@ export async function getSearchHistory(): Promise<SearchHistoryT[]> {
 export async function deleteHistoryEntry(entry: SearchHistoryT): Promise<SearchHistoryT[]> {
     const updated = (await readHistory()).filter(item => !isSameEntry(item, entry));
     window.electronStore.set(HISTORY_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new CustomEvent("searchHistoryChanged"));
     return updated;
 }
 

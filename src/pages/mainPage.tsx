@@ -8,6 +8,7 @@ import { BangData } from "@/interfaces/bang.ts";
 import { SearchQueryT } from "@/interfaces/searchQuery.ts";
 import { isSameApp } from "@/utils/appUtils.ts";
 import ArgEntryBar from "@/components/argEntryBar.tsx";
+import { useInlineCompletion } from "@/hooks/useInlineCompletion.ts";
 
 export type MainLayoutContext = {
     apps: SearchQueryT[];
@@ -41,8 +42,19 @@ export default function MainLayout({ inputRef, query, setQuery, argCommand, argI
     const [logoMap, setLogoMap] = useState<Map<string, string>>(new Map());
     const location = useLocation();
 
+    const { handleChange, resetTypedLength } = useInlineCompletion(inputRef, setQuery, apps);
+
     // Programmatic reset of the search box (e.g. after pinning from results).
-    const clearQuery = useCallback(() => setQuery(""), [setQuery]);
+    const clearQuery = useCallback(() => {
+        resetTypedLength(0);
+        setQuery("");
+    }, [setQuery, resetTypedLength]);
+
+    // The query can also be cleared from outside (Escape, blur, arg mode), so
+    // keep the typed-length tracker in sync or the next keystroke misreads it.
+    useEffect(() => {
+        if (!query) resetTypedLength(0);
+    }, [query, resetTypedLength]);
 
     useEffect(() => {
         const getAppData = async () => {
@@ -145,7 +157,7 @@ export default function MainLayout({ inputRef, query, setQuery, argCommand, argI
                     <Input
                         ref={inputRef}
                         value={query}
-                        onChange={(e) => setQuery(e.target.value)}
+                        onChange={handleChange}
                         onKeyDown={(e) => {
                             if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
                                 e.preventDefault();

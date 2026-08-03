@@ -18,7 +18,6 @@ import {
     Bolt,
     ArrowDownToLine,
     CodeXml,
-    History,
     Search,
     SearchX
 } from "lucide-react";
@@ -31,8 +30,7 @@ import {
     ContextMenuTrigger
 } from "@/components/ui/context-menu.tsx";
 import { SearchQueryT } from "@/interfaces/searchQuery.ts";
-import { resolveBang, toHistoryEntry, openSearch, searchWith, getSearchHistory, ResolvedSearch } from "@/scripts/bangs.ts";
-import { SearchHistoryT } from "@/interfaces/history.ts";
+import { resolveBang, toHistoryEntry, openSearch, searchWith, ResolvedSearch } from "@/scripts/bangs.ts";
 
 /** The web fallback row: the display entry plus the bang it resolved from. */
 type WebEntry = { entry: SearchQueryT; resolved: ResolvedSearch };
@@ -452,7 +450,6 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
     const [settings, setSettings] = useState<SearchQueryT[]>([]);
     const [commands, setCommands] = useState<SearchQueryT[]>([]);
     const [webSuggestions, setWebSuggestions] = useState<string[]>([]);
-    const [historyMatches, setHistoryMatches] = useState<SearchHistoryT[]>([]);
     const suggestionCountRef = useRef(0);
     const { enterArgMode } = useOutletContext<MainLayoutContext>();
 
@@ -556,58 +553,17 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
         return () => { cancelled = true; clearTimeout(timer); };
     }, [webEntry]);
 
-    // Past searches are local and instant, so they autocomplete for any query —
-    // unlike the remote Google call, which waits for an explicit bang.
-    useEffect(() => {
-        let cancelled = false;
-        const term = webEntry?.resolved.searchTerm?.trim().toLowerCase() ?? "";
-        const run = async () => {
-            if (!term) {
-                if (!cancelled) setHistoryMatches([]);
-                return;
-            }
-            const history = await getSearchHistory();
-            if (cancelled) return;
-            setHistoryMatches(
-                history
-                    .filter(h => {
-                        const t = h.searchTerm.trim().toLowerCase();
-                        return t && t !== term && t.includes(term);
-                    })
-                    .slice(0, 3)
-            );
-        };
-        run();
-        return () => { cancelled = true; };
-    }, [webEntry]);
-
-    const historyEntries = useMemo<SearchQueryT[]>(() =>
-        historyMatches.map(h => ({
-            name: h.searchTerm,
-            type: "webHistory",
-            path: h.searchUrl,
-            source: h.site,
-        })), [historyMatches]);
-
-    const suggestionEntries = useMemo<SearchQueryT[]>(() => {
+    // Remote suggestions only, and only behind an explicit bang. Past searches
+    // are surfaced as inline completion in the input, not as rows here.
+    const webBlockEntries = useMemo<SearchQueryT[]>(() => {
         if (!webEntry?.resolved.hasExplicitBang) return [];
-        const seen = new Set(historyMatches.map(h => h.searchTerm.trim().toLowerCase()));
-        return webSuggestions
-            .filter(s => !seen.has(s.trim().toLowerCase()))
-            .map(s => ({
-                name: s,
-                type: "webSuggestion",
-                path: searchWith(webEntry.resolved.bang, s).searchUrl,
-                source: webEntry.resolved.bang.s,
-            }));
-    }, [webSuggestions, webEntry, historyMatches]);
-
-    // Rows that hang off the web result: past searches first, then remote
-    // suggestions. They travel with the web row wherever it sits.
-    const webBlockEntries = useMemo<SearchQueryT[]>(
-        () => [...historyEntries, ...suggestionEntries],
-        [historyEntries, suggestionEntries]
-    );
+        return webSuggestions.map(s => ({
+            name: s,
+            type: "webSuggestion",
+            path: searchWith(webEntry.resolved.bang, s).searchUrl,
+            source: webEntry.resolved.bang.s,
+        }));
+    }, [webSuggestions, webEntry]);
 
     // A promoted web block sits above the local results, so every local index
     // shifts by the whole block's size.
@@ -650,11 +606,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
     // A history row reopens its own recorded URL; a suggestion row runs against
     // whichever bang is currently active.
     const openBlockEntry = useCallback((item: SearchQueryT) => {
-        if (item.type === "webHistory") {
-            openSearch({ searchTerm: item.name, searchUrl: item.path!, site: item.source! });
-        } else if (webEntry) {
-            openSearch(searchWith(webEntry.resolved.bang, item.name));
-        }
+        if (webEntry) openSearch(searchWith(webEntry.resolved.bang, item.name));
     }, [webEntry]);
 
     const runCommandRequest = useCallback((item: SearchQueryT) => {
@@ -711,7 +663,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                 setTimeout(() => setTriggeredIndex(-1), 100);
             } else if (item.type === "webSearch" && webEntry) {
                 await openSearch(toHistoryEntry(webEntry.resolved));
-            } else if (item.type === "webSuggestion" || item.type === "webHistory") {
+            } else if (item.type === "webSuggestion") {
                 openBlockEntry(item);
             } else if (item.type === "app") {
                 await window.apps.openApp(item);
@@ -790,13 +742,8 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                                 tabIndex={0}
                                 className={`cursor-pointer flex items-center py-1.5 pl-11 pr-3 rounded-lg select-none transition-colors duration-150 gap-2 w-full hover:bg-white/10 ${focused ? "bg-white/10 outline outline-[1px] outline-white/[0.18]" : "bg-transparent"}`}
                             >
-                                {item.type === "webHistory"
-                                    ? <History className="w-3.5 h-3.5 shrink-0 text-white/30" />
-                                    : <Search className="w-3.5 h-3.5 shrink-0 text-white/30" />}
+                                <Search className="w-3.5 h-3.5 shrink-0 text-white/30" />
                                 <span className="text-[12px] text-white/60 truncate">{item.name}</span>
-                                {item.type === "webHistory" && (
-                                    <span className="ml-auto text-[10px] text-white/25 shrink-0">{item.source}</span>
-                                )}
                             </button>
                         </div>
                     );

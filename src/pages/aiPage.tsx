@@ -12,6 +12,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { Kbd } from "@/components/ui/kbd.tsx";
 import { useChat } from "@/ai/useChat.ts";
+import { Markdown } from "@/ai/markdown.tsx";
 import logo from "@/assets/icon.png";
 
 /**
@@ -217,17 +218,19 @@ export default function AiPage() {
 
                                 const body = live ? partial : m.content;
                                 return (
-                                    <div key={i} className="self-start flex gap-2.5 max-w-[88%]">
+                                    // min-w-0 so a wide table scrolls inside its
+                                    // own box instead of stretching the row.
+                                    <div key={i} className="self-start flex gap-2.5 w-full min-w-0">
                                         <img src={logo} alt="" className="w-4 h-4 mt-0.5 shrink-0 object-contain opacity-50" />
                                         {live && !body ? (
                                             <span className="flex items-center gap-1.5 text-[11.5px] text-white/35">
                                                 <Spinner className="size-3" /> Thinking…
                                             </span>
                                         ) : (
-                                            <div className="text-[12.5px] leading-relaxed text-white/75 whitespace-pre-wrap break-words">
-                                                {body}
+                                            <div className="min-w-0 flex-1">
+                                                <Markdown>{body}</Markdown>
                                                 {live && (
-                                                    <span className="inline-block w-[7px] h-[13px] ml-0.5 -mb-0.5 rounded-[1px] bg-white/40 animate-pulse" />
+                                                    <span className="inline-block w-[7px] h-[13px] -mt-0.5 rounded-[1px] bg-white/40 animate-pulse" />
                                                 )}
                                             </div>
                                         )}

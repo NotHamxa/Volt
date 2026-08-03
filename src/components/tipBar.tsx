@@ -10,6 +10,8 @@ export default function TipBar() {
     const [index, setIndex] = useState<number>(0);
     const [hidden, setHidden] = useState<boolean>(true);
     const [ready, setReady] = useState<boolean>(false);
+    // Starts closed so the home screen is never obstructed.
+    const [open, setOpen] = useState<boolean>(false);
 
     useEffect(() => {
         (async () => {
@@ -55,16 +57,17 @@ export default function TipBar() {
     const tip = tips[index];
 
     return (
-        // Pinned to the bottom of the home area rather than sitting in flow —
-        // in flow it pushes past its container and collides with the app footer.
-        // Still a quiet line, not a raised card: the tip is ambient.
-        <div className="absolute left-5 right-5 bottom-2 z-10 pointer-events-none">
-            <div className="group flex items-center gap-2 px-2 py-1.5 rounded-md bg-[rgba(18,18,20,0.75)] backdrop-blur-sm select-none pointer-events-auto">
-                <Lightbulb size={11} className="text-amber-300/45 shrink-0" strokeWidth={2} />
-
-                <p className="text-[11px] text-white/35 truncate min-w-0">
-                    {tip.title}
-                </p>
+        // Collapsed to a single icon so it never covers pinned links. Clicking
+        // slides the tip out to the left, away from the window edge.
+        <div className="absolute right-4 bottom-2 z-10 flex items-center justify-end gap-1.5">
+            <div
+                className={`flex items-center gap-2 overflow-hidden whitespace-nowrap rounded-md bg-[rgba(18,18,20,0.92)] backdrop-blur-sm transition-all duration-200 ease-out ${
+                    open
+                        ? "max-w-[560px] opacity-100 px-2.5 py-1.5"
+                        : "max-w-0 opacity-0 px-0 py-1.5"
+                }`}
+            >
+                <p className="text-[11px] text-white/45 truncate min-w-0">{tip.title}</p>
 
                 {tip.keys && (
                     <div className="flex items-center gap-1 shrink-0">
@@ -79,10 +82,10 @@ export default function TipBar() {
                     </div>
                 )}
 
-                <div className="flex items-center gap-0.5 shrink-0 ml-auto opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                <div className="flex items-center gap-0.5 shrink-0 pl-1">
                     <button
                         onClick={next}
-                        className="p-1 rounded-md text-white/30 hover:text-white/70 hover:bg-white/[0.05] transition-colors"
+                        className="p-1 rounded-md text-white/30 hover:text-white/70 hover:bg-white/[0.06] transition-colors"
                         title="Next tip"
                         aria-label="Next tip"
                     >
@@ -90,7 +93,7 @@ export default function TipBar() {
                     </button>
                     <button
                         onClick={dismissSession}
-                        className="p-1 rounded-md text-white/30 hover:text-white/70 hover:bg-white/[0.05] transition-colors"
+                        className="p-1 rounded-md text-white/30 hover:text-white/70 hover:bg-white/[0.06] transition-colors"
                         title="Hide for this session"
                         aria-label="Hide tip"
                     >
@@ -106,6 +109,20 @@ export default function TipBar() {
                     </button>
                 </div>
             </div>
+
+            <button
+                onClick={() => setOpen(o => !o)}
+                aria-expanded={open}
+                aria-label={open ? "Hide tip" : "Show tip"}
+                title={open ? "Hide tip" : "Show tip"}
+                className={`shrink-0 flex items-center justify-center w-6 h-6 rounded-full border transition-colors ${
+                    open
+                        ? "bg-amber-400/12 border-amber-400/25"
+                        : "bg-white/[0.04] border-white/[0.07] hover:bg-white/[0.08]"
+                }`}
+            >
+                <Lightbulb size={11} className="text-amber-300/70" strokeWidth={2} />
+            </button>
         </div>
     );
 }

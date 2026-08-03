@@ -118,3 +118,27 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Native overflow that can't host a Radix ScrollArea — the prompt textarea —
+   still needs to look like one. Mirrors ScrollBar/ScrollAreaThumb: a 10px
+   gutter with a rounded thumb inset by a transparent border. */
+.scrollbar-thin-shadcn {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+}
+.scrollbar-thin-shadcn::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.scrollbar-thin-shadcn::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin-shadcn::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.14);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 9999px;
+}
+.scrollbar-thin-shadcn::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.24);
+}

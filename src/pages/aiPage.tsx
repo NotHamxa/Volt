@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import { Square, PanelLeft, Plus, Trash2, ArrowUp, MessageCircle } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
@@ -35,6 +35,7 @@ export default function AiPage() {
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const seededRef = useRef(false);
+    const lastChatIdRef = useRef<string | null>(null);
 
     const provider = useMemo(
         () => providers.find(p => p.id === providerId) ?? null,
@@ -137,12 +138,30 @@ export default function AiPage() {
     }, [searchParams, providerId, submit, setSearchParams]);
 
     // Follow the stream, but don't yank the view down if you've scrolled up.
-    useEffect(() => {
+    // Opening a different conversation is the exception: a reopened chat should
+    // start at its newest message, and the near-bottom test can't tell that
+    // apart from a deliberate scroll-up because a fresh viewport sits at 0.
+    // Layout effect, so the jump happens before the top is ever painted.
+    useLayoutEffect(() => {
         const viewport = scrollRef.current?.querySelector<HTMLElement>("[data-radix-scroll-area-viewport]");
         if (!viewport) return;
+
+        const switched = chat?.id !== lastChatIdRef.current;
+        lastChatIdRef.current = chat?.id ?? null;
+
+        if (switched) {
+            viewport.scrollTop = viewport.scrollHeight;
+            // Radix measures the viewport asynchronously, so re-apply once the
+            // first frame has settled and the real height is known.
+            const frame = requestAnimationFrame(() => {
+                viewport.scrollTop = viewport.scrollHeight;
+            });
+            return () => cancelAnimationFrame(frame);
+        }
+
         const nearBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 120;
         if (nearBottom) viewport.scrollTop = viewport.scrollHeight;
-    }, [chat?.messages.length, partial]);
+    }, [chat?.id, chat?.messages.length, partial]);
 
     const messages = chat?.messages ?? [];
     const empty = messages.length === 0;

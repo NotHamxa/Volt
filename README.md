@@ -62,6 +62,10 @@ pnpm start
 pnpm dist
 ```
 
+## License
+
+[MIT](LICENSE) © Hamza Ahmed
+
 ---
 
 Built by [Hamza Ahmed](https://hamzahmed.com)

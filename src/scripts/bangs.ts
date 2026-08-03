@@ -1,73 +1,135 @@
 import bangs from "@/data/bangs.json";
-import {BangData} from "@/interfaces/bang.ts";
-import {SearchHistoryT} from "@/interfaces/history.ts";
+import { BangData } from "@/interfaces/bang.ts";
+import { SearchHistoryT } from "@/interfaces/history.ts";
+
+const HISTORY_KEY = "searchHistory";
+const HISTORY_LIMIT = 20;
+const DEFAULT_BANG_TOKEN = "g";
+
+export type ResolvedSearch = {
+    /** The bang that will be used — falls back to the default when none was typed. */
+    bang: BangData;
+    /** What the user is actually searching for, with the bang token removed. */
+    searchTerm: string;
+    /** Fully built destination URL. */
+    url: string;
+    /** True only when the user typed a `!token` that matched a known bang. */
+    hasExplicitBang: boolean;
+};
+
+const defaultBang = () => bangs.find(b => b.t === DEFAULT_BANG_TOKEN) as BangData | undefined;
+
+function buildUrl(bang: BangData, searchTerm: string) {
+    return bang.u.replace("{{{s}}}", encodeURIComponent(searchTerm));
+}
+
+/**
+ * Pure: works out which bang (if any) a query is using and what it would open.
+ * No history writes, no navigation — so callers can preview a result without
+ * committing to it.
+ *
+ * A bang is only recognised as the final token. When the query has no bang the
+ * *whole* query is the search term (the old handleBangs dropped the last word
+ * here, which was unreachable because every caller appended a bang first).
+ */
+export function resolveBang(query: string): ResolvedSearch | null {
+    const trimmed = query.trim();
+    if (!trimmed) return null;
+
+    const words = trimmed.split(/\s+/);
+    const lastWord = words[words.length - 1];
+    const token = lastWord.startsWith("!") ? lastWord.slice(1) : null;
+    const matched = token ? (bangs.find(b => b.t === token) as BangData | undefined) : undefined;
+
+    const bang = matched ?? defaultBang();
+    if (!bang) return null;
+
+    // Strip the token only when it actually resolved to something, or when the
+    // user typed a bang-looking token at all — an unknown `!foo` still isn't
+    // part of what they meant to search for.
+    const searchTerm = token !== null ? words.slice(0, -1).join(" ") : trimmed;
+
+    return {
+        bang,
+        searchTerm,
+        url: buildUrl(bang, searchTerm),
+        hasExplicitBang: Boolean(matched),
+    };
+}
+
+/** Turns a resolved search into the shape stored in history. */
+export function toHistoryEntry(resolved: ResolvedSearch): SearchHistoryT {
+    return {
+        searchTerm: resolved.searchTerm,
+        searchUrl: resolved.url,
+        site: resolved.bang.s,
+    };
+}
+
+async function readHistory(): Promise<SearchHistoryT[]> {
+    const stored = await window.electronStore.get(HISTORY_KEY);
+    if (!stored) return [];
+    try {
+        const parsed = JSON.parse(stored);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
+}
+
+function isSameEntry(a: SearchHistoryT, b: SearchHistoryT) {
+    return a.searchUrl === b.searchUrl && a.searchTerm === b.searchTerm && a.site === b.site;
+}
+
+/** Moves `entry` to the front of history, de-duplicating and capping the list. */
+export async function recordSearch(entry: SearchHistoryT): Promise<void> {
+    const history = (await readHistory()).filter(item => !isSameEntry(item, entry));
+    const updated = [entry, ...history].slice(0, HISTORY_LIMIT);
+    window.electronStore.set(HISTORY_KEY, JSON.stringify(updated));
+}
+
+/** Records the search, then hands the URL to the OS browser. */
+export async function openSearch(entry: SearchHistoryT): Promise<void> {
+    await recordSearch(entry);
+    window.electron.openExternal(entry.searchUrl);
+}
+
+export async function getSearchHistory(): Promise<SearchHistoryT[]> {
+    return readHistory();
+}
+
+export async function deleteHistoryEntry(entry: SearchHistoryT): Promise<SearchHistoryT[]> {
+    const updated = (await readHistory()).filter(item => !isSameEntry(item, entry));
+    window.electronStore.set(HISTORY_KEY, JSON.stringify(updated));
+    return updated;
+}
+
+// ─── existing call sites ─────────────────────────────────────────────────────
 
 async function handleBangs(query: string) {
-    const trimmedQuery = query.trim();
-    const words = trimmedQuery.split(" ");
-    const possibleBang = words[words.length - 1];
-    const shortcut = possibleBang.startsWith("!") ? possibleBang.slice(1) : null;
-
-    let bangData = bangs.find((bang) => bang.t === shortcut);
-
-    let searchTerm = words.slice(0, -1).join(" ");
-    if (words.length === 1 && shortcut) {
-        searchTerm = "";
-    }
-    if (!bangData) {
-        bangData = bangs.find((bang) => bang.t === "g");
-    }
-
-    if (bangData) {
-        const url = bangData.u.replace("{{{s}}}", encodeURIComponent(searchTerm));
-        const historyEntry: SearchHistoryT = {
-            searchTerm: searchTerm,
-            searchUrl: url,
-            site: bangData.s,
-        };
-
-        const stored = await window.electronStore.get("searchHistory");
-        let searchHistory: SearchHistoryT[] = stored ? JSON.parse(stored) : [];
-        const existingIndex = searchHistory.findIndex(item => JSON.stringify(item) === JSON.stringify(historyEntry));
-        if (existingIndex !== -1) {
-            searchHistory.splice(existingIndex, 1);
-        }
-        if (searchHistory.length < 20) {
-            searchHistory = [historyEntry, ...searchHistory];
-        } else {
-            searchHistory = [historyEntry, ...searchHistory.slice(0, 19)];
-        }
-
-        window.electronStore.set("searchHistory", JSON.stringify(searchHistory));
-        window.electron.openExternal(url);
-    }
+    const resolved = resolveBang(query);
+    if (!resolved) return;
+    await openSearch(toHistoryEntry(resolved));
 }
 
 async function handleHistoryItem(item: SearchHistoryT) {
-    const stored = await window.electronStore.get("searchHistory");
-    let searchHistory: SearchHistoryT[] = stored ? JSON.parse(stored) : [];
-
-    searchHistory = searchHistory.filter(entry => JSON.stringify(entry) !== JSON.stringify(item));
-    searchHistory.unshift(item);
-
-    window.electronStore.set("searchHistory", JSON.stringify(searchHistory));
-    window.electron.openExternal(item.searchUrl);
-
+    await openSearch(item);
 }
 
+/**
+ * The bang the user has explicitly typed, or null. Used for the input favicon
+ * chip, so it deliberately does *not* fall back to the default bang.
+ */
 async function getBangData(query: string): Promise<BangData | null> {
-    const words = query.trim().split(" ");
+    const words = query.trim().split(/\s+/);
     const possibleBang = words[words.length - 1];
     const shortcut = possibleBang.startsWith("!") ? possibleBang.slice(1) : null;
-
-    const bangData = bangs.find((bang) => bang.t === shortcut);
-    return bangData as BangData ?? null;
+    if (!shortcut) return null;
+    return (bangs.find(bang => bang.t === shortcut) as BangData) ?? null;
 }
-
 
 export {
     handleBangs,
     getBangData,
-    handleHistoryItem
+    handleHistoryItem,
 };
-

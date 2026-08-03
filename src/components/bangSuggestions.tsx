@@ -1,5 +1,5 @@
 import {useEffect, useState} from "react";
-import {handleBangs, handleHistoryItem} from "@/scripts/bangs.ts";
+import {handleBangs, handleHistoryItem, openSearch, getSearchHistory, deleteHistoryEntry} from "@/scripts/bangs.ts";
 import {SearchHistoryT} from "@/interfaces/history.ts";
 import {X, Globe} from "lucide-react";
 
@@ -93,9 +93,7 @@ export default function BangSuggestions({bang, setQuery, selfQueryChanged}: IBan
     useEffect(() => {
         const loadHistory = async () => {
             if (bang === "") {
-                const searchHistory: SearchHistoryT[] =
-                    JSON.parse(await window.electronStore.get("searchHistory")  || "[]");
-                setSearchHistory(searchHistory);
+                setSearchHistory(await getSearchHistory());
                 return;
             }
         }
@@ -113,9 +111,7 @@ export default function BangSuggestions({bang, setQuery, selfQueryChanged}: IBan
         const checkBang = async () => {
             if (selfQueryChanged) return;
             if (bang === "") {
-                const searchHistory: SearchHistoryT[] =
-                    JSON.parse(await window.electronStore.get("searchHistory") || "[]");
-                setSearchHistory(searchHistory);
+                setSearchHistory(await getSearchHistory());
                 setIsHistory(true);
                 return;
             }
@@ -203,9 +199,7 @@ export default function BangSuggestions({bang, setQuery, selfQueryChanged}: IBan
     }, [focusedIndex, suggestions, searchHistory]);
 
     const handleDeleteHistoryItem = async (history:SearchHistoryT) => {
-        const updatedHistory = searchHistory.filter((item) => JSON.stringify(item) !== JSON.stringify(history));
-        setSearchHistory(updatedHistory);
-        window.electronStore.set("searchHistory", JSON.stringify(updatedHistory));
+        setSearchHistory(await deleteHistoryEntry(history));
     };
     function isValidUrl(url: string): string | null {
         const hasProtocol = /^https?:\/\//i.test(url);
@@ -244,18 +238,11 @@ export default function BangSuggestions({bang, setQuery, selfQueryChanged}: IBan
                 const validUrl = isValidUrl(suggestion);
                 if (validUrl) {
                     const { hostname } = new URL(validUrl);
-                    const historyEntry: SearchHistoryT = {
+                    await openSearch({
                         searchTerm: suggestion,
                         searchUrl: validUrl,
                         site: hostname,
-                    };
-                    const stored = await window.electronStore.get("searchHistory");
-                    let searchHistory: SearchHistoryT[] = stored ? JSON.parse(stored) : [];
-                    const existingIndex = searchHistory.findIndex(item => JSON.stringify(item) === JSON.stringify(historyEntry));
-                    if (existingIndex !== -1) searchHistory.splice(existingIndex, 1);
-                    searchHistory = [historyEntry, ...searchHistory.slice(0, 19)];
-                    window.electronStore.set("searchHistory", JSON.stringify(searchHistory));
-                    window.electron.openExternal(validUrl);
+                    });
                     return;
                 }
             }

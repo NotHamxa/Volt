@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Lightbulb, ChevronRight, X, BellOff } from "lucide-react";
-import { useNavigate } from "react-router";
 import { tips } from "@/data/tips";
 
 const STORE_INDEX_KEY = "tipIndex";
@@ -11,7 +10,6 @@ export default function TipBar() {
     const [index, setIndex] = useState<number>(0);
     const [hidden, setHidden] = useState<boolean>(true);
     const [ready, setReady] = useState<boolean>(false);
-    const navigate = useNavigate();
 
     useEffect(() => {
         (async () => {
@@ -57,71 +55,54 @@ export default function TipBar() {
     const tip = tips[index];
 
     return (
-        <div className="absolute left-4 right-4 bottom-3 z-10 pointer-events-none">
-            <div className="group relative flex items-start gap-3 px-3.5 py-2 rounded-lg bg-[rgba(20,20,22,0.92)] backdrop-blur-md border border-white/[0.07] shadow-[0_8px_24px_rgba(0,0,0,0.35)] hover:border-white/[0.12] transition-colors pointer-events-auto">
-                <div className="flex items-center justify-center w-6 h-6 rounded-md bg-amber-400/10 border border-amber-400/15 shrink-0 mt-[1px]">
-                    <Lightbulb size={11} className="text-amber-300/85" strokeWidth={2.2} />
-                </div>
+        // A quiet footer line rather than a raised card: the tip is ambient, so
+        // it shouldn't compete with the results above it. Controls stay hidden
+        // until the row is hovered.
+        <div className="group flex items-center gap-2 px-5 pb-2.5 pt-1 select-none">
+            <Lightbulb size={11} className="text-amber-300/45 shrink-0" strokeWidth={2} />
 
-                <div className="min-w-0 flex-1 pr-2">
-                    <div className="flex items-center gap-2 mb-0.5">
-                        <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-amber-200/55">
-                            Did you know
+            <p className="text-[11px] text-white/35 truncate min-w-0">
+                {tip.title}
+            </p>
+
+            {tip.keys && (
+                <div className="flex items-center gap-1 shrink-0">
+                    {tip.keys.map((k, i) => (
+                        <span
+                            key={i}
+                            className="inline-flex items-center px-1.5 py-[1px] text-[9px] rounded-md bg-white/[0.05] border border-white/[0.08] text-white/40 font-mono"
+                        >
+                            {k}
                         </span>
-                        <span className="text-[9px] text-white/15">·</span>
-                        <span className="text-[9px] uppercase tracking-[0.12em] text-white/30">{tip.category}</span>
-                        {tip.keys && (
-                            <div className="flex items-center gap-1 ml-1">
-                                {tip.keys.map((k, i) => (
-                                    <span
-                                        key={i}
-                                        className="inline-flex items-center px-1.5 py-[1px] text-[9px] rounded-md bg-white/[0.06] border border-white/10 text-white/55 font-mono"
-                                    >
-                                        {k}
-                                    </span>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                    <p className="text-[12px] text-white/65 leading-snug truncate">
-                        <span className="text-white/85 font-medium">{tip.title}.</span>{" "}
-                        <span className="text-white/45">{tip.body}</span>
-                    </p>
+                    ))}
                 </div>
+            )}
 
-                <div className="flex items-center gap-0.5 shrink-0 self-center opacity-60 group-hover:opacity-100 transition-opacity">
-                    <button
-                        onClick={() => navigate("/settings")}
-                        className="text-[10px] text-white/35 hover:text-white/75 transition-colors px-1.5 py-1 rounded-md hover:bg-white/[0.05]"
-                        title="Browse all tips"
-                    >
-                        See all
-                    </button>
-                    <button
-                        onClick={next}
-                        className="p-1 rounded-md text-white/35 hover:text-white/75 hover:bg-white/[0.05] transition-colors"
-                        title="Next tip"
-                        aria-label="Next tip"
-                    >
-                        <ChevronRight size={12} />
-                    </button>
-                    <button
-                        onClick={dismissSession}
-                        className="p-1 rounded-md text-white/30 hover:text-white/70 hover:bg-white/[0.05] transition-colors"
-                        title="Hide for this session"
-                        aria-label="Hide tip"
-                    >
-                        <X size={11} />
-                    </button>
-                    <button
-                        onClick={dismissForever}
-                        className="p-1 rounded-md text-white/25 hover:text-red-300/80 hover:bg-red-400/[0.06] transition-colors"
-                        title="Don't show tips again"
-                        aria-label="Don't show again"
-                    >
-                        <BellOff size={11} />
-                    </button>
-                </div>
+            <div className="flex items-center gap-0.5 shrink-0 ml-auto opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                <button
+                    onClick={next}
+                    className="p-1 rounded-md text-white/30 hover:text-white/70 hover:bg-white/[0.05] transition-colors"
+                    title="Next tip"
+                    aria-label="Next tip"
+                >
+                    <ChevronRight size={12} />
+                </button>
+                <button
+                    onClick={dismissSession}
+                    className="p-1 rounded-md text-white/30 hover:text-white/70 hover:bg-white/[0.05] transition-colors"
+                    title="Hide for this session"
+                    aria-label="Hide tip"
+                >
+                    <X size={11} />
+                </button>
+                <button
+                    onClick={dismissForever}
+                    className="p-1 rounded-md text-white/25 hover:text-red-300/70 hover:bg-red-400/[0.06] transition-colors"
+                    title="Don't show tips again"
+                    aria-label="Don't show again"
+                >
+                    <BellOff size={11} />
+                </button>
             </div>
         </div>
     );

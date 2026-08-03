@@ -331,7 +331,7 @@ const QueryComponent = memo(({
             tabIndex={0}
             className={`cursor-pointer flex items-center justify-between py-2 px-3 rounded-lg select-none transition-colors duration-150 gap-3 w-full hover:bg-white/10 ${
                 (highlighted || isFocused) ? "bg-white/10" : "bg-transparent"
-            } ${isFocused ? "outline outline-[1px] outline-white/[0.18]" : "outline-none"}`}
+            } ${isFocused ? "outline outline-[1px] outline-offset-[-1px] outline-white/[0.18]" : "outline-none"}`}
         >
             <div className="flex items-center gap-2">
                 {icon}
@@ -543,13 +543,11 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
     useEffect(() => {
         let cancelled = false;
         const resolved = webEntry?.resolved ?? null;
-        // Fetch when the user has signalled web intent with a bang, or when
-        // nothing matched locally — that's a web query by elimination, and the
-        // list would otherwise be a single row above a lot of empty space.
+        // Always offered, so the list is never one row above a screen of empty
+        // space. Skipped only for typed addresses, where the destination is
+        // already known and suggestions would be noise.
         const term = resolved?.searchTerm?.trim() ?? "";
-        const wanted = Boolean(term) && !resolved?.isDirectUrl &&
-            (resolved?.hasExplicitBang || results.length === 0);
-        const limit = resolved?.hasExplicitBang ? 5 : 8;
+        const wanted = Boolean(term) && !resolved?.isDirectUrl;
 
         const timer = setTimeout(async () => {
             if (!wanted) {
@@ -561,10 +559,10 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
             const cleaned = raw
                 .map(s => s.replace(/<\/?b>/g, "").trim())
                 .filter(s => s && s.toLowerCase() !== term.toLowerCase());
-            setWebSuggestions([...new Set(cleaned)].slice(0, limit));
+            setWebSuggestions([...new Set(cleaned)].slice(0, 8));
         }, 250);
         return () => { cancelled = true; clearTimeout(timer); };
-    }, [webEntry, results.length]);
+    }, [webEntry]);
 
     // Past searches are surfaced as inline completion in the input, so these
     // rows are remote suggestions only.
@@ -745,7 +743,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                             <button
                                 onClick={() => openBlockEntry(item)}
                                 tabIndex={0}
-                                className={`cursor-pointer flex items-center py-1.5 pl-11 pr-3 rounded-lg select-none transition-colors duration-150 gap-2 w-full hover:bg-white/10 ${focused ? "bg-white/10 outline outline-[1px] outline-white/[0.18]" : "bg-transparent"}`}
+                                className={`cursor-pointer flex items-center py-1.5 pl-11 pr-3 rounded-lg select-none transition-colors duration-150 gap-2 w-full hover:bg-white/10 ${focused ? "bg-white/10 outline outline-[1px] outline-offset-[-1px] outline-white/[0.18]" : "bg-transparent"}`}
                             >
                                 <Search className="w-3.5 h-3.5 shrink-0 text-white/30" />
                                 <span className="text-[12px] text-white/60 truncate">{item.name}</span>
@@ -781,7 +779,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                 <button
                     onClick={() => openSearch(toHistoryEntry(resolved))}
                     tabIndex={0}
-                    className={`cursor-pointer flex items-center justify-between py-2 px-3 rounded-lg select-none transition-colors duration-150 gap-3 w-full hover:bg-white/10 ${focused ? "bg-white/10 outline outline-[1px] outline-white/[0.18]" : "bg-transparent"}`}
+                    className={`cursor-pointer flex items-center justify-between py-2 px-3 rounded-lg select-none transition-colors duration-150 gap-3 w-full hover:bg-white/10 ${focused ? "bg-white/10 outline outline-[1px] outline-offset-[-1px] outline-white/[0.18]" : "bg-transparent"}`}
                 >
                     <div className="flex items-center gap-2 min-w-0">
                         <FaviconOrIcon key={faviconUrl ?? "none"} src={faviconUrl}>
@@ -810,7 +808,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
 
     return (
         <TooltipProvider>
-        <ScrollArea ref={scrollAreaRef} className="w-full h-[420px] px-4">
+        <ScrollArea ref={scrollAreaRef} className="w-full h-[420px] px-5">
             {isCmdCommand ? (
                 <div>
                     <div className="text-center text-[11px] font-semibold tracking-[0.1em] uppercase text-white/25 mb-2">CMD Command</div>

@@ -22,6 +22,8 @@
     "files": [
       "dist/**/*",
       "electron/**/*",
+      "!node_modules/@anthropic-ai/claude-agent-sdk-*/**",
+      "!node_modules/.pnpm/@anthropic-ai+claude-agent-sdk-*/**",
       {
         "from": "electron/Assets",
         "to": "assets",
@@ -55,6 +57,7 @@
     ]
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.3.220",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",

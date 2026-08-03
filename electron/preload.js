@@ -73,6 +73,19 @@ contextBridge.exposeInMainWorld('electronStore', {
     clear:()=>ipcRenderer.send("clear-store")
 });
 
+contextBridge.exposeInMainWorld('ai', {
+    listProviders: () => ipcRenderer.invoke('ai-list-providers'),
+    send: (request) => ipcRenderer.invoke('ai-send', request),
+    cancel: (requestId) => ipcRenderer.invoke('ai-cancel', requestId),
+    onChunk: (cb) => {
+        const handler = (_e, chunk) => cb(chunk);
+        ipcRenderer.on('ai-chunk', handler);
+        // Returned so the renderer can detach on unmount rather than leaking a
+        // listener per mounted chat view.
+        return () => ipcRenderer.removeListener('ai-chunk', handler);
+    },
+});
+
 contextBridge.exposeInMainWorld('notifAPI', {
     onNotify: (cb) => ipcRenderer.on('notify', (_, data) => cb(data)),
     onHide:   (cb) => ipcRenderer.on('notify-hide', () => cb()),

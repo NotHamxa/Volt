@@ -13,7 +13,44 @@ declare global {
         path: string;
     }
 
+    type AiChunk =
+        | { requestId: string; type: "text"; text: string }
+        | { requestId: string; type: "error"; message: string }
+        | { requestId: string; type: "done"; sessionId?: string };
+
+    type AiControl = {
+        id: string;
+        label: string;
+        type: "select";
+        options: Array<{ id: string; label: string }>;
+        default: string;
+    };
+
+    type AiProviderInfo = {
+        id: string;
+        label: string;
+        kind: "subscription-sdk" | "subscription-cli" | "api";
+        needsKey: boolean;
+        available: boolean;
+        detail: string | null;
+        models: Array<{ id: string; label: string }>;
+        controls: AiControl[];
+    };
+
     interface Window {
+        ai: {
+            listProviders: () => Promise<AiProviderInfo[]>;
+            send: (request: {
+                requestId: string;
+                providerId: string;
+                prompt: string;
+                sessionId?: string | null;
+                model?: string;
+                settings?: Record<string, string>;
+            }) => Promise<{ ok: boolean; detail?: string }>;
+            cancel: (requestId: string) => Promise<boolean>;
+            onChunk: (cb: (chunk: AiChunk) => void) => () => void;
+        };
         electron: {
             log:(data:any) => void;
             notify:(title:string, message:string) => void;

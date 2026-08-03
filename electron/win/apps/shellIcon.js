@@ -100,8 +100,11 @@ public static class VoltShellIcon
         IntPtr hbmp = IntPtr.Zero;
         try
         {
-            // SIIGBF_BIGGERSIZEOK: accept a larger source rather than upscaling.
-            factory.GetImage(new SIZE(size, size), 0x04, out hbmp);
+            // SIIGBF_ICONONLY (0x004) so we get the app's icon rather than a
+            // document thumbnail, plus SIIGBF_SCALEUP (0x100) so an app that
+            // only ships a 16px icon still fills the canvas instead of sitting
+            // tiny in the corner of it.
+            factory.GetImage(new SIZE(size, size), 0x004 | 0x100, out hbmp);
             if (hbmp == IntPtr.Zero) return false;
             using (Bitmap bmp = FromHbitmapWithAlpha(hbmp))
             {

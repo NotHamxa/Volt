@@ -3,7 +3,7 @@ import Store from "electron-store";
 import { loadApps } from "./apps/enumerate.js";
 import { getUwpInstallLocations } from "./apps/uwpAppLogo.js";
 import { loadSteamGames, cacheSteamPath } from "./apps/steam.js";
-import { cacheAppIcon, cacheUwpIcon, iconFilePath, ensureIconDir } from "./apps/iconCache.js";
+import { cacheAppIcon, cacheUwpIcon, iconFilePath, ensureIconDir, normaliseIcon } from "./apps/iconCache.js";
 import { extractShellIcons } from "./apps/shellIcon.js";
 import { pruneUsage } from "../universal/usage.js";
 
@@ -62,6 +62,12 @@ async function loadAppIconsCache(webContents,cache) {
         webContents.send("set-cache-loading-bar", currentNumber, totalApps);
     };
     reportProgress();
+
+    // The shell is the primary source: it produces full-bleed, correctly-sized
+    // artwork for every AppsFolder entry. The routes below now only handle what
+    // it couldn't draw, rather than claiming apps first with a worse icon.
+    await fillMissingIconsFromShell(cache);
+
     for (const appData of cache.appCache) {
         if (appData.source === "Steam") {
             // Steam icons are read directly from Steam's library cache, no extraction needed
@@ -83,12 +89,9 @@ async function loadAppIconsCache(webContents,cache) {
             reportProgress();
         }
     }
-    // Ask the shell first, including for packaged apps: it renders the same
-    // icon Start does. The manifest's Properties.Logo is the StoreLogo, which
-    // is a solid branded tile rather than the transparent app icon.
-    await fillMissingIconsFromShell(cache);
-
     // Only fall back to the manifest for packaged apps the shell couldn't draw.
+    // Its Properties.Logo is the StoreLogo — a solid branded tile rather than
+    // the transparent icon Start actually shows.
     const uwpStillMissing = uwpIconsToCache.filter(a => {
         const existing = cache.appIconsCache[a.name];
         return !existing || !fs.existsSync(existing);
@@ -149,9 +152,11 @@ async function fillMissingIconsFromShell(cache) {
     try {
         const written = await extractShellIcons(pending);
         for (const entry of pending) {
-            if (written.has(entry.key)) cache.appIconsCache[entry.key] = entry.outPath;
+            if (!written.has(entry.key)) continue;
+            await normaliseIcon(entry.outPath);
+            cache.appIconsCache[entry.key] = entry.outPath;
         }
-        console.log(`Shell icons: ${written.size}/${pending.length} recovered`);
+        console.log(`Shell icons: ${written.size}/${pending.length} extracted`);
     } catch (err) {
         console.warn("Shell icon pass failed:", err?.message);
     }
@@ -160,7 +165,7 @@ async function fillMissingIconsFromShell(cache) {
 // Background pass: drop icons for apps no longer present, and re-extract icons
 // whose source file has been updated (or whose cached PNG was deleted). UWP
 // apps have no stable source file to stat, so they fall back to a TTL refresh.
-const UWP_REFRESH_MS = 30 * 24 * 60 * 60 * 1000;
+const SHELL_REFRESH_MS = 7 * 24 * 60 * 60 * 1000;
 export async function revalidateAppIcons(webContents, cache) {
     if (!cache.appIconsCache) return;
     const appsByName = new Map(cache.appCache.map(a => [a.name, a]));
@@ -181,34 +186,36 @@ export async function revalidateAppIcons(webContents, cache) {
         try { pngMtime = fs.statSync(iconPath).mtimeMs; } catch { /* missing */ }
 
         if (appData.path) {
+            // A shortcut or executable can be stat'd, so an app that updates
+            // itself is caught the moment its file is rewritten.
             let srcMtime = 0;
             try { srcMtime = fs.statSync(appData.path).mtimeMs; } catch { continue; }
             if (!pngMtime || srcMtime > pngMtime) stale.push(appData);
-        } else if (appData.source === "UWP") {
-            if (!pngMtime || (Date.now() - pngMtime) > UWP_REFRESH_MS) uwpStale.push(appData);
+        } else if (!pngMtime || (Date.now() - pngMtime) > SHELL_REFRESH_MS) {
+            // Nothing on disk to compare against — AppsFolder entries and
+            // packaged apps are re-asked periodically instead. Both routes go
+            // through the shell now, so they share one staleness rule.
+            uwpStale.push(appData);
         }
     }
 
-    for (const appData of stale) {
-        const before = cache.appIconsCache[appData.name];
+    // Re-ask the shell for everything that went stale, source file or not. It
+    // redraws whatever the app currently ships, so an app that changes its icon
+    // picks the new one up here.
+    const refresh = [...stale, ...uwpStale];
+    for (const appData of refresh) {
         delete cache.appIconsCache[appData.name];
-        cache.appIconsCache = await cacheAppIcon(appData, cache.appIconsCache);
-        if (cache.appIconsCache[appData.name] !== before) changed = true;
+        changed = true;
     }
+    if (refresh.length > 0) {
+        await fillMissingIconsFromShell(cache);
 
-    if (uwpStale.length > 0) {
-        try {
-            const locations = await getUwpInstallLocations(uwpStale);
-            for (const uwp of locations) {
-                if (!uwp.installLocation) continue;
-                const before = cache.appIconsCache[uwp.name];
-                delete cache.appIconsCache[uwp.name];
-                cache.appIconsCache = await cacheUwpIcon(uwp.installLocation, uwp.name, cache.appIconsCache);
-                if (cache.appIconsCache[uwp.name] !== before) changed = true;
-            }
-        } catch (err) {
-            console.warn("UWP icon revalidation failed:", err.message);
+        // Anything the shell still won't draw falls back to file extraction.
+        for (const appData of refresh) {
+            if (cache.appIconsCache[appData.name] || !appData.path) continue;
+            cache.appIconsCache = await cacheAppIcon(appData, cache.appIconsCache);
         }
+        console.log(`Revalidated ${refresh.length} icon(s)`);
     }
 
     if (changed) {

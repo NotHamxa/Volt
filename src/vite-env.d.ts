@@ -79,6 +79,7 @@ declare global {
                 providerId: string;
                 prompt: string;
                 sessionId?: string | null;
+                chatId?: string;
                 model?: string;
                 settings?: Record<string, string>;
             }) => Promise<{ ok: boolean; detail?: string }>;

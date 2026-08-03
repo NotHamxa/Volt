@@ -102,6 +102,9 @@ export function useChat() {
             providerId: opts.providerId,
             prompt: text,
             sessionId: active.sessionId,
+            // Stateless providers need the transcript; main reads it by id
+            // rather than having it re-sent over IPC each turn.
+            chatId: active.id,
             model: opts.model,
             settings: opts.settings,
         });

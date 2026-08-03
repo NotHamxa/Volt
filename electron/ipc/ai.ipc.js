@@ -6,7 +6,9 @@ import {
 } from "../universal/ai/chatStore.js";
 import { keyStatus, setKey, clearKey, encryptionAvailable } from "../universal/ai/credentials.js";
 import { getPrefs, setPrefs } from "../universal/ai/prefs.js";
-import "../universal/ai/claudeCode.js"; // registers the provider
+// Importing an adapter registers it.
+import "../universal/ai/claudeCode.js";
+import "../universal/ai/openaiCompatible.js";
 
 // One controller per in-flight turn so a request can be cancelled individually.
 const inFlight = new Map();
@@ -27,13 +29,22 @@ export function registerAiIpc({ mainWindow, appStates }) {
     });
 
     ipcMain.handle("ai-send", async (event, request) => {
-        const { requestId, providerId, prompt, sessionId, model, settings } = request ?? {};
+        const { requestId, providerId, prompt, sessionId, chatId, model, settings } = request ?? {};
         if (!requestId || !providerId || !prompt?.trim()) {
             return { ok: false, detail: "Missing request id, provider, or prompt" };
         }
 
         const provider = getProvider(providerId);
         if (!provider) return { ok: false, detail: `Unknown provider: ${providerId}` };
+
+        // Stateless providers (the API-key ones) have no thread to resume, so
+        // they need the transcript. Read it here rather than shipping it over
+        // IPC on every turn — the main process already owns the chat files.
+        let history = [];
+        if (chatId) {
+            const stored = readChat(chatId);
+            history = (stored?.messages ?? []).filter(m => m.content?.trim());
+        }
 
         // Reply to whoever asked — the AI window, not necessarily the launcher.
         const sender = event.sender;
@@ -49,7 +60,7 @@ export function registerAiIpc({ mainWindow, appStates }) {
         (async () => {
             try {
                 for await (const chunk of provider.send({
-                    prompt, sessionId, model, settings, signal: controller.signal,
+                    prompt, sessionId, history, model, settings, signal: controller.signal,
                 })) {
                     post(chunk);
                 }

@@ -24,10 +24,8 @@ export type MainLayoutContext = {
 
 interface MainLayoutProps {
     inputRef: React.RefObject<HTMLInputElement | null>;
-    stage: number;
     query: string;
     setQuery: React.Dispatch<React.SetStateAction<string>>;
-    selfQueryChangedRef: React.MutableRefObject<boolean>;
     argCommand: SearchQueryT | null;
     argInitialValues?: Record<string, string>;
     enterArgMode: (item: SearchQueryT, initial?: Record<string, string>) => void;
@@ -35,7 +33,7 @@ interface MainLayoutProps {
     runArgCommand: (values: Record<string, string>) => void;
 }
 
-export default function MainLayout({ inputRef, stage, query, setQuery, selfQueryChangedRef, argCommand, argInitialValues, enterArgMode, exitArgMode, runArgCommand }: MainLayoutProps) {
+export default function MainLayout({ inputRef, query, setQuery, argCommand, argInitialValues, enterArgMode, exitArgMode, runArgCommand }: MainLayoutProps) {
     const [bangData, setBangData] = useState<BangData | null>(null);
     const [searchFilters, setSearchFilters] = useState<boolean[]>([true, true, true, true, true]);
     const [apps, setApps] = useState<SearchQueryT[]>([]);
@@ -44,11 +42,7 @@ export default function MainLayout({ inputRef, stage, query, setQuery, selfQuery
     const location = useLocation();
 
     // Programmatic reset of the search box (e.g. after pinning from results).
-    // Flagged as a self-change so it isn't treated as the user typing.
-    const clearQuery = useCallback(() => {
-        selfQueryChangedRef.current = true;
-        setQuery("");
-    }, [setQuery, selfQueryChangedRef]);
+    const clearQuery = useCallback(() => setQuery(""), [setQuery]);
 
     useEffect(() => {
         const getAppData = async () => {
@@ -86,14 +80,13 @@ export default function MainLayout({ inputRef, stage, query, setQuery, selfQuery
         return () => window.removeEventListener("pinnedAppsChanged", reloadPinnedApps);
     }, []);
 
+    // Drives the favicon chip on the input whenever a bang is typed.
     useEffect(() => {
         const getData = async () => {
-            if (!query || !query.includes("!") || stage !== 2) return;
-            const result = await getBangData(query);
-            setBangData(result);
+            setBangData(query.includes("!") ? await getBangData(query) : null);
         };
         getData();
-    }, [query, stage]);
+    }, [query]);
 
     const pinApp = async (app: SearchQueryT) => {
         if (pinnedApps.length === 21) {
@@ -121,34 +114,6 @@ export default function MainLayout({ inputRef, stage, query, setQuery, selfQuery
 
     const isSearchRoute = location.pathname === '/search';
 
-    function SwitchModes() {
-        return (
-            <div data-walkthrough="mode-toggle" className="flex items-center gap-2 shrink-0">
-                <div className="relative flex items-center bg-white/[0.05] rounded-lg p-0.5 border border-white/[0.08]">
-                    <div
-                        className="absolute h-[calc(100%-4px)] w-[calc(50%-2px)] rounded-md bg-white/[0.12] transition-transform duration-200 ease-out"
-                        style={{ transform: stage === 1 ? 'translateX(2px)' : 'translateX(calc(100% + 2px))' }}
-                    />
-                    <button
-                        onClick={() => inputRef.current?.focus()}
-                        className={`relative z-10 px-2.5 py-1 text-[10px] font-medium rounded-md transition-colors duration-150 ${stage === 1 ? 'text-white/70' : 'text-white/25'}`}
-                    >
-                        Files
-                    </button>
-                    <button
-                        onClick={() => inputRef.current?.focus()}
-                        className={`relative z-10 px-2.5 py-1 text-[10px] font-medium rounded-md transition-colors duration-150 ${stage === 2 ? 'text-white/70' : 'text-white/25'}`}
-                    >
-                        Web
-                    </button>
-                </div>
-                <span className="inline-flex items-center px-1.5 py-0.5 text-[9px] rounded-md bg-white/[0.05] border border-white/[0.08] text-white/20">
-                    Tab
-                </span>
-            </div>
-        );
-    }
-
     const context: MainLayoutContext = {
         apps,
         pinnedApps,
@@ -173,17 +138,14 @@ export default function MainLayout({ inputRef, stage, query, setQuery, selfQuery
                 />
             ) : (
                 <div data-walkthrough="search-input" className="flex flex-row gap-2.5 items-center px-5 border-b border-white/[0.07] mb-[5px]">
-                    {faviconUrl && stage === 2
+                    {faviconUrl
                         ? <img src={faviconUrl} className="w-6 h-6" />
                         : <Search size={20} className="text-white/30 shrink-0" />
                     }
                     <Input
                         ref={inputRef}
                         value={query}
-                        onChange={(e) => {
-                            selfQueryChangedRef.current = false;
-                            setQuery(e.target.value);
-                        }}
+                        onChange={(e) => setQuery(e.target.value)}
                         onKeyDown={(e) => {
                             if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
                                 e.preventDefault();
@@ -201,11 +163,10 @@ export default function MainLayout({ inputRef, stage, query, setQuery, selfQuery
                                 inputRef.current?.focus();
                             }, 0);
                         }}
-                        placeholder={stage === 1 ? "Search apps and documents" : "Search the web"}
+                        placeholder="Search apps, files and the web"
                         className="w-full my-2.5 block border-0 bg-transparent"
                         autoFocus
                     />
-                    {!query && <SwitchModes />}
                     {isSearchRoute && query && (
                         <SearchQueryFilter filters={searchFilters} setFilters={setSearchFilters} />
                     )}

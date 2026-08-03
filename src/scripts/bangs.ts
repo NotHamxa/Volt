@@ -113,18 +113,6 @@ export async function deleteHistoryEntry(entry: SearchHistoryT): Promise<SearchH
     return updated;
 }
 
-// ─── existing call sites ─────────────────────────────────────────────────────
-
-async function handleBangs(query: string) {
-    const resolved = resolveBang(query);
-    if (!resolved) return;
-    await openSearch(toHistoryEntry(resolved));
-}
-
-async function handleHistoryItem(item: SearchHistoryT) {
-    await openSearch(item);
-}
-
 /**
  * The bang the user has explicitly typed, or null. Used for the input favicon
  * chip, so it deliberately does *not* fall back to the default bang.
@@ -137,8 +125,4 @@ async function getBangData(query: string): Promise<BangData | null> {
     return (bangs.find(bang => bang.t === shortcut) as BangData) ?? null;
 }
 
-export {
-    handleBangs,
-    getBangData,
-    handleHistoryItem,
-};
+export { getBangData };

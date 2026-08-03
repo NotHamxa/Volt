@@ -17,11 +17,11 @@ export const tips: Tip[] = [
         keys: ["Shift", "Enter"],
     },
     {
-        id: "tab-switch-modes",
-        category: "Shortcut",
-        title: "Tab to switch to web search",
-        body: "Press Tab to flip between searching your system and the web. Tab again to come back.",
-        keys: ["Tab"],
+        id: "web-fallback-row",
+        category: "Web",
+        title: "The web is always one Enter away",
+        body: "Every search keeps a web result at the bottom of the list — no mode switching. Add a bang like !yt or !gh and it jumps to the top, pointed at that site.",
+        keys: ["!"],
     },
     {
         id: "ctrl-h-settings",

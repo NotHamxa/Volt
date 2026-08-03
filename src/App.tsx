@@ -11,7 +11,6 @@ import MainLayout from "@/pages/mainPage.tsx";
 import HomePage from "@/pages/homePage.tsx";
 import AllAppsPage from "@/pages/allAppsPage.tsx";
 import SearchPage from "@/pages/searchPage.tsx";
-import WebPage from "@/pages/webPage.tsx";
 import { IntroModal } from "@/components/modal/introModal.tsx";
 import { Walkthrough } from "@/components/walkthrough.tsx";
 import { UpdateModal } from "@/components/modal/updateModal.tsx";
@@ -34,8 +33,6 @@ export default function App() {
 
     const [query, setQuery] = useState<string>("");
     const inputRef = useRef<HTMLInputElement>(null);
-    const [stage, setStage] = useState<number>(1);
-    const selfQueryChangedRef = useRef<boolean>(false);
     const [argCommand, setArgCommand] = useState<SearchQueryT | null>(null);
     const [argInitialValues, setArgInitialValues] = useState<Record<string, string> | undefined>(undefined);
     const argCommandRef = useRef<SearchQueryT | null>(null);
@@ -53,7 +50,6 @@ export default function App() {
         // re-firing the Google fallback that the arg-bearing command name
         // would otherwise fall back to.
         setQuery("");
-        setStage(1);
         navigate('/', { replace: true });
         setTimeout(() => inputRef.current?.focus(), 0);
     };
@@ -76,29 +72,18 @@ export default function App() {
         locationRef.current = location.pathname;
     });
 
-    function setQueryFromBang(value: string) {
-        selfQueryChangedRef.current = true;
-        setQuery(value);
-    }
-
     useEffect(() => {
         const path = locationRef.current;
         if (path === '/settings') return;
 
-        if (stage === 2) {
-            navigate(`/web?query=${encodeURIComponent(query)}`, { replace: true });
-        } else if (path === '/all') {
+        if (path === '/all') {
             navigate(`/all?query=${encodeURIComponent(query)}`, { replace: true });
         } else if (query.trim()) {
             navigate(`/search?query=${encodeURIComponent(query)}`, { replace: true });
         } else {
             navigate('/', { replace: true });
         }
-    }, [query, stage]);
-
-    useEffect(() => {
-        if (stage === 1) selfQueryChangedRef.current = false;
-    }, [stage]);
+    }, [query]);
 
     window.onerror = function (msg, url, line, col, error) {
         console.error("GLOBAL ERROR CAUGHT:");
@@ -131,7 +116,6 @@ export default function App() {
         const handleBlur = () => {
             if (inputRef.current) {
                 setQuery("");
-                setStage(1);
                 inputRef.current.focus();
             }
             navigate('/');
@@ -148,9 +132,11 @@ export default function App() {
                     navigate('/', { replace: true });
                 }
             }
+            // Tab used to switch between the Files and Web modes. Search is now
+            // unified, so it is swallowed to keep focus in the input — and left
+            // free for the upcoming AI mode.
             if (e.key === "Tab" && !argCommandRef.current) {
                 e.preventDefault();
-                setStage(prev => (prev === 1 ? 2 : 1));
                 inputRef.current?.focus();
             }
             if (e.ctrlKey && e.key.toLowerCase() === "h") {
@@ -313,10 +299,8 @@ export default function App() {
                         element={
                             <MainLayout
                                 inputRef={inputRef}
-                                stage={stage}
                                 query={query}
                                 setQuery={setQuery}
-                                selfQueryChangedRef={selfQueryChangedRef}
                                 argCommand={argCommand}
                                 argInitialValues={argInitialValues}
                                 enterArgMode={enterArgMode}
@@ -328,15 +312,6 @@ export default function App() {
                         <Route index element={<HomePage />} />
                         <Route path="all" element={<AllAppsPage />} />
                         <Route path="search" element={<SearchPage />} />
-                        <Route
-                            path="web"
-                            element={
-                                <WebPage
-                                    selfQueryChangedRef={selfQueryChangedRef}
-                                    setQueryFromBang={setQueryFromBang}
-                                />
-                            }
-                        />
                     </Route>
                     <Route path="/settings" element={<SettingsPage />} />
                 </Routes>

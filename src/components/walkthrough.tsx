@@ -23,9 +23,9 @@ const STEPS: Step[] = [
         padding: 6,
     },
     {
-        selector: '[data-walkthrough="mode-toggle"]',
-        title: "Tab to switch to web",
-        body: "Press Tab to toggle between your system and the web. Add a bang like !yt or !g to jump straight to a site.",
+        selector: '[data-walkthrough="search-input"]',
+        title: "The web is right here too",
+        body: "Every search offers a web result at the bottom. Add a bang like !yt or !g to send it straight to that site instead.",
         placement: "bottom",
         padding: 6,
     },

@@ -519,20 +519,22 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
         if (!resolved) return null;
         return {
             entry: {
-                name: resolved.hasExplicitBang && resolved.searchTerm
-                    ? `${resolved.bang.s}: ${resolved.searchTerm}`
-                    : resolved.searchTerm,
+                name: resolved.isDirectUrl
+                    ? resolved.searchTerm
+                    : resolved.hasExplicitBang && resolved.searchTerm
+                        ? `${resolved.bang.s}: ${resolved.searchTerm}`
+                        : resolved.searchTerm,
                 type: "webSearch",
                 path: resolved.url,
-                source: resolved.bang.s,
+                source: resolved.isDirectUrl ? (resolved.host ?? "web") : resolved.bang.s,
             },
             resolved,
         };
     }, [query, isCmdCommand]);
 
-    // An explicit bang means the user has already told us where they're going,
-    // so it takes the top slot ahead of any local guess.
-    const promoteWeb = webEntry?.resolved.hasExplicitBang ?? false;
+    // An explicit bang or a typed-out address means the user has already told
+    // us where they're going, so it takes the top slot ahead of any local guess.
+    const promoteWeb = Boolean(webEntry && (webEntry.resolved.hasExplicitBang || webEntry.resolved.isDirectUrl));
 
     // Autocomplete only when the user has signalled web intent with a bang —
     // otherwise every app search would pull in remote suggestions.
@@ -809,8 +811,11 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
         const focused = focusedIndex === itemIndex;
         const localCount = apps.length + commands.length + settings.length +
             files.length + folders.length + (bestMatch ? 1 : 0);
-        const faviconUrl = resolved.hasExplicitBang && resolved.bang.d
-            ? `https://www.google.com/s2/favicons?sz=24&domain_url=${encodeURIComponent(resolved.bang.d)}`
+        const faviconDomain = resolved.isDirectUrl
+            ? resolved.host
+            : resolved.hasExplicitBang ? resolved.bang.d : null;
+        const faviconUrl = faviconDomain
+            ? `https://www.google.com/s2/favicons?sz=24&domain_url=${encodeURIComponent(faviconDomain)}`
             : null;
 
         return (
@@ -829,7 +834,9 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                             ? <img src={faviconUrl} alt="" className="w-6 h-6 shrink-0 rounded" />
                             : <Google className="w-6 h-6 shrink-0" />}
                         <span className="text-[13px] text-white/80 truncate">
-                            {resolved.searchTerm ? (
+                            {resolved.isDirectUrl ? (
+                                <>Go to <span className="text-white font-medium">{resolved.searchTerm}</span></>
+                            ) : resolved.searchTerm ? (
                                 <>
                                     Search {resolved.bang.s} for{" "}
                                     <span className="text-white font-medium">"{resolved.searchTerm}"</span>
@@ -839,7 +846,9 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                             )}
                         </span>
                     </div>
-                    <span className="ml-auto opacity-70 text-[12px] cursor-default text-white/50 shrink-0">Web</span>
+                    <span className="ml-auto opacity-70 text-[12px] cursor-default text-white/50 shrink-0">
+                        {resolved.isDirectUrl ? "Link" : "Web"}
+                    </span>
                 </button>
             </div>
         );

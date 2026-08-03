@@ -15,7 +15,46 @@ export type ResolvedSearch = {
     url: string;
     /** True only when the user typed a `!token` that matched a known bang. */
     hasExplicitBang: boolean;
+    /**
+     * True when the query is itself a navigable address (`hamzahmed.com`,
+     * `localhost:3000`) — the url then points straight at it rather than at a
+     * search for it.
+     */
+    isDirectUrl: boolean;
+    /** Hostname of a direct url, used for display and history. */
+    host?: string;
 };
+
+/**
+ * Treats a bare query as an address when it plausibly is one. Requires either
+ * an explicit protocol, a dot (domain or IP), or localhost — so ordinary
+ * searches are not hijacked.
+ */
+export function asDirectUrl(raw: string): string | null {
+    const url = raw.trim();
+    if (!url || /\s/.test(url)) return null;
+
+    const hasProtocol = /^https?:\/\//i.test(url);
+    const isLocalhost = /^(localhost|127\.0\.0\.1)(:\d+)?(\/.*)?$/i.test(url);
+    if (!hasProtocol && !isLocalhost && !url.includes(".")) return null;
+
+    try {
+        const normalized = hasProtocol ? url
+            : isLocalhost ? `http://${url}`
+            : `https://${url}`;
+        const { hostname } = new URL(normalized);
+        if (
+            hostname === "localhost" ||
+            /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname) ||
+            hostname.includes(".")
+        ) {
+            return normalized;
+        }
+        return null;
+    } catch {
+        return null;
+    }
+}
 
 const defaultBang = () => bangs.find(b => b.t === DEFAULT_BANG_TOKEN) as BangData | undefined;
 
@@ -49,11 +88,26 @@ export function resolveBang(query: string): ResolvedSearch | null {
     // part of what they meant to search for.
     const searchTerm = token !== null ? words.slice(0, -1).join(" ") : trimmed;
 
+    // An explicit bang means "search this site", so a URL-looking query is only
+    // treated as an address when no bang was given.
+    const direct = matched ? null : asDirectUrl(trimmed);
+    if (direct) {
+        return {
+            bang,
+            searchTerm: trimmed,
+            url: direct,
+            hasExplicitBang: false,
+            isDirectUrl: true,
+            host: new URL(direct).hostname,
+        };
+    }
+
     return {
         bang,
         searchTerm,
         url: buildUrl(bang, searchTerm),
         hasExplicitBang: Boolean(matched),
+        isDirectUrl: false,
     };
 }
 
@@ -71,7 +125,7 @@ export function toHistoryEntry(resolved: ResolvedSearch): SearchHistoryT {
     return {
         searchTerm: resolved.searchTerm,
         searchUrl: resolved.url,
-        site: resolved.bang.s,
+        site: resolved.isDirectUrl ? (resolved.host ?? resolved.searchTerm) : resolved.bang.s,
     };
 }
 

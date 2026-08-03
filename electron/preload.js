@@ -3,7 +3,6 @@ const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("electron", {
     log:(data)=>{ipcRenderer.send("log",data)},
     notify:(title,message)=>ipcRenderer.send("notify",title,message),
-    invoke: (channel, data) => ipcRenderer.invoke(channel, data),
     setOpenBind:(binding)=>ipcRenderer.invoke("set-open-bind", binding),
     openExternal: (url) => ipcRenderer.send('open-external', url),
     onWindowBlurred: (callback) => ipcRenderer.on('window-blurred', callback),
@@ -43,7 +42,6 @@ contextBridge.exposeInMainWorld("file",{
     openFileWith:(path)=>ipcRenderer.send('open-file-with', path),
     copyFileToClipboard:(path)=>ipcRenderer.send('copy-file-clipboard', path),
     cacheFolder:(path)=>ipcRenderer.invoke('cache-folder', path),
-    getImageB64:(path,width=50)=>ipcRenderer.invoke('get-image-b64', path,width),
 })
 
 contextBridge.exposeInMainWorld("apps",{

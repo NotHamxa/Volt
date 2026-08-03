@@ -5,6 +5,32 @@ import { showNotification } from "../universal/notification.js";
 import { checkForUpdates } from "../universal/updater.js";
 import { executeUserCommand } from "../platform.js";
 
+// shell.openExternal hands the string to the OS, which on Windows will launch
+// any registered protocol handler — not just a browser. Everything the renderer
+// legitimately opens is a web link, so anything else is rejected.
+const EXTERNAL_SCHEMES = new Set(["http:", "https:", "mailto:"]);
+
+function openExternalSafely(rawUrl, allowedSchemes) {
+    if (typeof rawUrl !== "string" || !rawUrl.trim()) return false;
+    let parsed;
+    try {
+        parsed = new URL(rawUrl);
+    } catch {
+        console.warn("Blocked openExternal for unparseable URL:", rawUrl);
+        return false;
+    }
+    if (!allowedSchemes.has(parsed.protocol)) {
+        console.warn("Blocked openExternal for disallowed scheme:", parsed.protocol);
+        return false;
+    }
+    shell.openExternal(parsed.href).catch(err =>
+        console.error("openExternal failed:", err?.message ?? err)
+    );
+    return true;
+}
+
+export { openExternalSafely };
+
 export function registerElectronIpc({ hideMainWindow, cache, store }) {
     ipcMain.on("log", (_, data) => console.log(data));
 
@@ -27,9 +53,8 @@ export function registerElectronIpc({ hideMainWindow, cache, store }) {
         return getGoogleSuggestions(query);
     });
 
-    ipcMain.on("open-external", async (_, url) => {
-        await shell.openExternal(url);
-        hideMainWindow();
+    ipcMain.on("open-external", (_, url) => {
+        if (openExternalSafely(url, EXTERNAL_SCHEMES)) hideMainWindow();
     });
 
     ipcMain.handle("get-loading-cache-status", () => {

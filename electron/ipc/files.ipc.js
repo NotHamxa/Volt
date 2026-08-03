@@ -1,9 +1,6 @@
 import { ipcMain, shell, dialog } from "electron";
-import fs from "fs";
-import path from "path";
 import {searchFilesAndFolders} from "../universal/search.js";
 import {cacheFolder, deleteFolder} from "../universal/folderCache.js";
-import {Jimp} from "jimp";
 import {openFileWith, copyFileToClipboard} from "../platform.js";
 
 export function registerFilesIpc({
@@ -13,7 +10,9 @@ export function registerFilesIpc({
                                      folderWatcher,
                                      hideMainWindow,
                                  }) {
-    ipcMain.handle("search-files", (_, baseDir, query) => {
+    // baseDir is accepted for call-site compatibility but unused: the cache is
+    // already keyed by indexed root, and every caller passes the full set.
+    ipcMain.handle("search-files", (_, _baseDir, query) => {
         return searchFilesAndFolders(query, cache.cachedFoldersData);
     });
 
@@ -72,18 +71,4 @@ export function registerFilesIpc({
         return deleteFolder(folderPath, cache);
     });
 
-    ipcMain.handle("get-image-b64", async (_, imgPath, width = 50) => {
-        try {
-            const resolved = path.resolve(imgPath);
-            if (!fs.existsSync(resolved)) return null;
-
-            const image = await Jimp.read(resolved);
-            image.resize(width, Jimp.AUTO).quality(30);
-            const buffer = await image.getBufferAsync(Jimp.MIME_JPEG);
-
-            return `data:image/jpeg;base64,${buffer.toString("base64")}`;
-        } catch {
-            return null;
-        }
-    });
 }

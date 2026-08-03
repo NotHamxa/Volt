@@ -21,7 +21,6 @@ declare global {
         electron: {
             log:(data:any) => void;
             notify:(title:string, message:string) => void;
-            invoke: (channel: string, data?: any) => Promise<any>;
             setOpenBind:(binding:string)=>Promise<boolean>;
             openExternal:(url: string) => void;
             onWindowBlurred: (callback: () => void) => void;
@@ -83,7 +82,6 @@ declare global {
             openFileWith:(path: string) => void;
             copyFileToClipboard:(path: string) => void;
             cacheFolder:(path: string) => Promise<boolean>;
-            getImageB64:(path:string,width?:number)=>Promise<string | null>;
         }
     }
 }

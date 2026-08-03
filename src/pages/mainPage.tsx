@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Search } from "lucide-react";
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router';
 import { Input } from "@/components/ui/input.tsx";
 import SearchQueryFilter from "@/components/searchQueryFilter.tsx";
 import { getBangData } from "@/scripts/bangs.ts";
@@ -19,6 +19,7 @@ export type MainLayoutContext = {
     searchFilters: boolean[];
     setSearchFilters: React.Dispatch<React.SetStateAction<boolean[]>>;
     enterArgMode: (item: SearchQueryT, initial?: Record<string, string>) => void;
+    clearQuery: () => void;
 };
 
 interface MainLayoutProps {
@@ -41,6 +42,13 @@ export default function MainLayout({ inputRef, stage, query, setQuery, selfQuery
     const [pinnedApps, setPinnedApps] = useState<SearchQueryT[]>([]);
     const [logoMap, setLogoMap] = useState<Map<string, string>>(new Map());
     const location = useLocation();
+
+    // Programmatic reset of the search box (e.g. after pinning from results).
+    // Flagged as a self-change so it isn't treated as the user typing.
+    const clearQuery = useCallback(() => {
+        selfQueryChangedRef.current = true;
+        setQuery("");
+    }, [setQuery, selfQueryChangedRef]);
 
     useEffect(() => {
         const getAppData = async () => {
@@ -151,6 +159,7 @@ export default function MainLayout({ inputRef, stage, query, setQuery, selfQuery
         searchFilters,
         setSearchFilters,
         enterArgMode,
+        clearQuery,
     };
 
     return (

@@ -1,4 +1,4 @@
-import {app, BrowserWindow, globalShortcut, ipcMain, Menu, Tray} from "electron";
+import {app, BrowserWindow, globalShortcut, ipcMain, Menu, shell, Tray} from "electron";
 import pkg from "electron-updater"
 const {autoUpdater} = pkg;
 import Store from "electron-store";
@@ -77,7 +77,8 @@ folderWatcher.on("add", filePath => {
             type: "file",
             normalisedName:normaliseString(filePath)
         });
-        store.set("cachedFoldersData", folder);
+        // cachedFoldersData is derived state — rebuilt from disk on every
+        // launch by loadFolderCache. Only the folder list is persisted.
     }
 })
 folderWatcher.on("unlink", filePath => {
@@ -91,9 +92,10 @@ folderWatcher.on("unlinkDir", async (dirPath) => {
         await deleteFolder(dirPath,cache);
     }
     else{
-        const folder = getBaseFolder(path);
+        const folder = getBaseFolder(dirPath);
         if (folder && cache.cachedFoldersData[folder]) {
-            cache.cachedFoldersData[folder] = cache.cachedFoldersData[folder].filter(file=>file.path.startsWith(dirPath));
+            // Drop the entries that lived under the removed directory, keep the rest.
+            cache.cachedFoldersData[folder] = cache.cachedFoldersData[folder].filter(file=>!file.path.startsWith(dirPath));
         }
     }
 })
@@ -199,6 +201,24 @@ const createWindow = async () => {
         if (input.type === 'keyDown' && input.key === 'F4' && input.alt) {
             app.quit();
         }
+    });
+
+    // The renderer only ever loads the local bundle (or the dev server). Any
+    // other navigation would inherit the preload bridge, so refuse it and hand
+    // the URL to the OS browser instead. Same for window.open.
+    const isInternalURL = (url) =>
+        url.startsWith("file://") ||
+        (process.env.NODE_ENV === "development" && url.startsWith(devServerURL));
+
+    mainWindow.webContents.on('will-navigate', (event, url) => {
+        if (isInternalURL(url)) return;
+        event.preventDefault();
+        console.warn("Blocked in-window navigation to:", url);
+    });
+
+    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+        if (/^https?:\/\//.test(url)) shell.openExternal(url).catch(() => {});
+        return { action: "deny" };
     });
 
     if (process.env.NODE_ENV === "development") {

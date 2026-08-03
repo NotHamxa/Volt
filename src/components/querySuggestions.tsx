@@ -45,7 +45,7 @@ import { Button } from "@/components/ui/button.tsx";
 import { Google } from "@/components/icons/google.tsx";
 import { useEscapeBarrier } from "@/hooks/useEscape.ts";
 import { tokenize } from "@/utils/tokenize.ts";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext } from "react-router";
 import type { MainLayoutContext } from "@/pages/mainPage.tsx";
 
 interface IQuerySuggestions {
@@ -482,7 +482,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
             setSettings(result.settings);
             setCommands(result.commands);
             const extra = result.bestMatch===null?0:1
-            const items = result.apps.length + result.folders.length + result.settings.length +
+            const items = result.apps.length + result.folders.length + result.files.length +
                 result.settings.length + result.commands.length + extra;
             if (items < focusedIndex + 1){
                 setFocusedIndex(0);

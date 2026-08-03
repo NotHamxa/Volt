@@ -1,4 +1,5 @@
-import { ipcMain, shell, dialog } from "electron";
+import { ipcMain, dialog } from "electron";
+import { openExternalSafely } from "./electron.ipc.js";
 import {searchApps, searchCommands, searchSettings} from "../universal/search.js";
 import {fetchFavicon} from "../universal/linkFavicon.js";
 import {addCustomCommand, removeCustomCommand, getCustomCommands, importCustomCommands} from "../universal/startup.js";
@@ -141,9 +142,10 @@ export function registerAppsIpc({
         return opened;
     });
 
-    ipcMain.handle("open-setting", async (_, setting) => {
-        await shell.openExternal(setting);
-        return true;
+    // Every entry in data/settings.json is an ms-settings: URI. Nothing else
+    // should reach the OS through this channel.
+    ipcMain.handle("open-setting", (_, setting) => {
+        return openExternalSafely(setting, new Set(["ms-settings:"]));
     });
 
     ipcMain.on("execute-command", async (_, command, argValues) => {

@@ -1,7 +1,6 @@
 import { useOutletContext } from 'react-router';
 import { useNavigate } from 'react-router';
 import PinnedApps from "@/components/pinnedAppsComponent.tsx";
-import RecentSearches from "@/components/recentSearches.tsx";
 import TipBar from "@/components/tipBar.tsx";
 import { MainLayoutContext } from "@/pages/mainPage.tsx";
 
@@ -21,7 +20,6 @@ export default function HomePage() {
                     unPinApp={unPinApp}
                 />
             </div>
-            <RecentSearches />
             <TipBar />
         </div>
     );

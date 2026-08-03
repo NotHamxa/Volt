@@ -46,6 +46,10 @@ const cache = {
 const appStates = {
     fixWindowOpen:false,
     windowLocked:false,
+    // AI mode keeps the window open like fixWindowOpen, but without stealing
+    // focus back on blur — you should be able to click away and read something
+    // while an answer streams.
+    aiMode:false,
     dialogOpen:false,
 }
 
@@ -112,7 +116,7 @@ const showMainWindow = () => {
     }, 50);
 };
 const hideMainWindow = () => {
-    if (!mainWindow || appStates.fixWindowOpen || appStates.windowLocked) return;
+    if (!mainWindow || appStates.fixWindowOpen || appStates.windowLocked || appStates.aiMode) return;
     mainWindow.hide();
     mainWindow.webContents.send('window-blurred');
     restoreForegroundWindow();
@@ -193,6 +197,9 @@ const createWindow = async () => {
     const devServerURL = "http://localhost:5173";
 
     mainWindow.on('blur', () => {
+        // AI mode keeps the window open but must not grab focus back — you
+        // should be able to click away and read while an answer streams.
+        if (appStates.aiMode) return;
         if (appStates.fixWindowOpen && !appStates.dialogOpen) mainWindow.focus();
         else if (mainWindow?.isVisible()) hideMainWindow();
     });

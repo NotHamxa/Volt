@@ -1,5 +1,9 @@
 import { ipcMain } from "electron";
 import { describeProviders, getProvider } from "../universal/ai/provider.js";
+import {
+    createChat, readChat, listChats, deleteChat,
+    appendMessage, finishAssistantMessage,
+} from "../universal/ai/chatStore.js";
 import "../universal/ai/claudeCode.js"; // registers the provider
 
 // One controller per in-flight turn so a request can be cancelled individually.
@@ -10,7 +14,7 @@ const inFlight = new Map();
  * preload surface — a prompt goes out, chunks come back. Credentials never
  * cross into the renderer; the main process attaches them.
  */
-export function registerAiIpc({ mainWindow }) {
+export function registerAiIpc({ mainWindow, appStates }) {
     ipcMain.handle("ai-list-providers", async () => {
         try {
             return await describeProviders();
@@ -56,6 +60,20 @@ export function registerAiIpc({ mainWindow }) {
         })();
 
         return { ok: true };
+    });
+
+    // --- chats -------------------------------------------------------------
+    ipcMain.handle("ai-list-chats", () => listChats());
+    ipcMain.handle("ai-get-chat", (_, id) => readChat(id));
+    ipcMain.handle("ai-create-chat", (_, opts) => createChat(opts ?? {}));
+    ipcMain.handle("ai-delete-chat", (_, id) => deleteChat(id));
+    ipcMain.handle("ai-append-message", (_, id, message) => appendMessage(id, message));
+    ipcMain.handle("ai-finish-message", (_, id, payload) => finishAssistantMessage(id, payload ?? {}));
+
+    // While the AI view is open the launcher must not hide on blur, or a
+    // streaming answer disappears the moment you click elsewhere.
+    ipcMain.on("ai-set-mode", (_, active) => {
+        appStates.aiMode = Boolean(active);
     });
 
     ipcMain.handle("ai-cancel", (_, requestId) => {

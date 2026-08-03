@@ -6,6 +6,7 @@ import { Routes, Route, useNavigate, useLocation } from 'react-router';
 import logo from "@/assets/icon.png";
 
 import SettingsPage from "@/pages/settingsPage.tsx";
+import AiPage from "@/pages/aiPage.tsx";
 import { Toaster } from "@/components/ui/sonner.tsx";
 import MainLayout from "@/pages/mainPage.tsx";
 import HomePage from "@/pages/homePage.tsx";
@@ -74,7 +75,7 @@ export default function App() {
 
     useEffect(() => {
         const path = locationRef.current;
-        if (path === '/settings') return;
+        if (path === '/settings' || path === '/ai') return;
 
         if (path === '/all') {
             navigate(`/all?query=${encodeURIComponent(query)}`, { replace: true });
@@ -132,12 +133,17 @@ export default function App() {
                     navigate('/', { replace: true });
                 }
             }
-            // Tab used to switch between the Files and Web modes. Search is now
-            // unified, so it is swallowed to keep focus in the input — and left
-            // free for the upcoming AI mode.
+            // Tab switches into the AI view, carrying whatever has been typed.
             if (e.key === "Tab" && !argCommandRef.current) {
                 e.preventDefault();
-                inputRef.current?.focus();
+                const typed = inputRef.current?.value?.trim() ?? "";
+                if (locationRef.current === '/ai') {
+                    navigate('/', { replace: true });
+                } else {
+                    navigate(typed ? `/ai?prompt=${encodeURIComponent(typed)}` : '/ai');
+                    setQuery("");
+                }
+                setTimeout(() => inputRef.current?.focus(), 0);
             }
             if (e.ctrlKey && e.key.toLowerCase() === "h") {
                 e.preventDefault();
@@ -312,6 +318,7 @@ export default function App() {
                         <Route index element={<HomePage />} />
                         <Route path="all" element={<AllAppsPage />} />
                         <Route path="search" element={<SearchPage />} />
+                        <Route path="ai" element={<AiPage />} />
                     </Route>
                     <Route path="/settings" element={<SettingsPage />} />
                 </Routes>

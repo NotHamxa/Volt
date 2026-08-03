@@ -20,7 +20,8 @@ import {
     CodeXml,
     Globe,
     Search,
-    SearchX
+    SearchX,
+    Sparkles
 } from "lucide-react";
 import { FaRegFilePdf, FaRegFileWord, FaRegFilePowerpoint, FaFolderOpen } from "react-icons/fa6";
 import {
@@ -68,7 +69,7 @@ import { Button } from "@/components/ui/button.tsx";
 import { Google } from "@/components/icons/google.tsx";
 import { useEscapeBarrier } from "@/hooks/useEscape.ts";
 import { tokenize } from "@/utils/tokenize.ts";
-import { useOutletContext } from "react-router";
+import { useOutletContext, useNavigate } from "react-router";
 import type { MainLayoutContext } from "@/pages/mainPage.tsx";
 
 interface IQuerySuggestions {
@@ -467,6 +468,11 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
     const [webSuggestions, setWebSuggestions] = useState<string[]>([]);
     const suggestionCountRef = useRef(0);
     const { enterArgMode } = useOutletContext<MainLayoutContext>();
+    const navigate = useNavigate();
+    const openAi = useCallback((q: string) => {
+        navigate(`/ai?prompt=${encodeURIComponent(q)}`);
+        clearQuery();
+    }, [navigate, clearQuery]);
 
     useEffect(() => {
         const reloadPinnedApps = async () => {
@@ -536,6 +542,16 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
         };
     }, [query, isCmdCommand]);
 
+    // Sits beside the web row: the same "always one Enter away" idea, for the
+    // AI window rather than the browser. Skipped for typed addresses, where the
+    // destination is already known.
+    const aiEntry = useMemo<SearchQueryT | null>(() => {
+        const trimmed = query.trim();
+        if (!trimmed || isCmdCommand) return null;
+        if (webEntry?.resolved.isDirectUrl) return null;
+        return { name: trimmed, type: "askAi", path: "", source: "AI" };
+    }, [query, isCmdCommand, webEntry]);
+
     // An explicit bang or a typed-out address means the user has already told
     // us where they're going, so it takes the top slot ahead of any local guess.
     const promoteWeb = Boolean(webEntry && (webEntry.resolved.hasExplicitBang || webEntry.resolved.isDirectUrl));
@@ -588,10 +604,11 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
 
     const allResults = useMemo<SearchQueryT[]>(() => {
         const web = webEntry ? [webEntry.entry] : [];
+        const ai = aiEntry ? [aiEntry] : [];
         return promoteWeb
-            ? [...web, ...webBlockEntries, ...results]
-            : [...results, ...web, ...webBlockEntries];
-    }, [results, webEntry, promoteWeb, webBlockEntries]);
+            ? [...web, ...webBlockEntries, ...results, ...ai]
+            : [...results, ...web, ...webBlockEntries, ...ai];
+    }, [results, webEntry, promoteWeb, webBlockEntries, aiEntry]);
 
     const handleContextMenuOpenChange = useCallback((open: boolean) => {
         setIsContextMenuOpen(open);
@@ -684,6 +701,8 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                 setTimeout(() => setTriggeredIndex(-1), 100);
             } else if (item.type === "webSearch" && webEntry) {
                 await openSearch(toHistoryEntry(webEntry.resolved));
+            } else if (item.type === "askAi") {
+                openAi(item.name);
             } else if (item.type === "webSuggestion") {
                 openBlockEntry(item);
             } else if (item.type === "app") {
@@ -875,7 +894,32 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                             );
                         })}
 
-                        {!promoteWeb && renderWebBlock(allResults.length - webBlockEntries.length - 1)}
+                        {!promoteWeb && renderWebBlock(
+                            allResults.length - webBlockEntries.length - 1 - (aiEntry ? 1 : 0),
+                        )}
+
+                        {aiEntry && (() => {
+                            const itemIndex = allResults.length - 1;
+                            const focused = focusedIndex === itemIndex;
+                            return (
+                                <div ref={el => { itemRefs.current[itemIndex] = el; }}>
+                                    <button
+                                        onClick={() => openAi(aiEntry.name)}
+                                        tabIndex={0}
+                                        className={`cursor-pointer flex items-center justify-between py-2 px-3 rounded-lg select-none transition-colors duration-150 gap-3 w-full hover:bg-white/10 ${focused ? "bg-white/10 outline outline-[1px] outline-offset-[-1px] outline-white/[0.18]" : "bg-transparent"}`}
+                                    >
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <Sparkles className="w-5 h-5 shrink-0 text-amber-300/70" />
+                                            <span className="text-[13px] text-white/80 truncate">
+                                                Ask AI about{" "}
+                                                <span className="text-white font-medium">"{aiEntry.name}"</span>
+                                            </span>
+                                        </div>
+                                        <span className="ml-auto opacity-70 text-[12px] cursor-default text-white/50 shrink-0">AI</span>
+                                    </button>
+                                </div>
+                            );
+                        })()}
                     </>
                 )
             )}

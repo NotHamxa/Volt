@@ -77,6 +77,13 @@ contextBridge.exposeInMainWorld('ai', {
     listProviders: () => ipcRenderer.invoke('ai-list-providers'),
     send: (request) => ipcRenderer.invoke('ai-send', request),
     cancel: (requestId) => ipcRenderer.invoke('ai-cancel', requestId),
+    setMode: (active) => ipcRenderer.send('ai-set-mode', active),
+    listChats: () => ipcRenderer.invoke('ai-list-chats'),
+    getChat: (id) => ipcRenderer.invoke('ai-get-chat', id),
+    createChat: (opts) => ipcRenderer.invoke('ai-create-chat', opts),
+    deleteChat: (id) => ipcRenderer.invoke('ai-delete-chat', id),
+    appendMessage: (id, message) => ipcRenderer.invoke('ai-append-message', id, message),
+    finishMessage: (id, payload) => ipcRenderer.invoke('ai-finish-message', id, payload),
     onChunk: (cb) => {
         const handler = (_e, chunk) => cb(chunk);
         ipcRenderer.on('ai-chunk', handler);

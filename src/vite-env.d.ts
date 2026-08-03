@@ -26,6 +26,28 @@ declare global {
         default: string;
     };
 
+    type AiMessage = { role: "user" | "assistant"; content: string };
+
+    type AiChat = {
+        id: string;
+        title: string;
+        providerId: string;
+        model: string | null;
+        sessionId: string | null;
+        createdAt: number;
+        updatedAt: number;
+        messages: AiMessage[];
+    };
+
+    type AiChatSummary = {
+        id: string;
+        title: string;
+        providerId: string;
+        model: string | null;
+        updatedAt: number;
+        messageCount: number;
+    };
+
     type AiProviderInfo = {
         id: string;
         label: string;
@@ -50,6 +72,13 @@ declare global {
             }) => Promise<{ ok: boolean; detail?: string }>;
             cancel: (requestId: string) => Promise<boolean>;
             onChunk: (cb: (chunk: AiChunk) => void) => () => void;
+            setMode: (active: boolean) => void;
+            listChats: () => Promise<AiChatSummary[]>;
+            getChat: (id: string) => Promise<AiChat | null>;
+            createChat: (opts: { providerId: string; model?: string | null }) => Promise<AiChat>;
+            deleteChat: (id: string) => Promise<boolean>;
+            appendMessage: (id: string, message: AiMessage) => Promise<AiChat | null>;
+            finishMessage: (id: string, payload: { content: string; sessionId?: string }) => Promise<AiChat | null>;
         };
         electron: {
             log:(data:any) => void;

@@ -21,6 +21,7 @@ export type MainLayoutContext = {
     setSearchFilters: React.Dispatch<React.SetStateAction<boolean[]>>;
     enterArgMode: (item: SearchQueryT, initial?: Record<string, string>) => void;
     clearQuery: () => void;
+    query: string;
 };
 
 interface MainLayoutProps {
@@ -118,6 +119,7 @@ export default function MainLayout({ inputRef, query, setQuery, argCommand, argI
         : null;
 
     const isSearchRoute = location.pathname === '/search';
+    const isAiRoute = location.pathname === '/ai';
 
     const context: MainLayoutContext = {
         apps,
@@ -130,11 +132,12 @@ export default function MainLayout({ inputRef, query, setQuery, argCommand, argI
         setSearchFilters,
         enterArgMode,
         clearQuery,
+        query,
     };
 
     return (
         <>
-            {argCommand ? (
+            {isAiRoute ? null : argCommand ? (
                 <ArgEntryBar
                     command={argCommand}
                     initialValues={argInitialValues}
@@ -202,7 +205,7 @@ export default function MainLayout({ inputRef, query, setQuery, argCommand, argI
                     )}
                 </div>
             )}
-            {argCommand ? (
+            {isAiRoute ? null : argCommand ? (
                 <div className="flex-1 min-h-0 flex items-center justify-center px-8">
                     <p className="text-[11px] text-white/30 text-center leading-relaxed">
                         Filling arguments for <span className="text-white/55 font-medium">{argCommand.name}</span>.<br />

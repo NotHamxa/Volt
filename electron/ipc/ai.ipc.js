@@ -9,6 +9,8 @@ import { getPrefs, setPrefs } from "../universal/ai/prefs.js";
 // Importing an adapter registers it.
 import "../universal/ai/claudeCode.js";
 import "../universal/ai/openaiCompatible.js";
+import "../universal/ai/gemini.js";
+import "../universal/ai/codexCli.js";
 
 // One controller per in-flight turn so a request can be cancelled individually.
 const inFlight = new Map();

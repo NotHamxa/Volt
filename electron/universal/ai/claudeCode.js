@@ -11,7 +11,7 @@ import { registerProvider } from "./provider.js";
  * installer, so `pathToClaudeCodeExecutable` points at the installed one and the
  * bundled copy is excluded in package.json → build.files.
  *
- * Auth comes from the user's existing Claude Code login — no API key.
+ * Auth comes from the user's existing Claude CLI login — no API key.
  */
 
 const BIN_NAME = process.platform === "win32" ? "claude.exe" : "claude";
@@ -65,8 +65,10 @@ const EFFORT = [
 ];
 
 export const claudeCodeProvider = registerProvider({
+    // The id is persisted in saved chats and prefs — renaming it would
+    // orphan every existing conversation. Only the label changed.
     id: "claude-code",
-    label: "Claude Code",
+    label: "Claude CLI",
     kind: "subscription-sdk",
     needsKey: false,
 
@@ -75,7 +77,7 @@ export const claudeCodeProvider = registerProvider({
         if (bin) return { available: true, detail: bin };
         return {
             available: false,
-            detail: "Claude Code not found. Install it, then reopen this window.",
+            detail: "Claude CLI not found. Install it, then re-check.",
         };
     },
 

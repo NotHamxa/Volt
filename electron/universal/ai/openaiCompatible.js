@@ -56,25 +56,42 @@ async function describeFailure(response) {
     return text.slice(0, 200) || `Request failed (HTTP ${response.status}).`;
 }
 
-function createOpenAiCompatible({ id, label, baseUrl, fallbackModels, modelFilter }) {
+function createOpenAiCompatible({
+    id, label, baseUrl, fallbackModels, modelFilter,
+    // Local servers speak the same dialect without authentication.
+    needsKey = true, kind = "api", missingDetail,
+}) {
+    const authHeaders = () => {
+        if (!needsKey) return {};
+        const key = getKey(id);
+        return key ? { Authorization: `Bearer ${key}` } : {};
+    };
+
     return registerProvider({
         id,
         label,
-        kind: "api",
-        needsKey: true,
+        kind,
+        needsKey,
 
         async isAvailable() {
-            if (!getKey(id)) return { available: false, detail: "No API key saved." };
-            return { available: true, detail: "Key saved." };
+            if (needsKey) {
+                if (!getKey(id)) return { available: false, detail: "No API key saved." };
+                return { available: true, detail: "Key saved." };
+            }
+            // Keyless means local: reachability is the only real question.
+            try {
+                const response = await fetch(`${baseUrl}/models`, { signal: AbortSignal.timeout(1500) });
+                if (response.ok) return { available: true, detail: `Reachable at ${baseUrl}` };
+            } catch { /* not running */ }
+            return { available: false, detail: missingDetail ?? `Not reachable at ${baseUrl}` };
         },
 
         async models() {
-            const key = getKey(id);
-            if (!key) return fallbackModels;
+            if (needsKey && !getKey(id)) return fallbackModels;
             // Asking the vendor beats hard-coding a list that goes stale.
             try {
                 const response = await fetch(`${baseUrl}/models`, {
-                    headers: { Authorization: `Bearer ${key}` },
+                    headers: authHeaders(),
                     signal: AbortSignal.timeout(8000),
                 });
                 if (!response.ok) return fallbackModels;
@@ -97,8 +114,7 @@ function createOpenAiCompatible({ id, label, baseUrl, fallbackModels, modelFilte
         },
 
         async *send({ prompt, history, model, signal }) {
-            const key = getKey(id);
-            if (!key) {
+            if (needsKey && !getKey(id)) {
                 yield { type: "error", message: `No API key saved for ${label}.` };
                 return;
             }
@@ -115,10 +131,7 @@ function createOpenAiCompatible({ id, label, baseUrl, fallbackModels, modelFilte
             try {
                 response = await fetch(`${baseUrl}/chat/completions`, {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${key}`,
-                    },
+                    headers: { "Content-Type": "application/json", ...authHeaders() },
                     body: JSON.stringify({ model, messages, stream: true }),
                     signal,
                 });
@@ -189,4 +202,16 @@ export const grokProvider = createOpenAiCompatible({
     baseUrl: "https://api.x.ai/v1",
     fallbackModels: [{ id: "grok-2-latest", label: "grok-2-latest" }],
     modelFilter: CHAT_ONLY,
+});
+
+// Ollama serves an OpenAI-compatible endpoint alongside its own, so local
+// models come along for free. Nothing leaves the machine, and no key is needed.
+export const ollamaProvider = createOpenAiCompatible({
+    id: "ollama",
+    label: "Ollama (local)",
+    baseUrl: "http://127.0.0.1:11434/v1",
+    kind: "subscription-cli",
+    needsKey: false,
+    fallbackModels: [],
+    missingDetail: "Ollama isn't running. Start it, then re-check.",
 });

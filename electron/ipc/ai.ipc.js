@@ -122,6 +122,19 @@ export function registerAiIpc({ mainWindow, appStates }) {
     });
 
     /**
+     * Which conversations have a turn running. Several can be in flight at once
+     * — each is owned here, not by the view — so the list marks them rather
+     * than the UI assuming only the open one can be busy.
+     */
+    ipcMain.handle("ai-active-turns", () => {
+        const ids = [];
+        for (const turn of inFlight.values()) {
+            if (turn.chatId && !ids.includes(turn.chatId)) ids.push(turn.chatId);
+        }
+        return ids;
+    });
+
+    /**
      * Drafts a command from a description. Returns it for review — saving is a
      * separate, deliberate step, and nothing drafted here is ever executed.
      */

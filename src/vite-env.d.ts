@@ -125,6 +125,8 @@ declare global {
             deleteAllChats: () => Promise<number>;
             renameChat: (id: string, title: string) => Promise<AiChat | null>;
             activeTurn: (chatId: string) => Promise<{ requestId: string; text: string } | null>;
+            /** Chat ids with a turn in flight — more than one can run at a time. */
+            activeTurns: () => Promise<string[]>;
         };
         electron: {
             log:(data:any) => void;

@@ -99,6 +99,7 @@ contextBridge.exposeInMainWorld('ai', {
     renameChat: (id, title) => ipcRenderer.invoke('ai-rename-chat', id, title),
     // A turn keeps running in the main process; this reattaches to one.
     activeTurn: (chatId) => ipcRenderer.invoke('ai-active-turn', chatId),
+    activeTurns: () => ipcRenderer.invoke('ai-active-turns'),
     onChunk: (cb) => {
         const handler = (_e, chunk) => cb(chunk);
         ipcRenderer.on('ai-chunk', handler);

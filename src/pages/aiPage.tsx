@@ -39,7 +39,7 @@ function controlsFor(provider: AiProviderInfo | null | undefined, modelId: strin
  */
 export default function AiPage() {
     const [prompt, setPrompt] = useState("");
-    const { chat, streaming, partial, error, send, rerun, cancel, openChat, newChat } = useChat();
+    const { chat, streaming, stopping, partial, error, send, rerun, cancel, openChat, newChat } = useChat();
     const [searchParams, setSearchParams] = useSearchParams();
 
     const [providers, setProviders] = useState<AiProviderInfo[]>([]);
@@ -48,6 +48,7 @@ export default function AiPage() {
     const [settings, setSettings] = useState<Record<string, string>>({});
     const [chats, setChats] = useState<AiChatSummary[]>([]);
     const [customModels, setCustomModels] = useState<Record<string, string[]>>({});
+    const [running, setRunning] = useState<string[]>([]);
 
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -66,7 +67,9 @@ export default function AiPage() {
 
     // Providers deliver in slabs, not tokens; this paces the reveal so the
     // answer reads as it is written.
-    const revealed = useSmoothText(partial, !streaming);
+    // `stopping` settles it too: once you've asked it to stop, text must not
+    // carry on appearing from the buffer while the provider winds down.
+    const revealed = useSmoothText(partial, !streaming || stopping);
 
     // Declared before the hooks below, which use them as dependencies. A `const`
     // is in its temporal dead zone until this line runs, so leaving these at the
@@ -110,8 +113,22 @@ export default function AiPage() {
     }, []);
 
     const refreshChats = useCallback(async () => {
-        setChats(await window.ai.listChats());
+        const [list, active] = await Promise.all([
+            window.ai.listChats(),
+            window.ai.activeTurns(),
+        ]);
+        setChats(list);
+        setRunning(active);
     }, []);
+
+    // Turns finish in conversations that aren't open, so the list is refreshed
+    // on any turn ending rather than only on the active chat changing.
+    useEffect(() => {
+        const detach = window.ai.onChunk((chunk) => {
+            if (chunk.type === "done") refreshChats();
+        });
+        return detach;
+    }, [refreshChats]);
 
     useEffect(() => {
         (async () => {
@@ -176,9 +193,10 @@ export default function AiPage() {
         // Sending is an explicit request to see what comes back, so re-follow
         // the bottom even if you had scrolled away to re-read something.
         stickRef.current = true;
-        send(text, { providerId, model: model || undefined, settings });
+        send(text, { providerId, model: model || undefined, settings })
+            .then(refreshChats);
         setPrompt("");
-    }, [providerId, streaming, send, model, settings]);
+    }, [providerId, streaming, send, model, settings, refreshChats]);
 
     /**
      * A conversation remembers its own setup. Changing provider or model is a
@@ -268,6 +286,7 @@ export default function AiPage() {
             <ChatSidebar
                 chats={chats}
                 activeId={chat?.id ?? null}
+                running={running}
                 onOpen={(id) => { openStoredChat(id); inputRef.current?.focus(); }}
                 onNew={() => { newChat(); inputRef.current?.focus(); }}
                 onDelete={async (id) => {
@@ -443,27 +462,51 @@ export default function AiPage() {
                                     />
                                 ))}
 
-                                {/* One button for both states, the way shadcn's
-                                    prompt input does it — the stop target is
-                                    exactly where you just clicked send. */}
+                                {/* One button for all three states, the way
+                                    shadcn's prompt input does it — the stop
+                                    target is exactly where you clicked send.
+                                    Each state looks different, so pressing stop
+                                    is visibly acknowledged instead of leaving
+                                    you wondering whether it registered. */}
                                 <Tooltip>
                                     <TooltipTrigger asChild>
                                         <InputGroupButton
                                             size="icon-xs"
                                             variant="default"
                                             onClick={() => (streaming ? cancel() : submit(prompt))}
-                                            disabled={!streaming && !prompt.trim()}
-                                            aria-label={streaming ? "Stop" : "Send"}
-                                            className="ml-auto rounded-full bg-white/[0.14] text-white/85 hover:bg-white/[0.22] disabled:opacity-25"
+                                            disabled={stopping || (!streaming && !prompt.trim())}
+                                            aria-label={stopping ? "Stopping" : streaming ? "Stop" : "Send"}
+                                            className={`ml-auto relative rounded-full transition-colors disabled:opacity-100 ${
+                                                stopping
+                                                    ? "bg-white/[0.06] text-white/35"
+                                                    : streaming
+                                                        ? "bg-red-400/[0.16] text-red-200/90 hover:bg-red-400/[0.26]"
+                                                        : "bg-white/[0.14] text-white/85 hover:bg-white/[0.22] disabled:opacity-25"
+                                            }`}
                                         >
-                                            {streaming ? <Square className="fill-current" /> : <ArrowUp />}
+                                            {/* A ring that turns while a turn is
+                                                live, so the button reads as busy
+                                                rather than merely differently
+                                                shaped. It stops on stopping. */}
+                                            {streaming && !stopping && (
+                                                <span className="absolute inset-0 rounded-full border border-red-300/40 border-t-transparent animate-spin [animation-duration:1.1s]" />
+                                            )}
+                                            {stopping
+                                                ? <Spinner className="size-3" />
+                                                : streaming
+                                                    ? <Square className="fill-current size-2.5" />
+                                                    : <ArrowUp />}
                                         </InputGroupButton>
                                     </TooltipTrigger>
                                     <TooltipContent
                                         side="top"
                                         className="flex items-center gap-1.5 border border-white/10 bg-[rgba(20,20,22,0.98)] px-2 py-1 text-[11px] text-white/70"
                                     >
-                                        {streaming ? "Stop" : <>Send <Kbd className="bg-white/10 text-white/55">Enter</Kbd></>}
+                                        {stopping
+                                            ? "Stopping…"
+                                            : streaming
+                                                ? "Stop generating"
+                                                : <>Send <Kbd className="bg-white/10 text-white/55">Enter</Kbd></>}
                                     </TooltipContent>
                                 </Tooltip>
                             </InputGroupAddon>
@@ -485,9 +528,11 @@ export default function AiPage() {
  * left the trigger, so a conversation could never actually be clicked. Closing
  * is deferred instead, and clicking the rail pins the panel open.
  */
-function ChatSidebar({ chats, activeId, onOpen, onNew, onDelete, onDeleteAll, onRename }: {
+function ChatSidebar({ chats, activeId, running, onOpen, onNew, onDelete, onDeleteAll, onRename }: {
     chats: AiChatSummary[];
     activeId: string | null;
+    /** Conversations with a turn still in flight, including unopened ones. */
+    running: string[];
     onOpen: (id: string) => void;
     onNew: () => void;
     onDelete: (id: string) => void;
@@ -606,7 +651,17 @@ function ChatSidebar({ chats, activeId, onOpen, onNew, onDelete, onDeleteAll, on
                                             onClick={() => onOpen(c.id)}
                                             className="flex-1 min-w-0 flex items-center gap-2.5 px-2 py-1.5 cursor-pointer"
                                         >
-                                            <MessageCircle size={13} className="shrink-0 text-white/30" />
+                                            {running.includes(c.id) ? (
+                                                <span
+                                                    title="Still answering"
+                                                    className="relative flex w-[13px] h-[13px] shrink-0 items-center justify-center"
+                                                >
+                                                    <span className="absolute w-1.5 h-1.5 rounded-full bg-sky-400/70 animate-ping" />
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-sky-400/80" />
+                                                </span>
+                                            ) : (
+                                                <MessageCircle size={13} className="shrink-0 text-white/30" />
+                                            )}
                                             <span className="block truncate text-left text-[11.5px] text-white/70">{c.title}</span>
                                         </button>
                                         {/* Both live on the row itself rather

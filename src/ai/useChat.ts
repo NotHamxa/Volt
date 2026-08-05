@@ -11,6 +11,10 @@ export function useChat() {
     const [chat, setChat] = useState<AiChat | null>(null);
     const [streaming, setStreaming] = useState(false);
     const [partial, setPartial] = useState("");
+    // Between asking a turn to stop and it actually ending. The provider
+    // takes a moment to notice, and without this the view carried on as if
+    // nothing had happened.
+    const [stopping, setStopping] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const requestIdRef = useRef<string | null>(null);
@@ -72,6 +76,7 @@ export function useChat() {
                 // Batched into one render, so the message never blanks.
                 if (updated) setChat(updated);
                 setStreaming(false);
+                setStopping(false);
                 setPartial("");
                 partialRef.current = "";
             }
@@ -102,22 +107,36 @@ export function useChat() {
             partialRef.current = active.text;
             setPartial(active.text);
             setStreaming(true);
+            setStopping(false);
         } else {
             requestIdRef.current = null;
             partialRef.current = "";
             setPartial("");
             setStreaming(false);
+            setStopping(false);
         }
 
         setChat({ ...loaded });
         return loaded;
     }, []);
 
+    /**
+     * Starts a blank conversation, detaching from any turn being watched.
+     *
+     * The turn itself keeps running — the main process owns it and still writes
+     * its answer to its own chat — so this only stops *viewing* it. Leaving the
+     * streaming flag set meant a running answer blocked every new conversation,
+     * because send() refuses to start one while it thinks a turn is in flight.
+     */
     const newChat = useCallback(() => {
         setChat(null);
         setError(null);
         setPartial("");
         partialRef.current = "";
+        bufferRef.current = "";
+        requestIdRef.current = null;
+        setStreaming(false);
+        setStopping(false);
     }, []);
 
     type SendOpts = { providerId: string; model?: string; settings?: Record<string, string> };
@@ -199,10 +218,18 @@ export function useChat() {
         await startTurn(trimmed, lastUser.content, opts);
     }, [streaming, startTurn]);
 
+    /**
+     * Asks the turn to stop. Providers take a moment to wind down, so the view
+     * is told immediately rather than waiting: the answer freezes where it is
+     * and the button changes. Whatever arrived is still committed by the main
+     * process, and the real `done` clears the flag.
+     */
     const cancel = useCallback(async () => {
         const id = requestIdRef.current;
-        if (id) await window.ai.cancel(id);
-    }, []);
+        if (!id || stopping) return;
+        setStopping(true);
+        await window.ai.cancel(id);
+    }, [stopping]);
 
-    return { chat, streaming, partial, error, send, rerun, cancel, openChat, newChat };
+    return { chat, streaming, stopping, partial, error, send, rerun, cancel, openChat, newChat };
 }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Check, Eye, EyeOff, KeyRound, ShieldAlert, Trash2, RefreshCw } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner.tsx";
+import { Skeleton } from "@/components/ui/skeleton.tsx";
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select.tsx";
@@ -69,13 +70,7 @@ export default function AiSection() {
         setPrefsState(await window.ai.setPrefs(patch));
     };
 
-    if (loading) {
-        return (
-            <div className="flex items-center gap-2 py-8 text-[12px] text-white/35">
-                <Spinner className="size-3.5" /> Checking available providers…
-            </div>
-        );
-    }
+    if (loading) return <AiSectionSkeleton />;
 
     return (
         <div className="flex flex-col gap-8">
@@ -298,6 +293,74 @@ function ProviderCard({ provider, hasKey, canEncrypt, onChanged }: {
             )}
 
             {problem && <p className="mt-2 text-[10.5px] text-red-300/80">{problem}</p>}
+        </div>
+    );
+}
+
+/**
+ * Shaped like the section it stands in for, so nothing jumps when the real
+ * thing arrives. The provider counts mirror the adapters registered in
+ * electron/universal/ai — three that sign in through a CLI, four that take a
+ * key — which is what makes the swap seamless rather than merely busy.
+ *
+ * Worth having because this section is genuinely slow to load: it spawns the
+ * Claude CLI and the Codex app-server to read their model catalogues.
+ */
+const CLI_PROVIDERS = 3;
+const KEY_PROVIDERS = 4;
+
+function ProviderCardSkeleton() {
+    return (
+        <div className="px-4 py-3 rounded-lg bg-white/[0.025] border border-white/[0.05]">
+            <div className="flex items-center gap-2">
+                <Skeleton className="w-1.5 h-1.5 rounded-full" />
+                <Skeleton className="h-3 w-28" />
+                <Skeleton className="h-3.5 w-20 rounded" />
+            </div>
+            <Skeleton className="h-2.5 w-2/3 mt-2.5" />
+        </div>
+    );
+}
+
+function RowSkeleton() {
+    return (
+        <div className="flex items-center justify-between gap-5 px-4 py-2.5 rounded-lg bg-white/[0.025] border border-white/[0.05]">
+            <div className="flex flex-col gap-1.5">
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-2 w-24" />
+            </div>
+            <Skeleton className="h-7 w-44 rounded-md" />
+        </div>
+    );
+}
+
+function AiSectionSkeleton() {
+    return (
+        <div className="flex flex-col gap-8" aria-busy="true" aria-label="Loading AI settings">
+            <div className="flex flex-col gap-2">
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-3/5" />
+            </div>
+
+            <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                    <Skeleton className="h-2.5 w-20" />
+                    <Skeleton className="h-2.5 w-14" />
+                </div>
+
+                {[CLI_PROVIDERS, KEY_PROVIDERS].map((count, group) => (
+                    <div key={group} className="flex flex-col gap-2">
+                        <Skeleton className="h-3 w-24 mt-1" />
+                        {Array.from({ length: count }, (_, i) => <ProviderCardSkeleton key={i} />)}
+                    </div>
+                ))}
+            </div>
+
+            <div className="flex flex-col gap-3">
+                <Skeleton className="h-2.5 w-16" />
+                <Skeleton className="h-2.5 w-3/4 -mt-1" />
+                {Array.from({ length: 3 }, (_, i) => <RowSkeleton key={i} />)}
+            </div>
         </div>
     );
 }

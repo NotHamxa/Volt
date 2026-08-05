@@ -57,8 +57,17 @@ export default function App() {
     const runArgCommand = (values: Record<string, string>) => {
         const item = argCommandRef.current;
         if (!item) return;
-        window.apps.executeCommand(item, values);
+        // Same as running from the results list: dismiss now, let it work in the
+        // background, and surface only a failure.
         exitArgMode();
+        window.electron.hideWindow();
+        window.apps.executeCommand(item, values)
+            .then(result => {
+                if (!result?.ok) {
+                    window.electron.notify(`${item.name} failed`, result?.detail ?? "The command did not run.");
+                }
+            })
+            .catch(err => window.electron.notify(`${item.name} failed`, err?.message ?? "The command did not run."));
     };
 
     const [showLockedIcon, setShowLockedIcon] = useState<boolean>(false);

@@ -465,6 +465,9 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     const itemRefs = useRef<(HTMLElement | null)[]>([]);
     const [results, setResults] = useState<SearchQueryT[]>([]);
+    // The query the current `results` actually belong to, so a pending search
+    // is distinguishable from a search that genuinely found nothing.
+    const [resolvedFor, setResolvedFor] = useState<string | null>(null);
     const [webSuggestions, setWebSuggestions] = useState<string[]>([]);
     const suggestionCountRef = useRef(0);
     const { enterArgMode } = useOutletContext<MainLayoutContext>();
@@ -499,9 +502,16 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
             return;
         }
 
+
         const getData = async () => {
             const result: ProcessedQueryResult | null = await getQueryData(query.trim(), searchFilters);
-            if (cancelled || !result) return;
+            if (cancelled) return;
+
+            // Marked resolved even on failure, or a search that errored would
+            // leave the list blank forever instead of falling back to the web
+            // and AI rows.
+            setResolvedFor(query.trim());
+            if (!result) return;
 
             setResults(result.results);
 
@@ -635,15 +645,28 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
     // landing while the first is still in flight, and clears the query on
     // success so the same command can't be fired again from a stale list.
     const runningRef = useRef(false);
-    const runCommand = useCallback(async (item: SearchQueryT, argValues?: Record<string, string>) => {
+    const runCommand = useCallback((item: SearchQueryT, argValues?: Record<string, string>) => {
         if (runningRef.current) return;
         runningRef.current = true;
-        try {
-            const result = await window.apps.executeCommand(item, argValues);
-            if (result?.ok) clearQuery();
-        } finally {
-            runningRef.current = false;
-        }
+
+        // Dismiss first. Waiting for the command to finish held the launcher
+        // open for as long as the work took, which for anything slow read as a
+        // hang. Any confirmation dialog has already been answered by here.
+        clearQuery();
+        window.electron.hideWindow();
+
+        // The window is hidden, not destroyed, so this still resolves and can
+        // report a failure that would otherwise vanish with the dismissal.
+        window.apps.executeCommand(item, argValues)
+            .then(result => {
+                if (!result?.ok) {
+                    window.electron.notify(`${item.name} failed`, result?.detail ?? "The command did not run.");
+                }
+            })
+            .catch(err => {
+                window.electron.notify(`${item.name} failed`, err?.message ?? "The command did not run.");
+            })
+            .finally(() => { runningRef.current = false; });
     }, [clearQuery]);
 
     const runCommandRequest = useCallback((item: SearchQueryT) => {
@@ -792,6 +815,17 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
         );
     };
 
+    /**
+     * True between typing and the first results landing for that query, and only
+     * when there is nothing to show meanwhile. Navigating home → search mounts
+     * this component with an empty list, so without the guard the debounce plus
+     * the IPC round-trip left the web and AI fallbacks sitting alone.
+     *
+     * Refining an existing search keeps the previous results on screen instead,
+     * so this only ever applies to the first one.
+     */
+    const settling = resolvedFor !== query.trim() && results.length === 0;
+
     const renderWebRow = (itemIndex: number) => {
         if (!webEntry) return null;
         const { resolved } = webEntry;
@@ -853,6 +887,11 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                         {cmdCommand}
                     </div>
                 </div>
+            ) : settling ? (
+                // Nothing has come back for this query yet. Rendering now would
+                // show the web and AI fallbacks on their own for a frame, which
+                // reads as "no results" right before the real list lands.
+                <div className="h-[380px]" aria-hidden />
             ) : (
                 allResults.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-[380px] select-none">

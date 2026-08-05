@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Search, ChevronRight, Check } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover.tsx";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
+import { providerLogo } from "@/ai/providerLogos.ts";
 
 /**
  * Provider and model in one control: a rail of providers beside a searchable
@@ -39,6 +40,8 @@ export function ModelPicker({ providers, providerId, model, onSelect }: {
     const current = providers.find(p => p.id === providerId) ?? null;
     const shown = providers.find(p => p.id === browsing) ?? current;
     const currentLabel = current?.models.find(m => m.id === model)?.label ?? model ?? "Model";
+    const shownLogo = shown ? providerLogo(shown.id) : null;
+    const currentLogo = current ? providerLogo(current.id) : null;
 
     // Reopening starts from the provider in use, not wherever the last browse
     // happened to end. Done on the event rather than in an effect, so opening
@@ -88,6 +91,9 @@ export function ModelPicker({ providers, providerId, model, onSelect }: {
                     aria-label="Choose a model"
                     className="flex items-center gap-1 h-6 max-w-[190px] px-1.5 rounded-md text-[10.5px] font-medium text-white/45 hover:bg-white/[0.07] hover:text-white/80 aria-expanded:bg-white/[0.07] aria-expanded:text-white/80 transition-colors cursor-pointer"
                 >
+                    {currentLogo && (
+                        <img src={currentLogo} alt="" className="w-3.5 h-3.5 shrink-0 object-contain" />
+                    )}
                     <span className="truncate">{currentLabel}</span>
                     <ChevronRight size={11} className="shrink-0 rotate-90 text-white/30" />
                 </button>
@@ -105,6 +111,7 @@ export function ModelPicker({ providers, providerId, model, onSelect }: {
                     <div className="w-11 shrink-0 flex flex-col items-center gap-1 py-2 border-r border-white/[0.06]">
                         {providers.map(p => {
                             const isBrowsing = shown?.id === p.id;
+                            const logo = providerLogo(p.id);
                             return (
                                 <button
                                     key={p.id}
@@ -120,7 +127,9 @@ export function ModelPicker({ providers, providerId, model, onSelect }: {
                                     {isBrowsing && (
                                         <span className="absolute -left-1.5 h-4 w-[2px] rounded-full bg-sky-400/70" />
                                     )}
-                                    {monogram(p.label)}
+                                    {logo
+                                        ? <img src={logo} alt="" className="w-4 h-4 object-contain" />
+                                        : monogram(p.label)}
                                 </button>
                             );
                         })}
@@ -178,10 +187,13 @@ export function ModelPicker({ providers, providerId, model, onSelect }: {
                                             data-model-row
                                             onMouseEnter={() => setActive(i)}
                                             onClick={() => choose(m.id)}
-                                            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-colors cursor-pointer ${
+                                            className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-left transition-colors cursor-pointer ${
                                                 i === active ? "bg-white/[0.07]" : ""
                                             }`}
                                         >
+                                            {shownLogo && (
+                                                <img src={shownLogo} alt="" className="w-4 h-4 shrink-0 object-contain opacity-90" />
+                                            )}
                                             <div className="flex-1 min-w-0">
                                                 <span className="block truncate text-[12px] text-white/85">{m.label}</span>
                                                 <span className="block truncate text-[10px] text-white/30 mt-px">

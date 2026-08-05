@@ -6,6 +6,7 @@ import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select.tsx";
 import { SectionLead, GroupLabel } from "@/components/settingsLayout.tsx";
+import { providerLogo } from "@/ai/providerLogos.ts";
 
 /**
  * Setup for the AI view: which backends are usable, keys for the ones that need
@@ -263,6 +264,7 @@ function ProviderCard({ provider, hasKey, canEncrypt, onChanged }: {
     // A key-based provider is only really usable once a key is stored, whatever
     // its own reachability check says.
     const ready = provider.needsKey ? hasKey : provider.available;
+    const logo = providerLogo(provider.id);
 
     return (
         <div className="px-4 py-3 rounded-lg bg-white/[0.025] border border-white/[0.05] hover:border-white/[0.09] transition-colors">
@@ -270,6 +272,7 @@ function ProviderCard({ provider, hasKey, canEncrypt, onChanged }: {
                 <div className="min-w-0">
                     <div className="flex items-center gap-2">
                         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${ready ? "bg-emerald-400/70" : "bg-white/20"}`} />
+                        {logo && <img src={logo} alt="" className="w-4 h-4 shrink-0 object-contain" />}
                         <h3 className="text-[12.5px] font-medium text-white/80 tracking-tight">{provider.label}</h3>
                         {/* For a CLI, what matters is which wallet it draws on —
                             a plan you already pay for, or per-token billing. */}

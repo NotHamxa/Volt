@@ -96,13 +96,15 @@ function createOpenAiCompatible({
                 });
                 if (!response.ok) return fallbackModels;
                 const json = await response.json();
-                const ids = (json?.data ?? [])
-                    .map(m => m?.id)
-                    .filter(Boolean)
-                    .filter(modelFilter ?? (() => true))
-                    .sort();
-                return ids.length
-                    ? ids.map(modelId => ({ id: modelId, label: modelId }))
+                // Newest first. These catalogues are long — OpenAI's runs to
+                // dozens — and alphabetical put gpt-3.5 above gpt-5, which is
+                // the wrong end of the list to lead with. `created` is the
+                // vendor's own release stamp, so this doesn't go stale.
+                const models = (json?.data ?? [])
+                    .filter(m => m?.id && (modelFilter ?? (() => true))(m.id))
+                    .sort((a, b) => (b.created ?? 0) - (a.created ?? 0) || a.id.localeCompare(b.id));
+                return models.length
+                    ? models.map(m => ({ id: m.id, label: m.id }))
                     : fallbackModels;
             } catch {
                 return fallbackModels;

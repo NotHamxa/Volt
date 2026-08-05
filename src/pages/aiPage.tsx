@@ -15,6 +15,7 @@ import { Spinner } from "@/components/ui/spinner.tsx";
 import { Kbd } from "@/components/ui/kbd.tsx";
 import { useChat } from "@/ai/useChat.ts";
 import { useSmoothText } from "@/ai/useSmoothText.ts";
+import { ModelPicker } from "@/ai/modelPicker.tsx";
 import { Markdown, StreamingMarkdown } from "@/ai/markdown.tsx";
 import { CopyButton } from "@/ai/copyButton.tsx";
 import logo from "@/assets/icon.png";
@@ -377,38 +378,27 @@ export default function AiPage() {
                             />
 
                             <InputGroupAddon align="block-end" className="gap-1 border-t border-white/[0.05] px-2.5">
-                                <ControlSelect
-                                    value={providerId}
-                                    onChange={(id) => {
-                                        const p = providers.find(x => x.id === id);
-                                        const first = p?.models[0]?.id ?? "";
+                                {/* Provider and model in one control — the
+                                    provider list is only useful next to what it
+                                    offers. */}
+                                <ModelPicker
+                                    providers={providers}
+                                    providerId={providerId}
+                                    model={model}
+                                    onSelect={(nextProvider, nextModel) => {
+                                        const p = providers.find(x => x.id === nextProvider);
                                         applyConfig({
-                                            providerId: id,
-                                            model: first,
+                                            providerId: nextProvider,
+                                            model: nextModel,
+                                            // A different model may offer other
+                                            // levels, or none at all.
                                             settings: Object.fromEntries(
-                                                controlsFor(p, first).map(c => [c.id, c.default]),
+                                                controlsFor(p, nextModel).map(c => [c.id, settings[c.id] ?? c.default]),
                                             ),
                                         });
                                     }}
-                                    options={providers.map(p => ({
-                                        id: p.id,
-                                        label: p.available ? p.label : `${p.label} (unavailable)`,
-                                    }))}
                                 />
-                                {provider && provider.models.length > 0 && (
-                                    <ControlSelect
-                                        value={model}
-                                        onChange={(m) => applyConfig({
-                                            model: m,
-                                            // The new model may offer different
-                                            // levels, or none at all.
-                                            settings: Object.fromEntries(
-                                                controlsFor(provider, m).map(c => [c.id, settings[c.id] ?? c.default]),
-                                            ),
-                                        })}
-                                        options={provider.models.map(m => ({ id: m.id, label: m.label }))}
-                                    />
-                                )}
+
                                 {/* Only knobs this provider honours */}
                                 {controls.map(control => (
                                     <ControlSelect

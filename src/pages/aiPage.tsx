@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import {
-    Square, PanelLeft, Plus, Trash2, ArrowUp, MessageCircle, RotateCcw, Pencil, Check,
+    Square, PanelLeft, Plus, Trash2, ArrowUp, ArrowDown, MessageCircle, RotateCcw, Pencil, Check,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import {
@@ -49,12 +49,14 @@ export default function AiPage() {
     const [chats, setChats] = useState<AiChatSummary[]>([]);
     const [customModels, setCustomModels] = useState<Record<string, string[]>>({});
     const [running, setRunning] = useState<string[]>([]);
+    // Following the newest message. Set from real intent, never inferred
+    // from a position we ourselves just wrote.
+    const [following, setFollowing] = useState(true);
 
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const seededRef = useRef(false);
     const lastChatIdRef = useRef<string | null>(null);
-    const stickRef = useRef(true);
 
     const provider = useMemo(
         () => providers.find(p => p.id === providerId) ?? null,
@@ -181,6 +183,7 @@ export default function AiPage() {
             if (!e.ctrlKey || e.key.toLowerCase() !== "n") return;
             e.preventDefault();
             newChat();
+            setFollowing(true);
             setPrompt("");
             inputRef.current?.focus();
         };
@@ -192,7 +195,7 @@ export default function AiPage() {
         if (!providerId || !text.trim() || streaming) return;
         // Sending is an explicit request to see what comes back, so re-follow
         // the bottom even if you had scrolled away to re-read something.
-        stickRef.current = true;
+        setFollowing(true);
         send(text, { providerId, model: model || undefined, settings })
             .then(refreshChats);
         setPrompt("");
@@ -222,6 +225,7 @@ export default function AiPage() {
         if (!loaded) return;
         const provider = providers.find(p => p.id === loaded.providerId);
         if (!provider) return;
+        setFollowing(true);
         setProviderId(provider.id);
         setModel(loaded.model ?? "");
         setSettings(loaded.settings ?? {});
@@ -238,47 +242,79 @@ export default function AiPage() {
     }, [searchParams, providerId, submit, setSearchParams]);
 
     /**
-     * Whether the view is following the bottom. Only your own scrolling changes
-     * it — measuring after new content has landed was the bug: a tall prompt
-     * pushes the distance past any threshold, so sending a long message read as
-     * "they scrolled up" and the view stayed put.
+     * Whether the view is following the bottom.
+     *
+     * Scroll events are dispatched asynchronously, but a live answer rewrites
+     * scrollTop every frame — so a wheel-up was undone by the next frame before
+     * its own event could unstick it, and the event then read "at bottom" and
+     * kept following. That is the fighting.
+     *
+     * Two signals instead of one: a wheel or key press upward is unambiguous
+     * intent and unsticks immediately, and scroll positions are only trusted
+     * when they came from you rather than from us. Reaching the bottom again
+     * resumes following.
      */
+    const programmaticRef = useRef(false);
+
+    /** Scrolls without the result being mistaken for the reader's own doing. */
+    const scrollToBottom = useCallback((viewport: HTMLElement) => {
+        if (viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 1) return;
+        programmaticRef.current = true;
+        viewport.scrollTop = viewport.scrollHeight;
+        // Cleared on the next frame, so it holds whether the scroll event
+        // arrives before or after.
+        requestAnimationFrame(() => { programmaticRef.current = false; });
+    }, []);
+
     useEffect(() => {
         const viewport = scrollRef.current?.querySelector<HTMLElement>("[data-radix-scroll-area-viewport]");
         if (!viewport) return;
+
         const onScroll = () => {
-            stickRef.current =
-                viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 80;
+            // Our own correction, not a decision by the reader.
+            if (programmaticRef.current) return;
+            setFollowing(viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 24);
         };
+        // Reading is a deliberate act; act on it before the frame can undo it.
+        const onWheel = (e: WheelEvent) => { if (e.deltaY < 0) setFollowing(false); };
+        const onKey = (e: KeyboardEvent) => {
+            if (["ArrowUp", "PageUp", "Home"].includes(e.key)) setFollowing(false);
+        };
+
         viewport.addEventListener("scroll", onScroll, { passive: true });
-        return () => viewport.removeEventListener("scroll", onScroll);
+        viewport.addEventListener("wheel", onWheel, { passive: true });
+        viewport.addEventListener("keydown", onKey);
+        return () => {
+            viewport.removeEventListener("scroll", onScroll);
+            viewport.removeEventListener("wheel", onWheel);
+            viewport.removeEventListener("keydown", onKey);
+        };
     }, [empty]);
 
-    // Follow the stream while stuck to the bottom. Opening another conversation
-    // re-sticks: a reopened chat should start at its newest message.
-    // Layout effect, so the jump happens before the top is ever painted.
+    const jumpToLatest = useCallback(() => {
+        const viewport = scrollRef.current?.querySelector<HTMLElement>("[data-radix-scroll-area-viewport]");
+        setFollowing(true);
+        if (viewport) scrollToBottom(viewport);
+    }, [scrollToBottom]);
+
+    // Follow the stream while following. Layout effect, so the jump happens
+    // before an out-of-place position is ever painted.
     useLayoutEffect(() => {
         const viewport = scrollRef.current?.querySelector<HTMLElement>("[data-radix-scroll-area-viewport]");
-        if (!viewport) return;
+        if (!viewport || !following) return;
 
+        scrollToBottom(viewport);
+
+        // Radix measures the viewport asynchronously, so a freshly opened
+        // conversation needs re-applying once the real height is known.
         const switched = chat?.id !== lastChatIdRef.current;
         lastChatIdRef.current = chat?.id ?? null;
-        if (switched) stickRef.current = true;
-        if (!stickRef.current) return;
-
-        viewport.scrollTop = viewport.scrollHeight;
-
-        if (switched) {
-            // Radix measures the viewport asynchronously, so re-apply once the
-            // first frame has settled and the real height is known.
-            const frame = requestAnimationFrame(() => {
-                viewport.scrollTop = viewport.scrollHeight;
-            });
-            return () => cancelAnimationFrame(frame);
-        }
+        if (!switched) return;
+        const frame = requestAnimationFrame(() => scrollToBottom(viewport));
+        return () => cancelAnimationFrame(frame);
         // updatedAt covers a message's content changing without the count
         // changing — committing a streamed answer over its placeholder.
-    }, [chat?.id, chat?.messages.length, chat?.updatedAt, revealed]);
+    }, [chat?.id, chat?.messages.length, chat?.updatedAt, revealed, following, scrollToBottom]);
 
 
     return (
@@ -288,7 +324,7 @@ export default function AiPage() {
                 activeId={chat?.id ?? null}
                 running={running}
                 onOpen={(id) => { openStoredChat(id); inputRef.current?.focus(); }}
-                onNew={() => { newChat(); inputRef.current?.focus(); }}
+                onNew={() => { newChat(); setFollowing(true); inputRef.current?.focus(); }}
                 onDelete={async (id) => {
                     await window.ai.deleteChat(id);
                     if (chat?.id === id) newChat();
@@ -371,7 +407,7 @@ export default function AiPage() {
                                                         {isLast && !streaming && (
                                                             <button
                                                                 onClick={() => {
-                                                                    stickRef.current = true;
+                                                                    setFollowing(true);
                                                                     rerun({ providerId, model: model || undefined, settings });
                                                                 }}
                                                                 aria-label="Ask again"
@@ -400,6 +436,18 @@ export default function AiPage() {
 
                 {/* Its own prompt box — the launcher's search input stays out of
                     the way while this view is open. */}
+                {/* Offered while the reader has scrolled away, so following can
+                    be resumed without hunting for the bottom by hand. */}
+                {!empty && !following && (
+                    <button
+                        onClick={jumpToLatest}
+                        className="absolute left-1/2 -translate-x-1/2 bottom-[104px] z-40 flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/[0.1] bg-[rgba(24,24,28,0.92)] backdrop-blur-md shadow-[0_4px_14px_rgba(0,0,0,0.4)] text-[10.5px] text-white/65 hover:text-white/90 hover:border-white/[0.18] transition-colors cursor-pointer animate-in fade-in slide-in-from-bottom-1 duration-150"
+                    >
+                        <ArrowDown size={11} />
+                        {streaming ? "Jump to latest" : "Jump to bottom"}
+                    </button>
+                )}
+
                 {/* Floats over the transcript once a conversation starts, so the
                     frosted panel has something moving behind it to blur. */}
                 <div className={empty ? "shrink-0 px-4 pr-5" : "absolute inset-x-0 bottom-3 z-30 px-4 pr-5"}>

@@ -1,6 +1,7 @@
 import { memo, useRef, type ReactNode } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 import { CopyButton } from "@/ai/copyButton.tsx";
 
 /**
@@ -9,6 +10,11 @@ import { CopyButton } from "@/ai/copyButton.tsx";
  * Raw HTML is deliberately not enabled (no rehype-raw). This is a renderer with
  * a preload bridge attached, so injecting model-authored HTML would be an XSS
  * surface; react-markdown escapes it by default and that stays true here.
+ *
+ * remark-breaks is on because this is a chat, not a document. CommonMark treats
+ * a single newline as a soft break and renders it as a space, so an answer like
+ * a list of numbers one per line collapsed onto one line. Inside fenced code
+ * newlines are literal already, so nothing there changes.
  *
  * Sized for an 800px launcher window rather than a document: tight leading,
  * small type, and anything that can outgrow the width scrolls in its own box.
@@ -122,7 +128,7 @@ function CodeBlock({ children }: { children: ReactNode }) {
 export const Markdown = memo(function Markdown({ children }: { children: string }) {
     return (
         <div className="text-[12.5px] leading-relaxed text-white/75 break-words">
-            <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+            <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={components}>
                 {children}
             </ReactMarkdown>
         </div>

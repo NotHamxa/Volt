@@ -19,6 +19,11 @@ const DEFAULTS = {
     settings: {},
     // Directory the CLI providers run in; null means the managed default.
     workspace: null,
+    // Model ids typed in by hand, per provider. Providers accept ids they never
+    // advertise — the Claude CLI lists five aliases but takes any model name —
+    // so remembering them is the only way an older model can join the list
+    // without a hard-coded catalogue here that would go stale.
+    customModels: {},
 };
 
 export function getPrefs() {
@@ -29,6 +34,9 @@ export function getPrefs() {
         model: saved.model ?? null,
         settings: saved.settings && typeof saved.settings === "object" ? saved.settings : {},
         workspace: saved.workspace ?? null,
+        customModels: saved.customModels && typeof saved.customModels === "object"
+            ? saved.customModels
+            : {},
     };
 }
 
@@ -37,6 +45,9 @@ export function setPrefs(patch) {
     const next = { ...getPrefs(), ...(patch ?? {}) };
     if (patch?.settings) {
         next.settings = { ...getPrefs().settings, ...patch.settings };
+    }
+    if (patch?.customModels) {
+        next.customModels = { ...getPrefs().customModels, ...patch.customModels };
     }
     store().set(KEY, next);
     return next;

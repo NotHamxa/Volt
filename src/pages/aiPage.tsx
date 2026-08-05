@@ -47,6 +47,7 @@ export default function AiPage() {
     const [model, setModel] = useState("");
     const [settings, setSettings] = useState<Record<string, string>>({});
     const [chats, setChats] = useState<AiChatSummary[]>([]);
+    const [customModels, setCustomModels] = useState<Record<string, string[]>>({});
 
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -73,6 +74,41 @@ export default function AiPage() {
     const messages = chat?.messages ?? [];
     const empty = messages.length === 0;
 
+    /**
+     * Models for one provider, fetched on demand and merged in.
+     *
+     * The provider list arrives without catalogues: reading them costs a CLI
+     * spawn each, and waiting on all of them held the toolbar empty for about
+     * two seconds. Only the provider actually in use is paid for.
+     */
+    const loadingModels = useRef(new Set<string>());
+    const ensureModels = useCallback(async (id: string) => {
+        if (!id || loadingModels.current.has(id)) return;
+        loadingModels.current.add(id);
+        const models = await window.ai.providerModels(id);
+        setProviders(list => list.map(p => (p.id === id ? { ...p, models } : p)));
+    }, []);
+
+    /** Remembering a hand-typed id is the only way an unadvertised model can
+     *  join the list, so it is persisted rather than kept for the session. */
+    const rememberModel = useCallback((id: string, modelId: string) => {
+        setCustomModels(current => {
+            const existing = current[id] ?? [];
+            if (existing.includes(modelId)) return current;
+            const next = { ...current, [id]: [...existing, modelId] };
+            window.ai.setPrefs({ customModels: next });
+            return next;
+        });
+    }, []);
+
+    const forgetModel = useCallback((id: string, modelId: string) => {
+        setCustomModels(current => {
+            const next = { ...current, [id]: (current[id] ?? []).filter(m => m !== modelId) };
+            window.ai.setPrefs({ customModels: next });
+            return next;
+        });
+    }, []);
+
     const refreshChats = useCallback(async () => {
         setChats(await window.ai.listChats());
     }, []);
@@ -92,17 +128,16 @@ export default function AiPage() {
                 ?? list[0];
             if (chosen) {
                 setProviderId(chosen.id);
-                const savedModel = chosen.models.some(m => m.id === prefs.model) ? prefs.model : null;
-                const modelId = savedModel ?? chosen.models[0]?.id ?? "";
-                setModel(modelId);
-                const saved = prefs.settings[chosen.id] ?? {};
-                setSettings(Object.fromEntries(
-                    controlsFor(chosen, modelId).map(c => [c.id, saved[c.id] ?? c.default]),
-                ));
+                // The saved id is enough to label the control immediately; the
+                // catalogue only matters once the picker is opened.
+                setModel(prefs.model ?? "");
+                setSettings(prefs.settings[chosen.id] ?? {});
+                ensureModels(chosen.id);
             }
+            setCustomModels(prefs.customModels ?? {});
             await refreshChats();
         })();
-    }, [refreshChats]);
+    }, [refreshChats, ensureModels]);
 
     // Reload the history list whenever the active chat is written to. Guarded so
     // a slow read can't set state after the view has been left.
@@ -170,15 +205,10 @@ export default function AiPage() {
         const provider = providers.find(p => p.id === loaded.providerId);
         if (!provider) return;
         setProviderId(provider.id);
-        const modelId = provider.models.some(m => m.id === loaded.model)
-            ? loaded.model!
-            : provider.models[0]?.id ?? "";
-        setModel(modelId);
-        const stored = loaded.settings ?? {};
-        setSettings(Object.fromEntries(
-            controlsFor(provider, modelId).map(c => [c.id, stored[c.id] ?? c.default]),
-        ));
-    }, [openChat, providers]);
+        setModel(loaded.model ?? "");
+        setSettings(loaded.settings ?? {});
+        ensureModels(provider.id);
+    }, [openChat, providers, ensureModels]);
 
     // Arrived from the launcher's "Ask AI" row with a question already typed.
     useEffect(() => {
@@ -385,6 +415,10 @@ export default function AiPage() {
                                     providers={providers}
                                     providerId={providerId}
                                     model={model}
+                                    onBrowse={ensureModels}
+                                    customModels={customModels}
+                                    onRemember={rememberModel}
+                                    onForget={forgetModel}
                                     onSelect={(nextProvider, nextModel) => {
                                         const p = providers.find(x => x.id === nextProvider);
                                         applyConfig({

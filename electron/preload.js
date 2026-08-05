@@ -75,6 +75,7 @@ contextBridge.exposeInMainWorld('electronStore', {
 
 contextBridge.exposeInMainWorld('ai', {
     listProviders: () => ipcRenderer.invoke('ai-list-providers'),
+    providerModels: (id) => ipcRenderer.invoke('ai-provider-models', id),
     send: (request) => ipcRenderer.invoke('ai-send', request),
     cancel: (requestId) => ipcRenderer.invoke('ai-cancel', requestId),
     setMode: (active) => ipcRenderer.send('ai-set-mode', active),

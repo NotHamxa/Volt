@@ -1,5 +1,5 @@
 import { app, ipcMain } from "electron";
-import { describeProviders, getProvider } from "../universal/ai/provider.js";
+import { describeProviders, getProvider, providerModels } from "../universal/ai/provider.js";
 import {
     createChat, readChat, listChats, deleteChat,
     appendMessage, finishAssistantMessage, updateChatConfig, trimForRerun,
@@ -29,6 +29,16 @@ export function registerAiIpc({ mainWindow, appStates }) {
             return await describeProviders();
         } catch (err) {
             console.error("ai-list-providers failed:", err?.message ?? err);
+            return [];
+        }
+    });
+
+    // Fetched per provider so opening the view doesn't wait on every CLI at
+    // once. Adapters cache their own catalogue, so this is slow only once.
+    ipcMain.handle("ai-provider-models", async (_, id) => {
+        try {
+            return await providerModels(id);
+        } catch {
             return [];
         }
     });

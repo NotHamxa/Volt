@@ -60,12 +60,6 @@ export async function describeProviders() {
         } catch (err) {
             availability = { available: false, detail: err?.message ?? "Check failed" };
         }
-        let models = [];
-        if (availability.available) {
-            try {
-                models = await p.models();
-            } catch { /* a provider with no model list is still usable */ }
-        }
         // Optional: CLI providers report whether they bill a plan or a key.
         let billing = null;
         try {
@@ -80,9 +74,29 @@ export async function describeProviders() {
             billing,
             available: availability.available,
             detail: availability.detail ?? null,
-            models,
+            // Deliberately empty. Reading a catalogue costs a CLI spawn —
+            // measured at two seconds for the set of providers registered here
+            // — and the view blocked on all of them before it could paint.
+            // Callers ask for the one provider they're using, via providerModels.
+            models: [],
             controls: p.controls(),
         };
     }));
     return described;
+}
+
+/**
+ * One provider's models. Slow the first time (a CLI spawn or an HTTP round
+ * trip) and cached by the adapter afterwards, so this is only ever paid for a
+ * provider actually being looked at.
+ */
+export async function providerModels(id) {
+    const provider = getProvider(id);
+    if (!provider) return [];
+    try {
+        return await provider.models();
+    } catch (err) {
+        console.warn(`Could not read models for ${id}:`, err?.message ?? err);
+        return [];
+    }
 }

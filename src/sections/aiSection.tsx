@@ -29,12 +29,23 @@ export default function AiSection() {
     const [prefs, setPrefsState] = useState<AiPrefs>({ providerId: null, model: null, settings: {}, workspace: null });
     const [workspace, setWorkspace] = useState<{ path: string; isDefault: boolean; defaultPath: string } | null>(null);
 
-    const fetchAll = useCallback(() => Promise.all([
-        window.ai.listProviders(),
-        window.ai.keyStatus(),
-        window.ai.getPrefs(),
-        window.ai.workspace(),
-    ]), []);
+    const fetchAll = useCallback(async () => {
+        const [list, status, saved, space] = await Promise.all([
+            window.ai.listProviders(),
+            window.ai.keyStatus(),
+            window.ai.getPrefs(),
+            window.ai.workspace(),
+        ]);
+        // Only the provider whose defaults are shown needs a catalogue; reading
+        // every one costs a CLI spawn each.
+        const active = list.find(p => p.id === saved.providerId)
+            ?? list.find(p => p.available) ?? list[0];
+        if (active) {
+            const models = await window.ai.providerModels(active.id);
+            active.models = models;
+        }
+        return [list, status, saved, space] as const;
+    }, []);
 
     const apply = useCallback(([list, status, saved, space]: Awaited<ReturnType<typeof fetchAll>>) => {
         setProviders(list);
@@ -143,9 +154,11 @@ export default function AiSection() {
                 <Row label="Provider" hint="Used when the AI view opens">
                     <SettingSelect
                         value={defaultProvider?.id ?? ""}
-                        onChange={(id) => {
-                            const p = providers.find(x => x.id === id);
-                            savePrefs({ providerId: id, model: p?.models[0]?.id ?? null });
+                        onChange={async (id) => {
+                            // The new provider's catalogue may not be loaded yet.
+                            const models = await window.ai.providerModels(id);
+                            setProviders(list => list.map(p => (p.id === id ? { ...p, models } : p)));
+                            savePrefs({ providerId: id, model: models[0]?.id ?? null });
                         }}
                         options={providers.map(p => ({
                             id: p.id,

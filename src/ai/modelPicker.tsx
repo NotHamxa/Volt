@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Search, ChevronRight, Check } from "lucide-react";
+import { Search, ChevronRight, Check, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover.tsx";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { providerLogo } from "@/ai/providerLogos.ts";
@@ -24,11 +24,19 @@ function monogram(label: string) {
     return label.slice(0, 2).toUpperCase();
 }
 
-export function ModelPicker({ providers, providerId, model, onSelect }: {
+export function ModelPicker({
+    providers, providerId, model, customModels, onSelect, onBrowse, onRemember, onForget,
+}: {
     providers: AiProviderInfo[];
     providerId: string;
     model: string;
+    /** Ids typed by hand, per provider, kept alongside the advertised ones. */
+    customModels: Record<string, string[]>;
     onSelect: (providerId: string, modelId: string) => void;
+    /** Asks for a provider's catalogue, which is fetched only when looked at. */
+    onBrowse: (providerId: string) => void;
+    onRemember: (providerId: string, modelId: string) => void;
+    onForget: (providerId: string, modelId: string) => void;
 }) {
     const [open, setOpen] = useState(false);
     const [browsing, setBrowsing] = useState(providerId);
@@ -49,19 +57,30 @@ export function ModelPicker({ providers, providerId, model, onSelect }: {
     const setOpenState = (next: boolean) => {
         setOpen(next);
         if (!next) return;
+        onBrowse(providerId);
         setBrowsing(providerId);
         setSearch("");
         setShowAll(false);
         setActive(0);
     };
 
+    // Remembered ids sit above the advertised ones: they were asked for by
+    // name, so they're the ones being sought.
+    const catalogue = useMemo(() => {
+        const advertised = shown?.models ?? [];
+        const known = new Set(advertised.map(m => m.id));
+        const custom = (customModels[shown?.id ?? ""] ?? [])
+            .filter(id => !known.has(id))
+            .map(id => ({ id, label: id, detail: "Added by you", custom: true }));
+        return [...custom, ...advertised];
+    }, [shown, customModels]);
+
     const matches = useMemo(() => {
         const term = search.trim().toLowerCase();
-        const all = shown?.models ?? [];
-        if (!term) return all;
-        return all.filter(m =>
+        if (!term) return catalogue;
+        return catalogue.filter(m =>
             m.label.toLowerCase().includes(term) || m.id.toLowerCase().includes(term));
-    }, [shown, search]);
+    }, [catalogue, search]);
 
     // A typed id that isn't in the list is offered verbatim, rather than
     // leaving "no models match" as a dead end.
@@ -79,8 +98,11 @@ export function ModelPicker({ providers, providerId, model, onSelect }: {
             ?.scrollIntoView({ block: "nearest" });
     }, [active]);
 
-    const choose = (modelId: string) => {
-        if (shown) onSelect(shown.id, modelId);
+    const choose = (modelId: string, remember = false) => {
+        if (!shown) return;
+        // Typed once, then it stays in the list.
+        if (remember) onRemember(shown.id, modelId);
+        onSelect(shown.id, modelId);
         setOpen(false);
     };
 
@@ -115,7 +137,7 @@ export function ModelPicker({ providers, providerId, model, onSelect }: {
                             return (
                                 <button
                                     key={p.id}
-                                    onClick={() => { setBrowsing(p.id); setShowAll(false); setActive(0); }}
+                                    onClick={() => { onBrowse(p.id); setBrowsing(p.id); setShowAll(false); setActive(0); }}
                                     title={p.available ? p.label : `${p.label} — unavailable`}
                                     aria-label={p.label}
                                     className={`relative flex items-center justify-center w-7 h-7 rounded-lg text-[9.5px] font-semibold transition-colors cursor-pointer ${
@@ -153,8 +175,9 @@ export function ModelPicker({ providers, providerId, model, onSelect }: {
                                         e.preventDefault();
                                         // Falls through to a typed id when the
                                         // search matched nothing in the list.
-                                        const pick = visible[active]?.id ?? exactId;
-                                        if (pick) choose(pick);
+                                        const listed = visible[active]?.id;
+                                        if (listed) choose(listed);
+                                        else if (exactId) choose(exactId, true);
                                     } else if (e.key === "Escape") {
                                         // Close the picker only; the launcher's
                                         // own handler would leave the AI view.
@@ -162,7 +185,7 @@ export function ModelPicker({ providers, providerId, model, onSelect }: {
                                         setOpen(false);
                                     }
                                 }}
-                                placeholder="Search models…"
+                                placeholder="Search models, or type an id…"
                                 className="w-full h-9 pl-8 pr-3 bg-transparent text-[12px] text-white/85 placeholder:text-white/25 outline-none"
                             />
                         </div>
@@ -176,7 +199,11 @@ export function ModelPicker({ providers, providerId, model, onSelect }: {
                                 )}
 
                                 {visible.length === 0 && !exactId && (
-                                    <p className="px-2 py-3 text-[11px] text-white/25">No models match.</p>
+                                    <p className="px-2 py-3 text-[11px] text-white/25">
+                                        {!shown?.models.length && shown?.available
+                                            ? "Loading models…"
+                                            : "No models match."}
+                                    </p>
                                 )}
 
                                 {visible.map((m, i) => {
@@ -204,6 +231,21 @@ export function ModelPicker({ providers, providerId, model, onSelect }: {
                                                 </span>
                                             </div>
                                             {selected && <Check size={12} className="shrink-0 text-sky-300/80" />}
+                                            {"custom" in m && (
+                                                <span
+                                                    role="button"
+                                                    tabIndex={-1}
+                                                    aria-label={`Forget ${m.id}`}
+                                                    title="Remove from the list"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (shown) onForget(shown.id, m.id);
+                                                    }}
+                                                    className="shrink-0 p-0.5 rounded text-white/25 hover:text-red-300/80 transition-colors"
+                                                >
+                                                    <X size={11} />
+                                                </span>
+                                            )}
                                         </button>
                                     );
                                 })}
@@ -216,7 +258,7 @@ export function ModelPicker({ providers, providerId, model, onSelect }: {
                                     would fall out of date. */}
                                 {exactId && (
                                     <button
-                                        onClick={() => choose(exactId)}
+                                        onClick={() => choose(exactId, true)}
                                         className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left hover:bg-white/[0.06] transition-colors cursor-pointer"
                                     >
                                         <div className="flex-1 min-w-0">
@@ -224,7 +266,7 @@ export function ModelPicker({ providers, providerId, model, onSelect }: {
                                                 Use “{exactId}”
                                             </span>
                                             <span className="block truncate text-[10px] text-white/30 mt-px">
-                                                Any model id {shown?.label} accepts
+                                                Adds it to the list for next time
                                             </span>
                                         </div>
                                     </button>
@@ -246,6 +288,15 @@ export function ModelPicker({ providers, providerId, model, onSelect }: {
                                 )}
                             </div>
                         </ScrollArea>
+
+                        {/* The advertised list is rarely the whole set — the
+                            Claude CLI lists five aliases but accepts any model
+                            name — so say that rather than leave it to chance. */}
+                        {!exactId && (
+                            <p className="shrink-0 px-3 py-1.5 border-t border-white/[0.06] text-[10px] text-white/25">
+                                Type any model id to use one that isn't listed
+                            </p>
+                        )}
                     </div>
                 </div>
             </PopoverContent>

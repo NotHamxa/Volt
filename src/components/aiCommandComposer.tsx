@@ -37,13 +37,10 @@ export default function AiCommandComposer({ existing, onDraft, placeholder }: {
                 ?? null;
             setProvider(chosen);
             if (chosen) {
-                const modelId = chosen.models.some(m => m.id === prefs.model)
-                    ? prefs.model!
-                    : chosen.models[0]?.id;
-                setModel(modelId);
-                const controls = chosen.models.find(m => m.id === modelId)?.controls ?? chosen.controls;
-                const saved = prefs.settings[chosen.id] ?? {};
-                setSettings(Object.fromEntries(controls.map(c => [c.id, saved[c.id] ?? c.default])));
+                // The saved id is enough; the provider falls back to its own
+                // default when this is undefined, so no catalogue is needed.
+                setModel(prefs.model ?? undefined);
+                setSettings(prefs.settings[chosen.id] ?? {});
             }
         })();
         return () => { cancelled = true; };

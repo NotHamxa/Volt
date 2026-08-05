@@ -80,11 +80,15 @@ declare global {
         settings: Record<string, Record<string, string>>;
         /** Directory the CLI providers run in; null means the managed default. */
         workspace: string | null;
+        /** Model ids typed by hand, per provider id, so they join the list. */
+        customModels: Record<string, string[]>;
     };
 
     interface Window {
         ai: {
             listProviders: () => Promise<AiProviderInfo[]>;
+            /** Models arrive separately — reading a catalogue costs a CLI spawn. */
+            providerModels: (id: string) => Promise<AiProviderInfo["models"]>;
             keyStatus: () => Promise<{ encryptionAvailable: boolean; keys: Record<string, boolean> }>;
             setKey: (providerId: string, key: string) => Promise<{ ok: boolean; detail?: string }>;
             clearKey: (providerId: string) => Promise<boolean>;

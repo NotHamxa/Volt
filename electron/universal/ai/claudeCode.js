@@ -3,6 +3,7 @@ import fs from "fs";
 import os from "os";
 import { registerProvider } from "./provider.js";
 import { claudeAuthMode } from "./cliAuth.js";
+import { workspaceDir } from "./workspace.js";
 
 /**
  * Claude via the Agent SDK, driving the user's *already installed* claude.exe.
@@ -165,6 +166,8 @@ export const claudeCodeProvider = registerProvider({
         const bin = findClaudeBinary();
         const options = {
             permissionMode: "bypassPermissions",
+            // Explicit, or the session would run wherever the app was launched.
+            cwd: workspaceDir(),
             // Without this the SDK only emits whole assistant messages, so the
             // answer appears in one lump when the turn finishes.
             includePartialMessages: true,

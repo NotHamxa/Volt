@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, Eye, EyeOff, KeyRound, ShieldAlert, Trash2, RefreshCw } from "lucide-react";
+import { Check, Eye, EyeOff, KeyRound, ShieldAlert, Trash2, RefreshCw, FolderOpen } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
 import {
@@ -25,19 +25,22 @@ export default function AiSection() {
     const [loading, setLoading] = useState(true);
     const [keys, setKeys] = useState<Record<string, boolean>>({});
     const [canEncrypt, setCanEncrypt] = useState(true);
-    const [prefs, setPrefsState] = useState<AiPrefs>({ providerId: null, model: null, settings: {} });
+    const [prefs, setPrefsState] = useState<AiPrefs>({ providerId: null, model: null, settings: {}, workspace: null });
+    const [workspace, setWorkspace] = useState<{ path: string; isDefault: boolean; defaultPath: string } | null>(null);
 
     const fetchAll = useCallback(() => Promise.all([
         window.ai.listProviders(),
         window.ai.keyStatus(),
         window.ai.getPrefs(),
+        window.ai.workspace(),
     ]), []);
 
-    const apply = useCallback(([list, status, saved]: Awaited<ReturnType<typeof fetchAll>>) => {
+    const apply = useCallback(([list, status, saved, space]: Awaited<ReturnType<typeof fetchAll>>) => {
         setProviders(list);
         setKeys(status.keys);
         setCanEncrypt(status.encryptionAvailable);
         setPrefsState(saved);
+        setWorkspace(space);
         setLoading(false);
     }, []);
 
@@ -159,6 +162,50 @@ export default function AiSection() {
                         />
                     </Row>
                 )}
+
+                {/* Without an explicit root the CLIs inherit whatever directory
+                    the app was launched from, which is nobody's choice. */}
+                <div className="flex flex-col gap-2 px-4 py-3 rounded-lg bg-white/[0.025] border border-white/[0.05]">
+                    <div className="flex items-center justify-between gap-5">
+                        <div className="min-w-0">
+                            <p className="text-[12px] text-white/70">Working folder</p>
+                            <p className="text-[10.5px] text-white/25 mt-0.5">
+                                Where the CLI providers read and write files
+                            </p>
+                        </div>
+                        <div className="shrink-0 flex items-center gap-1.5">
+                            <button
+                                onClick={async () => {
+                                    const picked = await window.electron.showFolderDialog();
+                                    if (picked) {
+                                        await savePrefs({ workspace: picked });
+                                        setWorkspace(await window.ai.workspace());
+                                    }
+                                }}
+                                className="flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-white/[0.05] border border-white/[0.08] text-[11px] text-white/65 hover:bg-white/[0.09] hover:text-white/85 transition-colors cursor-pointer"
+                            >
+                                <FolderOpen size={12} /> Change
+                            </button>
+                            {workspace && !workspace.isDefault && (
+                                <button
+                                    onClick={async () => {
+                                        await savePrefs({ workspace: null });
+                                        setWorkspace(await window.ai.workspace());
+                                    }}
+                                    className="h-7 px-2.5 rounded-md text-[11px] text-white/35 hover:text-white/70 hover:bg-white/[0.06] transition-colors cursor-pointer"
+                                >
+                                    Reset
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                    <p className="text-[10.5px] font-mono text-white/35 break-all">
+                        {workspace?.path ?? "…"}
+                        {workspace?.isDefault && (
+                            <span className="ml-1.5 font-sans text-white/20">(managed default)</span>
+                        )}
+                    </p>
+                </div>
 
                 {defaultControls.map(control => (
                     <Row key={control.id} label={control.label} hint={defaultProvider.label}>

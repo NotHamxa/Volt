@@ -74,6 +74,8 @@ declare global {
         model: string | null;
         /** Per provider id → { controlId: value } */
         settings: Record<string, Record<string, string>>;
+        /** Directory the CLI providers run in; null means the managed default. */
+        workspace: string | null;
     };
 
     interface Window {
@@ -84,6 +86,7 @@ declare global {
             clearKey: (providerId: string) => Promise<boolean>;
             getPrefs: () => Promise<AiPrefs>;
             setPrefs: (patch: Partial<AiPrefs>) => Promise<AiPrefs>;
+            workspace: () => Promise<{ path: string; isDefault: boolean; defaultPath: string }>;
             send: (request: {
                 requestId: string;
                 providerId: string;

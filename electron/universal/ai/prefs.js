@@ -17,6 +17,8 @@ const DEFAULTS = {
     model: null,
     // Per provider, keyed by provider id → { controlId: value }
     settings: {},
+    // Directory the CLI providers run in; null means the managed default.
+    workspace: null,
 };
 
 export function getPrefs() {
@@ -26,6 +28,7 @@ export function getPrefs() {
         providerId: saved.providerId ?? null,
         model: saved.model ?? null,
         settings: saved.settings && typeof saved.settings === "object" ? saved.settings : {},
+        workspace: saved.workspace ?? null,
     };
 }
 

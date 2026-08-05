@@ -4,6 +4,7 @@ import os from "os";
 import { spawn } from "child_process";
 import { registerProvider } from "./provider.js";
 import { codexAuthMode } from "./cliAuth.js";
+import { workspaceDir } from "./workspace.js";
 
 /**
  * Codex through the user's installed CLI, driven by `codex exec --json`.
@@ -255,7 +256,10 @@ export const codexProvider = registerProvider({
             return;
         }
 
-        const args = ["exec", "--json", "--skip-git-repo-check", "--color", "never"];
+        const root = workspaceDir();
+        // --cd sets Codex's own workspace root; the spawn cwd keeps anything
+        // it shells out to in the same place.
+        const args = ["exec", "--json", "--skip-git-repo-check", "--color", "never", "--cd", root];
         if (model && model !== DEFAULT_MODEL) args.push("--model", model);
         // Reasoning effort has no flag of its own; it's a config override.
         if (settings?.effort) args.push("-c", `model_reasoning_effort="${settings.effort}"`);
@@ -265,6 +269,7 @@ export const codexProvider = registerProvider({
         else args.push(prompt);
 
         const child = spawn(bin, args, {
+            cwd: root,
             // Without this the CLI waits on stdin for extra input and never
             // starts the turn.
             stdio: ["ignore", "pipe", "pipe"],

@@ -7,6 +7,7 @@ import {
 } from "../universal/ai/chatStore.js";
 import { keyStatus, setKey, clearKey, encryptionAvailable } from "../universal/ai/credentials.js";
 import { getPrefs, setPrefs } from "../universal/ai/prefs.js";
+import { workspaceDir, defaultWorkspace } from "../universal/ai/workspace.js";
 // Importing an adapter registers it.
 import "../universal/ai/claudeCode.js";
 import "../universal/ai/openaiCompatible.js";
@@ -122,6 +123,12 @@ export function registerAiIpc({ mainWindow, appStates }) {
     // --- preferences -------------------------------------------------------
     ipcMain.handle("ai-get-prefs", () => getPrefs());
     ipcMain.handle("ai-set-prefs", (_, patch) => setPrefs(patch));
+    // Where the CLI providers actually run — resolved, not just the pref.
+    ipcMain.handle("ai-workspace", () => ({
+        path: workspaceDir(),
+        isDefault: !getPrefs().workspace,
+        defaultPath: defaultWorkspace(),
+    }));
 
     // --- chats -------------------------------------------------------------
     ipcMain.handle("ai-list-chats", () => listChats());

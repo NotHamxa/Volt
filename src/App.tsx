@@ -154,6 +154,14 @@ export default function App() {
                 }
                 setTimeout(() => inputRef.current?.focus(), 0);
             }
+            // Ctrl+N opens the AI view. Once there, the view handles it itself
+            // so the shortcut starts a fresh conversation rather than doing
+            // nothing on a route it is already on.
+            if (e.ctrlKey && e.key.toLowerCase() === "n" && locationRef.current !== '/ai') {
+                e.preventDefault();
+                setQuery("");
+                navigate('/ai');
+            }
             if (e.ctrlKey && e.key.toLowerCase() === "h") {
                 e.preventDefault();
                 if (locationRef.current === '/settings') {

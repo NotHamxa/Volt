@@ -14,7 +14,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { Kbd } from "@/components/ui/kbd.tsx";
 import { useChat } from "@/ai/useChat.ts";
-import { Markdown } from "@/ai/markdown.tsx";
+import { useSmoothText } from "@/ai/useSmoothText.ts";
+import { Markdown, StreamingMarkdown } from "@/ai/markdown.tsx";
 import { CopyButton } from "@/ai/copyButton.tsx";
 import logo from "@/assets/icon.png";
 
@@ -60,6 +61,10 @@ export default function AiPage() {
     // A model can narrow its provider's knobs — Claude's Haiku takes no effort
     // level at all — so the model's own list wins when it declares one.
     const controls = useMemo(() => controlsFor(provider, model), [provider, model]);
+
+    // Providers deliver in slabs, not tokens; this paces the reveal so the
+    // answer reads as it is written.
+    const revealed = useSmoothText(partial, !streaming);
 
     // Declared before the hooks below, which use them as dependencies. A `const`
     // is in its temporal dead zone until this line runs, so leaving these at the
@@ -115,6 +120,20 @@ export default function AiPage() {
         window.ai.setMode(true);
         return () => window.ai.setMode(false);
     }, []);
+
+    // Ctrl+N starts a fresh conversation. A running turn is left alone: it is
+    // owned by the main process and still writes its answer to its own chat.
+    useEffect(() => {
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (!e.ctrlKey || e.key.toLowerCase() !== "n") return;
+            e.preventDefault();
+            newChat();
+            setPrompt("");
+            inputRef.current?.focus();
+        };
+        window.addEventListener("keydown", onKeyDown);
+        return () => window.removeEventListener("keydown", onKeyDown);
+    }, [newChat]);
 
     const submit = useCallback((text: string) => {
         if (!providerId || !text.trim() || streaming) return;
@@ -210,7 +229,7 @@ export default function AiPage() {
         }
         // updatedAt covers a message's content changing without the count
         // changing — committing a streamed answer over its placeholder.
-    }, [chat?.id, chat?.messages.length, chat?.updatedAt, partial]);
+    }, [chat?.id, chat?.messages.length, chat?.updatedAt, revealed]);
 
 
     return (
@@ -273,7 +292,7 @@ export default function AiPage() {
                                     );
                                 }
 
-                                const body = live ? partial : m.content;
+                                const body = live ? revealed : m.content;
                                 return (
                                     // min-w-0 so a wide table scrolls inside its
                                     // own box instead of stretching the row.
@@ -285,7 +304,11 @@ export default function AiPage() {
                                             </span>
                                         ) : (
                                             <div className="min-w-0 flex-1">
-                                                <Markdown>{body}</Markdown>
+                                                {/* While streaming, only the block
+                                                    being written is re-parsed. */}
+                                                {live
+                                                    ? <StreamingMarkdown>{body}</StreamingMarkdown>
+                                                    : <Markdown>{body}</Markdown>}
                                                 {live && (
                                                     <span className="inline-block w-[7px] h-[13px] -mt-0.5 rounded-[1px] bg-white/40 animate-pulse" />
                                                 )}

@@ -18,6 +18,26 @@ export function useChat() {
     const chatRef = useRef<AiChat | null>(null);
     useEffect(() => { chatRef.current = chat; }, [chat]);
 
+    // Tokens arrive faster than the screen refreshes, so they're accumulated and
+    // handed to React once per frame. Rendering per token meant a full markdown
+    // re-parse per token — the work that made streaming feel like it was
+    // struggling, and it got worse the longer the answer ran.
+    const bufferRef = useRef("");
+    const frameRef = useRef<number | null>(null);
+
+    const flush = useCallback(() => {
+        frameRef.current = null;
+        if (!bufferRef.current) return;
+        partialRef.current += bufferRef.current;
+        bufferRef.current = "";
+        setPartial(partialRef.current);
+    }, []);
+
+    // Nothing should be left scheduled against an unmounted view.
+    useEffect(() => () => {
+        if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+    }, []);
+
     // A single subscription for the window's lifetime; chunks are matched to the
     // active request so a cancelled turn's late chunks are ignored.
     useEffect(() => {
@@ -25,8 +45,8 @@ export function useChat() {
             if (chunk.requestId !== requestIdRef.current) return;
 
             if (chunk.type === "text") {
-                partialRef.current += chunk.text;
-                setPartial(partialRef.current);
+                bufferRef.current += chunk.text;
+                if (frameRef.current === null) frameRef.current = requestAnimationFrame(flush);
                 return;
             }
             if (chunk.type === "error") {
@@ -57,7 +77,7 @@ export function useChat() {
             }
         });
         return detach;
-    }, []);
+    }, [flush]);
 
     /**
      * Returns the loaded chat so the caller can restore its provider setup.

@@ -61,6 +61,12 @@ export default function AiPage() {
     // level at all — so the model's own list wins when it declares one.
     const controls = useMemo(() => controlsFor(provider, model), [provider, model]);
 
+    // Declared before the hooks below, which use them as dependencies. A `const`
+    // is in its temporal dead zone until this line runs, so leaving these at the
+    // foot of the component threw on every render of this view.
+    const messages = chat?.messages ?? [];
+    const empty = messages.length === 0;
+
     const refreshChats = useCallback(async () => {
         setChats(await window.ai.listChats());
     }, []);
@@ -202,10 +208,10 @@ export default function AiPage() {
             });
             return () => cancelAnimationFrame(frame);
         }
-    }, [chat?.id, chat?.messages.length, partial]);
+        // updatedAt covers a message's content changing without the count
+        // changing — committing a streamed answer over its placeholder.
+    }, [chat?.id, chat?.messages.length, chat?.updatedAt, partial]);
 
-    const messages = chat?.messages ?? [];
-    const empty = messages.length === 0;
 
     return (
         <div className="relative flex-1 min-h-0 flex">

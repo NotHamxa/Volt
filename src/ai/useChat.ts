@@ -36,15 +36,24 @@ export function useChat() {
             if (chunk.type === "done") {
                 const current = chatRef.current;
                 requestIdRef.current = null;
+
+                // Read the committed transcript *before* clearing the live
+                // buffer. Clearing first rendered the answer as an empty
+                // placeholder for a frame — the transcript collapsed, the
+                // viewport clamped, and the restored content never scrolled
+                // back because none of the effect's dependencies had changed.
+                let updated: AiChat | null = null;
+                if (current) {
+                    try {
+                        updated = await window.ai.getChat(current.id);
+                    } catch { /* keep what's on screen */ }
+                }
+
+                // Batched into one render, so the message never blanks.
+                if (updated) setChat(updated);
                 setStreaming(false);
                 setPartial("");
                 partialRef.current = "";
-                // The main process already committed the answer before sending
-                // this, so re-read rather than writing it a second time.
-                if (current) {
-                    const updated = await window.ai.getChat(current.id);
-                    if (updated) setChat(updated);
-                }
             }
         });
         return detach;

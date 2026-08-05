@@ -336,11 +336,14 @@ const QueryComponent = memo(({
                 (highlighted || isFocused) ? "bg-white/10" : "bg-transparent"
             } ${isFocused ? "outline outline-[1px] outline-offset-[-1px] outline-white/[0.18]" : "outline-none"}`}
         >
-            <div className="flex items-center gap-2">
-                {icon}
-                <Label>{name}</Label>
+            {/* min-w-0 lets the name shrink; without it the flex item keeps its
+                content width and a long file name wraps to a second line,
+                which left rows at uneven heights and centred the text. */}
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+                <span className="shrink-0 flex items-center">{icon}</span>
+                <Label className="block truncate min-w-0">{name}</Label>
             </div>
-            <Label className="ml-auto opacity-70 text-[12px] cursor-default">
+            <Label className="shrink-0 ml-auto max-w-[38%] block truncate opacity-70 text-[12px] cursor-default">
                 {labelText}
             </Label>
         </button>
@@ -354,11 +357,15 @@ const QueryComponent = memo(({
                         <TooltipTrigger asChild>
                             {buttonContent}
                         </TooltipTrigger>
-                        {type === "file" && path && (
-                            <TooltipContent side={"top"}>
-                                <span>{path}</span>
-                            </TooltipContent>
-                        )}
+                        {/* Now that names are cut off, the tooltip carries the
+                            whole one — it used to show the path for files only,
+                            which left a long app name unreadable anywhere. */}
+                        <TooltipContent side="top" className="max-w-[540px]">
+                            <span className="block break-all">{name}</span>
+                            {path && type !== "setting" && path !== name && (
+                                <span className="block break-all opacity-60 text-[11px] mt-0.5">{path}</span>
+                            )}
+                        </TooltipContent>
                     </Tooltip>
                 </ContextMenuTrigger>
                 <ContextMenuContent>

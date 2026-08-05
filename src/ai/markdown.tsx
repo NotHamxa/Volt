@@ -82,15 +82,34 @@ const components: Components = {
     // the page — takes the horizontal scroll.
     table: ({ children }) => (
         <div className="my-2 overflow-x-auto scrollbar-thin-shadcn rounded-lg border border-white/[0.08]">
-            <table className="w-full border-collapse text-[11.5px]">{children}</table>
+            {/* min-w-full, not w-full: w-full pinned the table to the wrapper so
+                it could never overflow, which made the scroll container
+                decorative and crushed wide tables into the available space. */}
+            <table className="min-w-full border-collapse text-[11.5px]">{children}</table>
         </div>
     ),
-    thead: ({ children }) => <thead className="bg-white/[0.04]">{children}</thead>,
-    tr: ({ children }) => <tr className="border-b border-white/[0.06] last:border-0">{children}</tr>,
-    th: ({ children }) => (
-        <th className="px-2.5 py-1.5 text-left font-medium text-white/70 whitespace-nowrap">{children}</th>
+    thead: ({ children }) => <thead className="bg-white/[0.05]">{children}</thead>,
+    tr: ({ children }) => <tr className="border-b border-white/[0.05] last:border-0">{children}</tr>,
+
+    // `style` carries the column alignment GFM declares in its delimiter row
+    // (`|---:|`). Dropping it, as these did, silently ignored every alignment
+    // an answer asked for. The inline value also beats the default class below.
+    th: ({ children, style }) => (
+        <th
+            style={style}
+            className="px-3 py-2 text-left font-medium text-white/75 whitespace-nowrap border-b border-white/[0.1] border-r border-white/[0.05] last:border-r-0"
+        >
+            {children}
+        </th>
     ),
-    td: ({ children }) => <td className="px-2.5 py-1.5 align-top text-white/65">{children}</td>,
+    td: ({ children, style }) => (
+        <td
+            style={style}
+            className="px-3 py-1.5 align-top text-white/65 border-r border-white/[0.04] last:border-r-0"
+        >
+            {children}
+        </td>
+    ),
 };
 
 /**

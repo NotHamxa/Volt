@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
-import { Square, PanelLeft, Plus, Trash2, ArrowUp, MessageCircle, RotateCcw } from "lucide-react";
+import {
+    Square, PanelLeft, Plus, Trash2, ArrowUp, MessageCircle, RotateCcw, MoreHorizontal, Pencil,
+} from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
+import {
+    DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu.tsx";
 import {
     InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea,
 } from "@/components/ui/input-group.tsx";
@@ -196,6 +201,15 @@ export default function AiPage() {
                 onDelete={async (id) => {
                     await window.ai.deleteChat(id);
                     if (chat?.id === id) newChat();
+                    refreshChats();
+                }}
+                onDeleteAll={async () => {
+                    await window.ai.deleteAllChats();
+                    newChat();
+                    refreshChats();
+                }}
+                onRename={async (id, title) => {
+                    await window.ai.renameChat(id, title);
                     refreshChats();
                 }}
             />
@@ -399,17 +413,27 @@ export default function AiPage() {
  * left the trigger, so a conversation could never actually be clicked. Closing
  * is deferred instead, and clicking the rail pins the panel open.
  */
-function ChatSidebar({ chats, activeId, onOpen, onNew, onDelete }: {
+function ChatSidebar({ chats, activeId, onOpen, onNew, onDelete, onDeleteAll, onRename }: {
     chats: AiChatSummary[];
     activeId: string | null;
     onOpen: (id: string) => void;
     onNew: () => void;
     onDelete: (id: string) => void;
+    onDeleteAll: () => void;
+    onRename: (id: string, title: string) => void;
 }) {
     const [hovering, setHovering] = useState(false);
     const [pinned, setPinned] = useState(false);
+    const [menuId, setMenuId] = useState<string | null>(null);
+    const [renamingId, setRenamingId] = useState<string | null>(null);
+    const [draft, setDraft] = useState("");
+    const [confirmingAll, setConfirmingAll] = useState(false);
     const closeTimer = useRef<NodeJS.Timeout | null>(null);
-    const open = hovering || pinned;
+    // An open menu or a rename in progress keeps the panel up — the pointer has
+    // to leave the sidebar to reach a portalled menu, and that must not dismiss
+    // the thing the menu belongs to.
+    const busy = menuId !== null || renamingId !== null || confirmingAll;
+    const open = hovering || pinned || busy;
 
     // The panel overlaps the rail, so crossing between them fires a leave then
     // an enter. Deferring the close lets the enter cancel it.
@@ -422,6 +446,12 @@ function ChatSidebar({ chats, activeId, onOpen, onNew, onDelete }: {
         closeTimer.current = setTimeout(() => setHovering(false), 180);
     };
     useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
+
+    const commitRename = (id: string) => {
+        onRename(id, draft);
+        setRenamingId(null);
+        setDraft("");
+    };
 
     return (
         <>
@@ -479,23 +509,98 @@ function ChatSidebar({ chats, activeId, onOpen, onNew, onDelete }: {
                                     activeId === c.id ? "bg-white/[0.08]" : "hover:bg-white/[0.05]"
                                 }`}
                             >
-                                <button
-                                    onClick={() => onOpen(c.id)}
-                                    className="flex-1 min-w-0 flex items-center gap-2.5 px-2 py-1.5 cursor-pointer"
-                                >
-                                    <MessageCircle size={13} className="shrink-0 text-white/30" />
-                                    <span className="block truncate text-left text-[11.5px] text-white/70">{c.title}</span>
-                                </button>
-                                <button
-                                    onClick={() => onDelete(c.id)}
-                                    aria-label={`Delete ${c.title}`}
-                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 mr-1 rounded text-white/30 hover:text-red-300/80 cursor-pointer"
-                                >
-                                    <Trash2 size={11} />
-                                </button>
+                                {renamingId === c.id ? (
+                                    <input
+                                        autoFocus
+                                        value={draft}
+                                        onChange={(e) => setDraft(e.target.value)}
+                                        onBlur={() => commitRename(c.id)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter") { e.preventDefault(); commitRename(c.id); }
+                                            // Stop Escape reaching the launcher's
+                                            // handler, which would leave the view.
+                                            if (e.key === "Escape") {
+                                                e.stopPropagation();
+                                                setRenamingId(null);
+                                            }
+                                        }}
+                                        className="flex-1 min-w-0 mx-1 my-0.5 px-1.5 py-1 rounded bg-white/[0.06] border border-white/[0.12] text-[11.5px] text-white/85 outline-none"
+                                    />
+                                ) : (
+                                    <>
+                                        <button
+                                            onClick={() => onOpen(c.id)}
+                                            className="flex-1 min-w-0 flex items-center gap-2.5 px-2 py-1.5 cursor-pointer"
+                                        >
+                                            <MessageCircle size={13} className="shrink-0 text-white/30" />
+                                            <span className="block truncate text-left text-[11.5px] text-white/70">{c.title}</span>
+                                        </button>
+                                        <DropdownMenu
+                                            open={menuId === c.id}
+                                            onOpenChange={(next) => setMenuId(next ? c.id : null)}
+                                        >
+                                            <DropdownMenuTrigger asChild>
+                                                <button
+                                                    aria-label={`Options for ${c.title}`}
+                                                    className={`p-1 mr-1 rounded text-white/30 hover:text-white/80 transition-opacity cursor-pointer ${
+                                                        menuId === c.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                                                    }`}
+                                                >
+                                                    <MoreHorizontal size={13} />
+                                                </button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent
+                                                align="end"
+                                                side="right"
+                                                className="min-w-36 rounded-lg border-white/[0.09] bg-[rgba(18,18,20,0.98)] backdrop-blur-md shadow-[0_8px_24px_rgba(0,0,0,0.45)]"
+                                            >
+                                                <DropdownMenuItem
+                                                    onSelect={() => { setDraft(c.title); setRenamingId(c.id); }}
+                                                    className="text-[11.5px] text-white/70 focus:bg-white/[0.07] focus:text-white/90"
+                                                >
+                                                    <Pencil size={12} /> Rename
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem
+                                                    onSelect={() => onDelete(c.id)}
+                                                    className="text-[11.5px] text-red-300/75 focus:bg-red-400/[0.1] focus:text-red-300"
+                                                >
+                                                    <Trash2 size={12} /> Delete
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </>
+                                )}
                             </div>
                         ))}
                     </ScrollArea>
+
+                    {chats.length > 0 && (
+                        <div className="shrink-0 px-2 pb-2 pt-1 border-t border-white/[0.06]">
+                            {confirmingAll ? (
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        onClick={() => { onDeleteAll(); setConfirmingAll(false); }}
+                                        className="flex-1 px-2 py-1.5 rounded-md text-[11px] text-red-300/85 bg-red-400/[0.1] border border-red-400/20 hover:bg-red-400/[0.16] transition-colors cursor-pointer"
+                                    >
+                                        Delete {chats.length}
+                                    </button>
+                                    <button
+                                        onClick={() => setConfirmingAll(false)}
+                                        className="px-2 py-1.5 rounded-md text-[11px] text-white/45 hover:text-white/75 hover:bg-white/[0.06] transition-colors cursor-pointer"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={() => setConfirmingAll(true)}
+                                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-[11px] text-white/30 hover:text-red-300/80 hover:bg-red-400/[0.07] transition-colors cursor-pointer"
+                                >
+                                    <Trash2 size={12} /> Clear all conversations
+                                </button>
+                            )}
+                        </div>
+                    )}
                 </div>
             )}
         </>

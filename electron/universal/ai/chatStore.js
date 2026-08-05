@@ -156,6 +156,28 @@ export function listChats() {
     return chats.sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
+export function renameChat(id, title) {
+    const chat = readChat(id);
+    if (!chat) return null;
+    const trimmed = String(title ?? "").trim();
+    // An empty rename falls back to the opening prompt rather than a blank row.
+    chat.title = trimmed ? trimmed.slice(0, 80) : deriveTitle(chat.messages[0]?.content);
+    writeChat(chat);
+    return chat;
+}
+
+/** Returns how many were removed, so the caller can report it honestly. */
+export function deleteAllChats() {
+    let removed = 0;
+    try {
+        for (const file of fs.readdirSync(chatsDir())) {
+            if (!file.endsWith(".json")) continue;
+            try { fs.unlinkSync(path.join(chatsDir(), file)); removed++; } catch { /* skip */ }
+        }
+    } catch { /* no directory yet */ }
+    return removed;
+}
+
 export function deleteChat(id) {
     try {
         fs.unlinkSync(chatPath(id));

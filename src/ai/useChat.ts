@@ -35,16 +35,14 @@ export function useChat() {
             }
             if (chunk.type === "done") {
                 const current = chatRef.current;
-                const content = partialRef.current;
                 requestIdRef.current = null;
                 setStreaming(false);
                 setPartial("");
                 partialRef.current = "";
+                // The main process already committed the answer before sending
+                // this, so re-read rather than writing it a second time.
                 if (current) {
-                    const updated = await window.ai.finishMessage(current.id, {
-                        content,
-                        sessionId: chunk.sessionId,
-                    });
+                    const updated = await window.ai.getChat(current.id);
                     if (updated) setChat(updated);
                 }
             }
@@ -52,15 +50,37 @@ export function useChat() {
         return detach;
     }, []);
 
-    /** Returns the loaded chat so the caller can restore its provider setup. */
+    /**
+     * Returns the loaded chat so the caller can restore its provider setup.
+     *
+     * A turn may still be running for this conversation in the main process —
+     * you can leave the view mid-answer and come back — so reopening reattaches
+     * to it and picks the stream up from whatever has arrived so far.
+     */
     const openChat = useCallback(async (id: string) => {
         const loaded = await window.ai.getChat(id);
-        if (loaded) {
-            setChat(loaded);
-            setError(null);
-            setPartial("");
+        if (!loaded) return null;
+        setError(null);
+
+        const active = await window.ai.activeTurn(id);
+        if (active) {
+            // Disk holds the question but no answer yet; give the stream a turn
+            // to render into.
+            if (loaded.messages[loaded.messages.length - 1]?.role !== "assistant") {
+                loaded.messages.push({ role: "assistant", content: "" });
+            }
+            requestIdRef.current = active.requestId;
+            partialRef.current = active.text;
+            setPartial(active.text);
+            setStreaming(true);
+        } else {
+            requestIdRef.current = null;
             partialRef.current = "";
+            setPartial("");
+            setStreaming(false);
         }
+
+        setChat({ ...loaded });
         return loaded;
     }, []);
 

@@ -104,6 +104,9 @@ declare global {
             finishMessage: (id: string, payload: { content: string; sessionId?: string }) => Promise<AiChat | null>;
             updateChatConfig: (id: string, config: { providerId?: string; model?: string | null; settings?: Record<string, string> }) => Promise<AiChat | null>;
             trimForRerun: (id: string) => Promise<AiChat | null>;
+            deleteAllChats: () => Promise<number>;
+            renameChat: (id: string, title: string) => Promise<AiChat | null>;
+            activeTurn: (chatId: string) => Promise<{ requestId: string; text: string } | null>;
         };
         electron: {
             log:(data:any) => void;

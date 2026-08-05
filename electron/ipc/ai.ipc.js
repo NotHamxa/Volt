@@ -1,8 +1,9 @@
-import { ipcMain } from "electron";
+import { app, ipcMain } from "electron";
 import { describeProviders, getProvider } from "../universal/ai/provider.js";
 import {
     createChat, readChat, listChats, deleteChat,
     appendMessage, finishAssistantMessage, updateChatConfig, trimForRerun,
+    renameChat, deleteAllChats,
 } from "../universal/ai/chatStore.js";
 import { keyStatus, setKey, clearKey, encryptionAvailable } from "../universal/ai/credentials.js";
 import { getPrefs, setPrefs } from "../universal/ai/prefs.js";
@@ -48,13 +49,24 @@ export function registerAiIpc({ mainWindow, appStates }) {
             history = (stored?.messages ?? []).filter(m => m.content?.trim());
         }
 
-        // Reply to whoever asked — the AI window, not necessarily the launcher.
-        const sender = event.sender;
         const controller = new AbortController();
-        inFlight.set(requestId, controller);
+        // The turn is owned here, not by the renderer: text accumulates in this
+        // process and is written to the chat file when it completes. Leaving the
+        // AI view, or hiding the launcher, no longer costs you the answer — the
+        // renderer is a viewer, not the thing holding the result.
+        const turn = { controller, chatId: chatId ?? null, text: "", saved: false };
+        inFlight.set(requestId, turn);
 
         const post = (chunk) => {
-            if (!sender.isDestroyed()) sender.send("ai-chunk", { requestId, ...chunk });
+            const target = event.sender.isDestroyed() ? mainWindow?.webContents : event.sender;
+            if (target && !target.isDestroyed()) target.send("ai-chunk", { requestId, ...chunk });
+        };
+
+        const persist = (sessionId) => {
+            if (turn.saved || !turn.chatId) return;
+            turn.saved = true;
+            // A cancelled or failed turn still commits whatever arrived.
+            finishAssistantMessage(turn.chatId, { content: turn.text, sessionId });
         };
 
         // Deliberately not awaited: the handler returns immediately so the
@@ -64,17 +76,37 @@ export function registerAiIpc({ mainWindow, appStates }) {
                 for await (const chunk of provider.send({
                     prompt, sessionId, history, model, settings, signal: controller.signal,
                 })) {
+                    if (chunk.type === "text") turn.text += chunk.text;
+                    // Saved before the renderer is told, so a "done" always
+                    // means the transcript on disk is already current.
+                    if (chunk.type === "done") persist(chunk.sessionId);
                     post(chunk);
                 }
             } catch (err) {
                 post({ type: "error", message: err?.message ?? String(err) });
+                persist(undefined);
                 post({ type: "done" });
             } finally {
+                persist(undefined);
                 inFlight.delete(requestId);
             }
         })();
 
         return { ok: true };
+    });
+
+    /**
+     * Lets a returning view pick a stream back up. The window can be hidden or
+     * the route left entirely while an answer arrives, so on reopening a chat
+     * the renderer asks whether one is still running for it.
+     */
+    ipcMain.handle("ai-active-turn", (_, id) => {
+        for (const [requestId, turn] of inFlight) {
+            if (turn.chatId && turn.chatId === id) {
+                return { requestId, text: turn.text };
+            }
+        }
+        return null;
     });
 
     // --- credentials -------------------------------------------------------
@@ -96,6 +128,8 @@ export function registerAiIpc({ mainWindow, appStates }) {
     ipcMain.handle("ai-get-chat", (_, id) => readChat(id));
     ipcMain.handle("ai-create-chat", (_, opts) => createChat(opts ?? {}));
     ipcMain.handle("ai-delete-chat", (_, id) => deleteChat(id));
+    ipcMain.handle("ai-delete-all-chats", () => deleteAllChats());
+    ipcMain.handle("ai-rename-chat", (_, id, title) => renameChat(id, title));
     ipcMain.handle("ai-append-message", (_, id, message) => appendMessage(id, message));
     ipcMain.handle("ai-finish-message", (_, id, payload) => finishAssistantMessage(id, payload ?? {}));
     ipcMain.handle("ai-update-chat-config", (_, id, config) => updateChatConfig(id, config ?? {}));
@@ -108,16 +142,18 @@ export function registerAiIpc({ mainWindow, appStates }) {
     });
 
     ipcMain.handle("ai-cancel", (_, requestId) => {
-        const controller = inFlight.get(requestId);
-        if (!controller) return false;
-        controller.abort();
-        inFlight.delete(requestId);
+        const turn = inFlight.get(requestId);
+        if (!turn) return false;
+        turn.controller.abort();
+        // Left in the map so the generator's own teardown can still persist
+        // whatever text arrived before the abort landed.
         return true;
     });
 
-    // Nothing should outlive the window that asked for it.
-    mainWindow?.on("closed", () => {
-        for (const controller of inFlight.values()) controller.abort();
+    // Turns outlive the view, but not the app. Quitting is the one point where
+    // abandoning them is right — there is nothing left to write into.
+    app.on("before-quit", () => {
+        for (const turn of inFlight.values()) turn.controller.abort();
         inFlight.clear();
     });
 }

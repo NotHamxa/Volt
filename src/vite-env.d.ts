@@ -64,8 +64,12 @@ declare global {
         billing: AiBilling | null;
         available: boolean;
         detail: string | null;
-        /** A model may narrow the provider's controls, or drop them entirely. */
-        models: Array<{ id: string; label: string; controls?: AiControl[] }>;
+        /**
+         * `detail` is the wire id behind an alias — Claude's "Opus" says nothing
+         * about which version it resolves to. A model may also narrow the
+         * provider's controls, or drop them entirely.
+         */
+        models: Array<{ id: string; label: string; detail?: string; controls?: AiControl[] }>;
         controls: AiControl[];
     };
 

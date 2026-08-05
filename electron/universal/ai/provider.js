@@ -26,7 +26,7 @@
  *   kind: "subscription-sdk" | "subscription-cli" | "api",
  *   needsKey: boolean,
  *   isAvailable: () => Promise<{ available: boolean, detail?: string }>,
- *   models: () => Promise<Array<{ id: string, label: string, controls?: AiControl[] }>>,
+ *   models: () => Promise<Array<{ id: string, label: string, detail?: string, controls?: AiControl[] }>>,
  *   controls: () => Array<{ id: string, label: string, type: "select", options: Array<{ id: string, label: string }>, default: string }>,
  *   billing?: () => { mode: "subscription" | "api-key" | "unknown", label: string },
  *   send: (opts: { prompt: string, sessionId?: string|null, model?: string, settings?: Record<string,string>, signal?: AbortSignal }) => AsyncIterable<Chunk>,

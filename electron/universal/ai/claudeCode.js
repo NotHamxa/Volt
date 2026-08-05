@@ -108,6 +108,13 @@ async function fetchModels() {
         modelCache = infos.map(info => ({
             id: info.value,
             label: info.displayName ?? info.value,
+            // The CLI advertises aliases — "Opus", "Sonnet" — which say nothing
+            // about which version they currently point at. resolvedModel is the
+            // wire id behind the alias, so it answers that without this having
+            // to guess at version numbers that would go stale.
+            detail: info.resolvedModel && info.resolvedModel !== info.value
+                ? info.resolvedModel
+                : undefined,
             controls: effortControl(info.supportsEffort ? info.supportedEffortLevels : []),
         }));
         return modelCache;

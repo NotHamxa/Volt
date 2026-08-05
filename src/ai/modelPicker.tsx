@@ -60,6 +60,11 @@ export function ModelPicker({ providers, providerId, model, onSelect }: {
             m.label.toLowerCase().includes(term) || m.id.toLowerCase().includes(term));
     }, [shown, search]);
 
+    // A typed id that isn't in the list is offered verbatim, rather than
+    // leaving "no models match" as a dead end.
+    const typed = search.trim();
+    const exactId = typed && !matches.some(m => m.id === typed) ? typed : null;
+
     // Searching means you're looking for something specific; don't hide any of it.
     const collapsed = !search.trim() && !showAll && matches.length > SHOWN_BY_DEFAULT;
     const visible = collapsed ? matches.slice(0, SHOWN_BY_DEFAULT) : matches;
@@ -135,9 +140,12 @@ export function ModelPicker({ providers, providerId, model, onSelect }: {
                                     } else if (e.key === "ArrowUp") {
                                         e.preventDefault();
                                         setActive(i => Math.max(i - 1, 0));
-                                    } else if (e.key === "Enter" && visible[active]) {
+                                    } else if (e.key === "Enter") {
                                         e.preventDefault();
-                                        choose(visible[active].id);
+                                        // Falls through to a typed id when the
+                                        // search matched nothing in the list.
+                                        const pick = visible[active]?.id ?? exactId;
+                                        if (pick) choose(pick);
                                     } else if (e.key === "Escape") {
                                         // Close the picker only; the launcher's
                                         // own handler would leave the AI view.
@@ -158,9 +166,11 @@ export function ModelPicker({ providers, providerId, model, onSelect }: {
                                     </p>
                                 )}
 
-                                {visible.length === 0 ? (
+                                {visible.length === 0 && !exactId && (
                                     <p className="px-2 py-3 text-[11px] text-white/25">No models match.</p>
-                                ) : visible.map((m, i) => {
+                                )}
+
+                                {visible.map((m, i) => {
                                     const selected = shown?.id === providerId && m.id === model;
                                     return (
                                         <button
@@ -175,13 +185,38 @@ export function ModelPicker({ providers, providerId, model, onSelect }: {
                                             <div className="flex-1 min-w-0">
                                                 <span className="block truncate text-[12px] text-white/85">{m.label}</span>
                                                 <span className="block truncate text-[10px] text-white/30 mt-px">
-                                                    {shown?.label}
+                                                    {/* The wire id where the label is
+                                                        an alias, so "Opus" says which
+                                                        version it resolves to. */}
+                                                    {m.detail ?? shown?.label}
                                                 </span>
                                             </div>
                                             {selected && <Check size={12} className="shrink-0 text-sky-300/80" />}
                                         </button>
                                     );
                                 })}
+
+
+                                {/* Providers accept ids they don't advertise —
+                                    the Claude CLI lists five aliases but takes
+                                    any model name. Typing one reaches the older
+                                    versions without a hard-coded list here that
+                                    would fall out of date. */}
+                                {exactId && (
+                                    <button
+                                        onClick={() => choose(exactId)}
+                                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left hover:bg-white/[0.06] transition-colors cursor-pointer"
+                                    >
+                                        <div className="flex-1 min-w-0">
+                                            <span className="block truncate text-[12px] text-white/75">
+                                                Use “{exactId}”
+                                            </span>
+                                            <span className="block truncate text-[10px] text-white/30 mt-px">
+                                                Any model id {shown?.label} accepts
+                                            </span>
+                                        </div>
+                                    </button>
+                                )}
 
                                 {collapsed && (
                                     <button

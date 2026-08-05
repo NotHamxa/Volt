@@ -1,12 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import {
-    Square, PanelLeft, Plus, Trash2, ArrowUp, MessageCircle, RotateCcw, MoreHorizontal, Pencil,
+    Square, PanelLeft, Plus, Trash2, ArrowUp, MessageCircle, RotateCcw, Pencil, Check,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
-import {
-    DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu.tsx";
 import {
     InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea,
 } from "@/components/ui/input-group.tsx";
@@ -424,15 +421,14 @@ function ChatSidebar({ chats, activeId, onOpen, onNew, onDelete, onDeleteAll, on
 }) {
     const [hovering, setHovering] = useState(false);
     const [pinned, setPinned] = useState(false);
-    const [menuId, setMenuId] = useState<string | null>(null);
+    const [confirmId, setConfirmId] = useState<string | null>(null);
     const [renamingId, setRenamingId] = useState<string | null>(null);
     const [draft, setDraft] = useState("");
     const [confirmingAll, setConfirmingAll] = useState(false);
     const closeTimer = useRef<NodeJS.Timeout | null>(null);
-    // An open menu or a rename in progress keeps the panel up — the pointer has
-    // to leave the sidebar to reach a portalled menu, and that must not dismiss
-    // the thing the menu belongs to.
-    const busy = menuId !== null || renamingId !== null || confirmingAll;
+    // An armed delete, a rename in progress or a pending clear-all keeps the
+    // panel up, so the panel can't vanish out from under a half-finished action.
+    const busy = confirmId !== null || renamingId !== null || confirmingAll;
     const open = hovering || pinned || busy;
 
     // The panel overlaps the rail, so crossing between them fires a leave then
@@ -505,6 +501,9 @@ function ChatSidebar({ chats, activeId, onOpen, onNew, onDelete, onDeleteAll, on
                         ) : chats.map(c => (
                             <div
                                 key={c.id}
+                                // Leaving the row disarms it, so a half-pressed
+                                // delete can't keep the panel pinned open.
+                                onMouseLeave={() => setConfirmId(id => (id === c.id ? null : id))}
                                 className={`group flex items-center rounded-lg transition-colors ${
                                     activeId === c.id ? "bg-white/[0.08]" : "hover:bg-white/[0.05]"
                                 }`}
@@ -535,39 +534,44 @@ function ChatSidebar({ chats, activeId, onOpen, onNew, onDelete, onDeleteAll, on
                                             <MessageCircle size={13} className="shrink-0 text-white/30" />
                                             <span className="block truncate text-left text-[11.5px] text-white/70">{c.title}</span>
                                         </button>
-                                        <DropdownMenu
-                                            open={menuId === c.id}
-                                            onOpenChange={(next) => setMenuId(next ? c.id : null)}
-                                        >
-                                            <DropdownMenuTrigger asChild>
+                                        {/* Both live on the row itself rather
+                                            than behind a menu — one click to
+                                            rename, two to delete. */}
+                                        <div className={`flex items-center shrink-0 mr-1 transition-opacity ${
+                                            confirmId === c.id ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"
+                                        }`}>
+                                            {confirmId !== c.id && (
                                                 <button
-                                                    aria-label={`Options for ${c.title}`}
-                                                    className={`p-1 mr-1 rounded text-white/30 hover:text-white/80 transition-opacity cursor-pointer ${
-                                                        menuId === c.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-                                                    }`}
+                                                    onClick={() => { setDraft(c.title); setRenamingId(c.id); }}
+                                                    aria-label={`Rename ${c.title}`}
+                                                    title="Rename"
+                                                    className="p-1 rounded text-white/30 hover:text-white/80 hover:bg-white/[0.07] transition-colors cursor-pointer"
                                                 >
-                                                    <MoreHorizontal size={13} />
+                                                    <Pencil size={11} />
                                                 </button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent
-                                                align="end"
-                                                side="right"
-                                                className="min-w-36 rounded-lg border-white/[0.09] bg-[rgba(18,18,20,0.98)] backdrop-blur-md shadow-[0_8px_24px_rgba(0,0,0,0.45)]"
+                                            )}
+                                            <button
+                                                onClick={() => {
+                                                    // Deleting a conversation can't be undone, so the
+                                                    // first click only arms the button.
+                                                    if (confirmId === c.id) {
+                                                        onDelete(c.id);
+                                                        setConfirmId(null);
+                                                    } else {
+                                                        setConfirmId(c.id);
+                                                    }
+                                                }}
+                                                aria-label={confirmId === c.id ? `Confirm delete ${c.title}` : `Delete ${c.title}`}
+                                                title={confirmId === c.id ? "Click again to delete" : "Delete"}
+                                                className={`p-1 rounded transition-colors cursor-pointer ${
+                                                    confirmId === c.id
+                                                        ? "text-red-300/90 bg-red-400/[0.14]"
+                                                        : "text-white/30 hover:text-red-300/80 hover:bg-red-400/[0.08]"
+                                                }`}
                                             >
-                                                <DropdownMenuItem
-                                                    onSelect={() => { setDraft(c.title); setRenamingId(c.id); }}
-                                                    className="text-[11.5px] text-white/70 focus:bg-white/[0.07] focus:text-white/90"
-                                                >
-                                                    <Pencil size={12} /> Rename
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem
-                                                    onSelect={() => onDelete(c.id)}
-                                                    className="text-[11.5px] text-red-300/75 focus:bg-red-400/[0.1] focus:text-red-300"
-                                                >
-                                                    <Trash2 size={12} /> Delete
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
+                                                {confirmId === c.id ? <Check size={11} /> : <Trash2 size={11} />}
+                                            </button>
+                                        </div>
                                     </>
                                 )}
                             </div>

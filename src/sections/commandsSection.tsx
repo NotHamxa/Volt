@@ -5,6 +5,7 @@ import { Spinner } from "@/components/ui/spinner.tsx";
 import { SearchQueryT, CommandArgDef } from "@/interfaces/searchQuery.ts";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { useEscape } from "@/hooks/useEscape.ts";
+import AiCommandComposer from "@/components/aiCommandComposer.tsx";
 
 type ShellChoice = "auto" | "cmd" | "powershell";
 const ARG_NAME_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
@@ -215,6 +216,32 @@ export default function CommandsSection() {
         return cleaned.length ? cleaned : undefined;
     };
 
+    /**
+     * A draft populates the form rather than saving. The script is then read
+     * and accepted in the normal editor, which is the whole point — generated
+     * shell text should never reach the command list unseen.
+     */
+    const applyDraft = (cmd: SearchQueryT, notes: string[]) => {
+        setName(cmd.name);
+        setScript(cmd.path ?? "");
+        setRequireConfirm(isConfirmType(cmd.type));
+        setOpenInTerminal(isOpenType(cmd.type));
+        setShell(cmd.shell ?? "auto");
+        setArgs(cmd.args ? cmd.args.map(a => ({ ...a })) : []);
+        setShowAddForm(true);
+        if (notes.length) window.electron.notify("Check the draft", notes[0]);
+    };
+
+    const applyEditDraft = (cmd: SearchQueryT, notes: string[]) => {
+        setEditName(cmd.name);
+        setEditScript(cmd.path ?? "");
+        setEditConfirm(isConfirmType(cmd.type));
+        setEditOpen(isOpenType(cmd.type));
+        setEditShell(cmd.shell ?? "auto");
+        setEditArgs(cmd.args ? cmd.args.map(a => ({ ...a })) : []);
+        if (notes.length) window.electron.notify("Check the draft", notes[0]);
+    };
+
     const handleAdd = async () => {
         if (!name.trim() || !script.trim()) {
             window.electron.notify("Missing Fields", "Both name and script are required.");
@@ -347,6 +374,10 @@ export default function CommandsSection() {
 
             <ExpandablePanel open={showAddForm}>
                 <div className="p-4 rounded-lg bg-white/[0.025] border border-white/[0.06] space-y-3">
+                    <div className="space-y-1.5 pb-3 border-b border-white/[0.06]">
+                        <label className="text-[10px] font-semibold text-white/45 uppercase tracking-[0.18em]">Draft with AI</label>
+                        <AiCommandComposer onDraft={applyDraft} />
+                    </div>
                     <div className="space-y-1.5">
                         <label className="text-[10px] font-semibold text-white/45 uppercase tracking-[0.18em]">Name</label>
                         <input
@@ -430,6 +461,15 @@ export default function CommandsSection() {
                     filtered.map((cmd, index) => (
                         editingCmd === cmd.name ? (
                             <div key={index} className="p-3 rounded-md bg-white/[0.04] border border-white/[0.12] space-y-2.5">
+                                {/* Rewrites the fields below; the edit still has
+                                    to be saved by hand. */}
+                                <div className="pb-2.5 border-b border-white/[0.06]">
+                                    <AiCommandComposer
+                                        existing={{ ...cmd, path: editScript, name: editName }}
+                                        onDraft={applyEditDraft}
+                                        placeholder="Describe the change you want…"
+                                    />
+                                </div>
                                 <input
                                     type="text"
                                     value={editName}

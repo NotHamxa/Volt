@@ -85,6 +85,7 @@ contextBridge.exposeInMainWorld('ai', {
     getPrefs: () => ipcRenderer.invoke('ai-get-prefs'),
     setPrefs: (patch) => ipcRenderer.invoke('ai-set-prefs', patch),
     workspace: () => ipcRenderer.invoke('ai-workspace'),
+    draftCommand: (request) => ipcRenderer.invoke('ai-draft-command', request),
     listChats: () => ipcRenderer.invoke('ai-list-chats'),
     getChat: (id) => ipcRenderer.invoke('ai-get-chat', id),
     createChat: (opts) => ipcRenderer.invoke('ai-create-chat', opts),

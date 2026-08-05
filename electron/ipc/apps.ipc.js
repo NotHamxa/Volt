@@ -1,4 +1,5 @@
 import { ipcMain, dialog } from "electron";
+import { sanitiseCommand } from "../universal/commandSchema.js";
 import { openExternalSafely } from "./electron.ipc.js";
 import {searchApps, searchCommands, searchSettings} from "../universal/search.js";
 import {fetchFavicon} from "../universal/linkFavicon.js";
@@ -87,23 +88,8 @@ export function registerAppsIpc({
             const content = fs.readFileSync(result.filePaths[0], "utf-8");
             const parsed = JSON.parse(content);
             const commands = Array.isArray(parsed) ? parsed : [parsed];
-            const allowedTypes = new Set(["command", "commandConfirm", "commandOpen", "commandConfirmOpen"]);
-            const allowedShells = new Set(["auto", "cmd", "powershell"]);
-            const validated = commands.filter(c => c.name && c.path).map(c => ({
-                name: c.name,
-                type: allowedTypes.has(c.type) ? c.type : "command",
-                appId: null,
-                path: c.path,
-                source: "custom",
-                shell: allowedShells.has(c.shell) ? c.shell : "auto",
-                args: Array.isArray(c.args) ? c.args.filter(a => a?.name && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(a.name)).map(a => ({
-                    name: a.name,
-                    label: typeof a.label === "string" ? a.label : undefined,
-                    description: typeof a.description === "string" ? a.description : undefined,
-                    defaultValue: typeof a.defaultValue === "string" ? a.defaultValue : undefined,
-                    required: !!a.required,
-                })) : undefined,
-            }));
+            // Same validator the AI drafting path uses — one way in.
+            const validated = commands.map(sanitiseCommand).filter(Boolean);
             if (!validated.length) return null;
             importCustomCommands(cache, store, validated);
             return validated;

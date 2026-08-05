@@ -8,6 +8,7 @@ import {
 import { keyStatus, setKey, clearKey, encryptionAvailable } from "../universal/ai/credentials.js";
 import { getPrefs, setPrefs } from "../universal/ai/prefs.js";
 import { workspaceDir, defaultWorkspace } from "../universal/ai/workspace.js";
+import { draftCommand } from "../universal/ai/commandDraft.js";
 // Importing an adapter registers it.
 import "../universal/ai/claudeCode.js";
 import "../universal/ai/openaiCompatible.js";
@@ -108,6 +109,18 @@ export function registerAiIpc({ mainWindow, appStates }) {
             }
         }
         return null;
+    });
+
+    /**
+     * Drafts a command from a description. Returns it for review — saving is a
+     * separate, deliberate step, and nothing drafted here is ever executed.
+     */
+    ipcMain.handle("ai-draft-command", async (_, request) => {
+        try {
+            return await draftCommand(request ?? {});
+        } catch (err) {
+            return { ok: false, detail: err?.message ?? "Drafting failed." };
+        }
     });
 
     // --- credentials -------------------------------------------------------

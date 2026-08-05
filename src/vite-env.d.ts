@@ -87,6 +87,13 @@ declare global {
             getPrefs: () => Promise<AiPrefs>;
             setPrefs: (patch: Partial<AiPrefs>) => Promise<AiPrefs>;
             workspace: () => Promise<{ path: string; isDefault: boolean; defaultPath: string }>;
+            draftCommand: (request: {
+                providerId: string;
+                model?: string;
+                settings?: Record<string, string>;
+                description: string;
+                existing?: SearchQueryT | null;
+            }) => Promise<{ ok: boolean; command?: SearchQueryT; notes?: string[]; detail?: string }>;
             send: (request: {
                 requestId: string;
                 providerId: string;

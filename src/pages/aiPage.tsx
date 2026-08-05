@@ -50,6 +50,7 @@ export default function AiPage() {
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const seededRef = useRef(false);
     const lastChatIdRef = useRef<string | null>(null);
+    const stickRef = useRef(true);
 
     const provider = useMemo(
         () => providers.find(p => p.id === providerId) ?? null,
@@ -111,6 +112,9 @@ export default function AiPage() {
 
     const submit = useCallback((text: string) => {
         if (!providerId || !text.trim() || streaming) return;
+        // Sending is an explicit request to see what comes back, so re-follow
+        // the bottom even if you had scrolled away to re-read something.
+        stickRef.current = true;
         send(text, { providerId, model: model || undefined, settings });
         setPrompt("");
     }, [providerId, streaming, send, model, settings]);
@@ -159,10 +163,25 @@ export default function AiPage() {
         setSearchParams({}, { replace: true });
     }, [searchParams, providerId, submit, setSearchParams]);
 
-    // Follow the stream, but don't yank the view down if you've scrolled up.
-    // Opening a different conversation is the exception: a reopened chat should
-    // start at its newest message, and the near-bottom test can't tell that
-    // apart from a deliberate scroll-up because a fresh viewport sits at 0.
+    /**
+     * Whether the view is following the bottom. Only your own scrolling changes
+     * it — measuring after new content has landed was the bug: a tall prompt
+     * pushes the distance past any threshold, so sending a long message read as
+     * "they scrolled up" and the view stayed put.
+     */
+    useEffect(() => {
+        const viewport = scrollRef.current?.querySelector<HTMLElement>("[data-radix-scroll-area-viewport]");
+        if (!viewport) return;
+        const onScroll = () => {
+            stickRef.current =
+                viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 80;
+        };
+        viewport.addEventListener("scroll", onScroll, { passive: true });
+        return () => viewport.removeEventListener("scroll", onScroll);
+    }, [empty]);
+
+    // Follow the stream while stuck to the bottom. Opening another conversation
+    // re-sticks: a reopened chat should start at its newest message.
     // Layout effect, so the jump happens before the top is ever painted.
     useLayoutEffect(() => {
         const viewport = scrollRef.current?.querySelector<HTMLElement>("[data-radix-scroll-area-viewport]");
@@ -170,9 +189,12 @@ export default function AiPage() {
 
         const switched = chat?.id !== lastChatIdRef.current;
         lastChatIdRef.current = chat?.id ?? null;
+        if (switched) stickRef.current = true;
+        if (!stickRef.current) return;
+
+        viewport.scrollTop = viewport.scrollHeight;
 
         if (switched) {
-            viewport.scrollTop = viewport.scrollHeight;
             // Radix measures the viewport asynchronously, so re-apply once the
             // first frame has settled and the real height is known.
             const frame = requestAnimationFrame(() => {
@@ -180,9 +202,6 @@ export default function AiPage() {
             });
             return () => cancelAnimationFrame(frame);
         }
-
-        const nearBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 120;
-        if (nearBottom) viewport.scrollTop = viewport.scrollHeight;
     }, [chat?.id, chat?.messages.length, partial]);
 
     const messages = chat?.messages ?? [];
@@ -272,7 +291,10 @@ export default function AiPage() {
                                                         <CopyButton getText={() => body} label="Copy message" />
                                                         {isLast && !streaming && (
                                                             <button
-                                                                onClick={() => rerun({ providerId, model: model || undefined, settings })}
+                                                                onClick={() => {
+                                                                    stickRef.current = true;
+                                                                    rerun({ providerId, model: model || undefined, settings });
+                                                                }}
                                                                 aria-label="Ask again"
                                                                 title="Ask again"
                                                                 className="flex items-center justify-center w-6 h-6 rounded-md text-white/35 hover:text-white/80 transition-colors cursor-pointer"

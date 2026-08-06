@@ -4,6 +4,7 @@ import os from "os";
 import { registerProvider } from "./provider.js";
 import { claudeAuthMode } from "./cliAuth.js";
 import { workspaceDir } from "./workspace.js";
+import { describeTool } from "./trace.js";
 
 /**
  * Claude via the Agent SDK, driving the user's *already installed* claude.exe.
@@ -200,6 +201,15 @@ export const claudeCodeProvider = registerProvider({
 
                 if (message?.type === "stream_event") {
                     const event = message.event;
+                    // Extended thinking arrives on the same channel as the
+                    // answer, just under a different delta type. It is reported
+                    // rather than dropped so a long pause has something behind
+                    // it, but it never joins the transcript.
+                    if (event?.type === "content_block_delta" && event.delta?.type === "thinking_delta") {
+                        const text = event.delta.thinking;
+                        if (text) yield { type: "reasoning", text };
+                        continue;
+                    }
                     if (event?.type === "content_block_delta" && event.delta?.type === "text_delta") {
                         const text = event.delta.text;
                         if (text) {
@@ -211,6 +221,13 @@ export const claudeCodeProvider = registerProvider({
                 }
 
                 if (message?.type === "assistant") {
+                    // Tool calls only appear on the completed message, never as
+                    // deltas, so this runs whether or not text was streamed.
+                    for (const block of message.message?.content ?? []) {
+                        if (block?.type === "tool_use") {
+                            yield { type: "activity", ...describeTool(block.name, block.input) };
+                        }
+                    }
                     if (streamedSinceMessage) {
                         streamedSinceMessage = false;
                     } else {

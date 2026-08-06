@@ -141,7 +141,12 @@ export const geminiProvider = registerProvider({
                     break;
                 }
                 for (const part of event?.candidates?.[0]?.content?.parts ?? []) {
-                    if (part?.text) yield { type: "text", text: part.text };
+                    if (!part?.text) continue;
+                    // Gemini returns thinking as ordinary text parts flagged
+                    // with `thought`, so without this check the reasoning would
+                    // be concatenated straight into the answer.
+                    if (part.thought) yield { type: "reasoning", text: part.text };
+                    else yield { type: "text", text: part.text };
                 }
             }
         } catch (err) {

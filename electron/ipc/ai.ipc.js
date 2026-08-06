@@ -66,7 +66,18 @@ export function registerAiIpc({ mainWindow, appStates }) {
         // process and is written to the chat file when it completes. Leaving the
         // AI view, or hiding the launcher, no longer costs you the answer — the
         // renderer is a viewer, not the thing holding the result.
-        const turn = { controller, chatId: chatId ?? null, text: "", saved: false };
+        // `reasoning` and `activities` are held only for the life of the turn.
+        // They describe how the answer was produced, not what it says, so they
+        // are never written to the chat file — but a view that reattaches
+        // mid-answer still wants them, or the trail would restart empty.
+        const turn = {
+            controller,
+            chatId: chatId ?? null,
+            text: "",
+            reasoning: "",
+            activities: [],
+            saved: false,
+        };
         inFlight.set(requestId, turn);
 
         const post = (chunk) => {
@@ -78,7 +89,12 @@ export function registerAiIpc({ mainWindow, appStates }) {
             if (turn.saved || !turn.chatId) return;
             turn.saved = true;
             // A cancelled or failed turn still commits whatever arrived.
-            finishAssistantMessage(turn.chatId, { content: turn.text, sessionId });
+            finishAssistantMessage(turn.chatId, {
+                content: turn.text,
+                sessionId,
+                reasoning: turn.reasoning,
+                activities: turn.activities,
+            });
         };
 
         // Deliberately not awaited: the handler returns immediately so the
@@ -89,6 +105,13 @@ export function registerAiIpc({ mainWindow, appStates }) {
                     prompt, sessionId, history, model, settings, signal: controller.signal,
                 })) {
                     if (chunk.type === "text") turn.text += chunk.text;
+                    if (chunk.type === "reasoning") turn.reasoning += chunk.text;
+                    if (chunk.type === "activity") {
+                        // Capped: an agentic turn can run hundreds of steps,
+                        // and only the recent ones are worth reattaching to.
+                        turn.activities.push({ label: chunk.label, detail: chunk.detail });
+                        if (turn.activities.length > 50) turn.activities.shift();
+                    }
                     // Saved before the renderer is told, so a "done" always
                     // means the transcript on disk is already current.
                     if (chunk.type === "done") persist(chunk.sessionId);
@@ -115,7 +138,12 @@ export function registerAiIpc({ mainWindow, appStates }) {
     ipcMain.handle("ai-active-turn", (_, id) => {
         for (const [requestId, turn] of inFlight) {
             if (turn.chatId && turn.chatId === id) {
-                return { requestId, text: turn.text };
+                return {
+                    requestId,
+                    text: turn.text,
+                    reasoning: turn.reasoning,
+                    activities: turn.activities,
+                };
             }
         }
         return null;

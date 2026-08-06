@@ -11,6 +11,14 @@ export function useChat() {
     const [chat, setChat] = useState<AiChat | null>(null);
     const [streaming, setStreaming] = useState(false);
     const [partial, setPartial] = useState("");
+    // How the answer is being produced: thinking tokens, and the steps taken.
+    // Both are per-turn and deliberately not persisted — reopening a chat shows
+    // the answer, not the route to it.
+    // Live values for the turn in flight. Once it finishes, the trail is saved
+    // onto the message itself and read from there, so this only ever describes
+    // what is happening right now.
+    const [reasoning, setReasoning] = useState("");
+    const [activities, setActivities] = useState<AiActivity[]>([]);
     // Between asking a turn to stop and it actually ending. The provider
     // takes a moment to notice, and without this the view carried on as if
     // nothing had happened.
@@ -27,14 +35,19 @@ export function useChat() {
     // re-parse per token — the work that made streaming feel like it was
     // struggling, and it got worse the longer the answer ran.
     const bufferRef = useRef("");
+    const reasoningRef = useRef("");
     const frameRef = useRef<number | null>(null);
 
     const flush = useCallback(() => {
         frameRef.current = null;
-        if (!bufferRef.current) return;
-        partialRef.current += bufferRef.current;
-        bufferRef.current = "";
-        setPartial(partialRef.current);
+        if (bufferRef.current) {
+            partialRef.current += bufferRef.current;
+            bufferRef.current = "";
+            setPartial(partialRef.current);
+        }
+        // Shares the frame with the answer: a model that thinks and answers in
+        // the same turn would otherwise schedule two renders per frame.
+        if (reasoningRef.current) setReasoning(reasoningRef.current);
     }, []);
 
     // Nothing should be left scheduled against an unmounted view.
@@ -51,6 +64,18 @@ export function useChat() {
             if (chunk.type === "text") {
                 bufferRef.current += chunk.text;
                 if (frameRef.current === null) frameRef.current = requestAnimationFrame(flush);
+                return;
+            }
+            if (chunk.type === "reasoning") {
+                // Buffered with the answer rather than set per token: thinking
+                // arrives just as fast, and it was the per-token re-render that
+                // made streaming feel like it was struggling.
+                reasoningRef.current += chunk.text;
+                if (frameRef.current === null) frameRef.current = requestAnimationFrame(flush);
+                return;
+            }
+            if (chunk.type === "activity") {
+                setActivities(prev => [...prev, { label: chunk.label, detail: chunk.detail }]);
                 return;
             }
             if (chunk.type === "error") {
@@ -97,6 +122,11 @@ export function useChat() {
         setError(null);
 
         const active = await window.ai.activeTurn(id);
+        // Whatever the trail was for a *previous* turn belongs to a message
+        // that is already on disk; only a turn still running has one to show.
+        reasoningRef.current = active?.reasoning ?? "";
+        setReasoning(active?.reasoning ?? "");
+        setActivities(active?.activities ?? []);
         if (active) {
             // Disk holds the question but no answer yet; give the stream a turn
             // to render into.
@@ -134,6 +164,9 @@ export function useChat() {
         setPartial("");
         partialRef.current = "";
         bufferRef.current = "";
+        reasoningRef.current = "";
+        setReasoning("");
+        setActivities([]);
         requestIdRef.current = null;
         setStreaming(false);
         setStopping(false);
@@ -147,6 +180,11 @@ export function useChat() {
         requestIdRef.current = requestId;
         partialRef.current = "";
         setPartial("");
+        // The previous turn's trail belongs to the answer above, which is
+        // already committed; this one starts from nothing.
+        reasoningRef.current = "";
+        setReasoning("");
+        setActivities([]);
         setStreaming(true);
 
         const result = await window.ai.send({
@@ -231,5 +269,9 @@ export function useChat() {
         await window.ai.cancel(id);
     }, [stopping]);
 
-    return { chat, streaming, stopping, partial, error, send, rerun, cancel, openChat, newChat };
+    return {
+        chat, streaming, stopping, partial, error,
+        reasoning, activities,
+        send, rerun, cancel, openChat, newChat,
+    };
 }

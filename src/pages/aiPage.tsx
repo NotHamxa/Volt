@@ -20,6 +20,7 @@ import { Markdown, StreamingMarkdown } from "@/ai/markdown.tsx";
 import { CopyButton } from "@/ai/copyButton.tsx";
 import logo from "@/assets/icon.png";
 import { providerLogo, providerLogoTint } from "@/ai/providerLogos.ts";
+import { ActivityTrail } from "@/ai/activityTrail.tsx";
 
 /**
  * Which knobs apply to a given model. Providers whose controls are uniform
@@ -40,7 +41,11 @@ function controlsFor(provider: AiProviderInfo | null | undefined, modelId: strin
  */
 export default function AiPage() {
     const [prompt, setPrompt] = useState("");
-    const { chat, streaming, stopping, partial, error, send, rerun, cancel, openChat, newChat } = useChat();
+    const {
+        chat, streaming, stopping, partial, error,
+        reasoning, activities,
+        send, rerun, cancel, openChat, newChat,
+    } = useChat();
     const [searchParams, setSearchParams] = useSearchParams();
 
     const [providers, setProviders] = useState<AiProviderInfo[]>([]);
@@ -387,17 +392,30 @@ export default function AiPage() {
                                 }
 
                                 const body = live ? revealed : m.content;
+                                // Live values while the turn runs; afterwards the
+                                // copy saved with the message, so every answer
+                                // keeps its own trail across reopens.
+                                const trailReasoning = live ? reasoning : (m.reasoning ?? "");
+                                const trailActivities = live ? activities : (m.activities ?? []);
+                                const showTrail = trailReasoning.trim().length > 0 || trailActivities.length > 0;
                                 return (
                                     // min-w-0 so a wide table scrolls inside its
                                     // own box instead of stretching the row.
                                     <div key={i} className="group/msg self-start flex gap-2.5 w-full min-w-0">
                                         <img src={mark} alt="" className={`w-4 h-4 mt-0.5 shrink-0 object-contain opacity-50 ${markTint}`} />
-                                        {live && !body ? (
+                                        {live && !body && !showTrail ? (
                                             <span className="flex items-center gap-1.5 text-[11.5px] text-tone-350">
                                                 <Spinner className="size-3" /> Thinking…
                                             </span>
                                         ) : (
                                             <div className="min-w-0 flex-1">
+                                                {showTrail && (
+                                                    <ActivityTrail
+                                                        reasoning={trailReasoning}
+                                                        activities={trailActivities}
+                                                        running={live && streaming}
+                                                    />
+                                                )}
                                                 {/* While streaming, only the block
                                                     being written is re-parsed. */}
                                                 {live

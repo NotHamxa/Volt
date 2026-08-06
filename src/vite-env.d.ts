@@ -13,8 +13,23 @@ declare global {
         path: string;
     }
 
+    /**
+     * One step a provider reported on its way to an answer — a file it read, a
+     * command it ran, a search it made. Kept separate from `reasoning` because
+     * these are discrete events rather than a stream of tokens.
+     */
+    type AiActivity = {
+        /** Verb, already in the present tense: "Reading", "Running". */
+        label: string;
+        /** What it acted on — a path, a command, a query. May be long. */
+        detail?: string;
+    };
+
     type AiChunk =
         | { requestId: string; type: "text"; text: string }
+        /** Thinking tokens, where the provider exposes them. Never persisted. */
+        | { requestId: string; type: "reasoning"; text: string }
+        | ({ requestId: string; type: "activity" } & AiActivity)
         | { requestId: string; type: "error"; message: string }
         | { requestId: string; type: "done"; sessionId?: string };
 
@@ -26,7 +41,13 @@ declare global {
         default: string;
     };
 
-    type AiMessage = { role: "user" | "assistant"; content: string };
+    type AiMessage = {
+        role: "user" | "assistant";
+        content: string;
+        /** How the answer was reached. Absent on user turns and older chats. */
+        reasoning?: string;
+        activities?: AiActivity[];
+    };
 
     type AiChat = {
         id: string;
@@ -119,12 +140,22 @@ declare global {
             createChat: (opts: { providerId: string; model?: string | null; settings?: Record<string, string> }) => Promise<AiChat>;
             deleteChat: (id: string) => Promise<boolean>;
             appendMessage: (id: string, message: AiMessage) => Promise<AiChat | null>;
-            finishMessage: (id: string, payload: { content: string; sessionId?: string }) => Promise<AiChat | null>;
+            finishMessage: (id: string, payload: {
+                content: string;
+                sessionId?: string;
+                reasoning?: string;
+                activities?: AiActivity[];
+            }) => Promise<AiChat | null>;
             updateChatConfig: (id: string, config: { providerId?: string; model?: string | null; settings?: Record<string, string> }) => Promise<AiChat | null>;
             trimForRerun: (id: string) => Promise<AiChat | null>;
             deleteAllChats: () => Promise<number>;
             renameChat: (id: string, title: string) => Promise<AiChat | null>;
-            activeTurn: (chatId: string) => Promise<{ requestId: string; text: string } | null>;
+            activeTurn: (chatId: string) => Promise<{
+                requestId: string;
+                text: string;
+                reasoning: string;
+                activities: AiActivity[];
+            } | null>;
             /** Chat ids with a turn in flight — more than one can run at a time. */
             activeTurns: () => Promise<string[]>;
         };

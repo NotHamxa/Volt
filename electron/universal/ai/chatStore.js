@@ -77,12 +77,27 @@ export function appendMessage(id, message) {
 }
 
 /** Replaces the last assistant message — used to commit a streamed answer. */
-export function finishAssistantMessage(id, { content, sessionId }) {
+/** Thinking can run to tens of thousands of tokens; a transcript shouldn't. */
+const MAX_STORED_REASONING = 20_000;
+
+export function finishAssistantMessage(id, { content, sessionId, reasoning, activities }) {
     const chat = readChat(id);
     if (!chat) return null;
+
+    // Kept alongside the answer so reopening a chat shows how it was reached,
+    // not just what it concluded. Both are optional: older files predate them,
+    // and most providers expose neither.
+    const trace = {};
+    if (reasoning?.trim()) {
+        trace.reasoning = reasoning.length > MAX_STORED_REASONING
+            ? reasoning.slice(0, MAX_STORED_REASONING) + "\n…"
+            : reasoning;
+    }
+    if (activities?.length) trace.activities = activities;
+
     const last = chat.messages[chat.messages.length - 1];
-    if (last && last.role === "assistant") last.content = content;
-    else chat.messages.push({ role: "assistant", content });
+    if (last && last.role === "assistant") Object.assign(last, { content }, trace);
+    else chat.messages.push({ role: "assistant", content, ...trace });
     if (sessionId) chat.sessionId = sessionId;
     writeChat(chat);
     return chat;

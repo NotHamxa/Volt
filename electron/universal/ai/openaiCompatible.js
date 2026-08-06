@@ -162,6 +162,14 @@ function createOpenAiCompatible({
                         break;
                     }
                     const delta = event?.choices?.[0]?.delta;
+                    // Vendors that expose thinking on the chat-completions
+                    // shape haven't agreed on a field: DeepSeek uses
+                    // `reasoning_content`, several gateways use `reasoning`.
+                    // Providers that hide it simply never send either.
+                    const thinking = delta?.reasoning_content ?? delta?.reasoning;
+                    if (typeof thinking === "string" && thinking) {
+                        yield { type: "reasoning", text: thinking };
+                    }
                     if (delta?.content) yield { type: "text", text: delta.content };
                 }
             } catch (err) {

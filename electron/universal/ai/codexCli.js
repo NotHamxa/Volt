@@ -5,6 +5,7 @@ import { spawn } from "child_process";
 import { registerProvider } from "./provider.js";
 import { codexAuthMode } from "./cliAuth.js";
 import { workspaceDir } from "./workspace.js";
+import { describeCodexItem } from "./trace.js";
 
 /**
  * Codex through the user's installed CLI, driven by `codex exec --json`.
@@ -298,6 +299,14 @@ export const codexProvider = registerProvider({
                 // Newer builds may stream deltas; take them when offered and
                 // fall back to the completed message when they're absent.
                 if (event.type === "item.delta" && event.delta?.text) {
+                    // Reasoning streams down the same channel as the answer and
+                    // is only distinguishable by the item it belongs to. When
+                    // that isn't stated, treating it as the answer is the safer
+                    // guess — the alternative loses the reply entirely.
+                    if (event.item?.type === "reasoning") {
+                        yield { type: "reasoning", text: event.delta.text };
+                        continue;
+                    }
                     sawText = true;
                     yield { type: "text", text: event.delta.text };
                     continue;
@@ -308,6 +317,20 @@ export const codexProvider = registerProvider({
                         yield { type: "text", text: event.item.text };
                     }
                     sawText = false;
+                    continue;
+                }
+
+                // Everything else the CLI reports is work in progress. Started
+                // rather than completed, so the line appears while the step is
+                // running rather than after it is already over.
+                if (event.type === "item.started" && event.item && event.item.type !== "agent_message") {
+                    if (event.item.type === "reasoning") continue;
+                    yield { type: "activity", ...describeCodexItem(event.item) };
+                    continue;
+                }
+
+                if (event.type === "item.completed" && event.item?.type === "reasoning" && event.item.text) {
+                    yield { type: "reasoning", text: event.item.text };
                     continue;
                 }
 

@@ -114,6 +114,16 @@ export default function SettingsPage() {
     // marker. null means "nothing hovered".
     const [hovered, setHovered] = useState<number | null>(null);
 
+    // ── Search ───────────────────────────────────────────────────────────
+    // Declared above the layout effect below, which lists `searching` as a
+    // dependency: a const in the same scope is in its temporal dead zone until
+    // its own line runs, so reading it from an earlier hook throws on mount.
+    const [query, setQuery] = useState("");
+    const [resultIdx, setResultIdx] = useState(0);
+    const searchRef = useRef<HTMLInputElement>(null);
+    const results = useMemo(() => searchSettings(query), [query]);
+    const searching = query.trim().length > 0;
+
     useEffect(() => {
         window.electron.getAppVersion().then(setAppVersion);
     }, []);
@@ -151,13 +161,6 @@ export default function SettingsPage() {
 
     const cancelDiscard = () => setPendingSection(null);
     const goBack = () => navigate('/');
-
-    // ── Search ───────────────────────────────────────────────────────────
-    const [query, setQuery] = useState("");
-    const [resultIdx, setResultIdx] = useState(0);
-    const searchRef = useRef<HTMLInputElement>(null);
-    const results = useMemo(() => searchSettings(query), [query]);
-    const searching = query.trim().length > 0;
 
     /**
      * Opens the section a result belongs to and flashes the row, when the
@@ -368,10 +371,10 @@ export default function SettingsPage() {
                             {current?.label}
                         </h1>
                         <AnimatedSection active={activeSection === "settings"}>
-                            <GeneralSettingsSection setHasUnsaved={setHasUnsaved} />
+                            <GeneralSettingsSection />
                         </AnimatedSection>
                         <AnimatedSection active={activeSection === "keys"}>
-                            <KeysSection />
+                            <KeysSection onRecordingChange={setHasUnsaved} />
                         </AnimatedSection>
                         <AnimatedSection active={activeSection === "folders"}>
                             <FoldersSection />

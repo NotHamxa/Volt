@@ -36,16 +36,10 @@ function ThemePicker() {
     );
 }
 
-interface GeneralSettingsSectionProps {
-    /**
-     * Kept for the discard-changes guard in the settings shell. Nothing in
-     * this section holds an in-progress edit any more — the shortcut recorder
-     * that did moved to the Shortcuts section, where cancelling is local.
-     */
-    setHasUnsaved?: (val: boolean) => void;
-}
 
-export default function GeneralSettingsSection({}: GeneralSettingsSectionProps) {
+// The unsaved-changes guard moved with the shortcut recorder: that was the
+// only thing here holding a half-finished edit, and it now lives in Shortcuts.
+export default function GeneralSettingsSection() {
     const [openOnStartup, setOpenOnStartup] = useState(false);
     const [startupSaved, setStartupSaved] = useState(false);
 

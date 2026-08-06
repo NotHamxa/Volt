@@ -42,13 +42,16 @@ function Combo({ combo }: { combo: string }) {
  * One row. Editable rows swap the keycaps for a live recorder while capturing,
  * so the thing you are about to bind is shown in the place it will end up.
  */
-function BindingRow({ binding, current, onSave, onReset }: {
+function BindingRow({ binding, current, recording, onRecord, onStop, onSave, onReset }: {
     binding: Binding;
     current: string;
+    /** Owned by the section, so two rows can't listen for keys at once. */
+    recording: boolean;
+    onRecord: () => void;
+    onStop: () => void;
     onSave: (combo: string) => Promise<string | null> | string | null;
     onReset: () => void;
 }) {
-    const [recording, setRecording] = useState(false);
     const [draft, setDraft] = useState("");
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
@@ -59,7 +62,7 @@ function BindingRow({ binding, current, onSave, onReset }: {
         const onKey = (e: KeyboardEvent) => {
             e.preventDefault();
             e.stopPropagation();
-            if (e.key === "Escape") { setRecording(false); setDraft(""); draftRef.current = ""; return; }
+            if (e.key === "Escape") { onStop(); setDraft(""); draftRef.current = ""; return; }
             const combo = comboFromEvent(e);
             // Modifiers alone aren't a binding; keep listening until a real key
             // lands so holding Ctrl doesn't read as a finished combo.
@@ -72,7 +75,7 @@ function BindingRow({ binding, current, onSave, onReset }: {
         // recorder that fires them while you record is useless.
         window.addEventListener("keydown", onKey, true);
         return () => window.removeEventListener("keydown", onKey, true);
-    }, [recording]);
+    }, [recording, onStop]);
 
     const commit = async () => {
         const combo = draftRef.current;
@@ -81,12 +84,12 @@ function BindingRow({ binding, current, onSave, onReset }: {
         const err = await onSave(combo);
         setBusy(false);
         if (err) { setError(err); return; }
-        setRecording(false);
+        onStop();
         setDraft("");
         draftRef.current = "";
     };
 
-    const cancel = () => { setRecording(false); setDraft(""); draftRef.current = ""; setError(null); };
+    const cancel = () => { onStop(); setDraft(""); draftRef.current = ""; setError(null); };
 
     return (
         <div
@@ -126,7 +129,7 @@ function BindingRow({ binding, current, onSave, onReset }: {
                         {binding.editable && (
                             <>
                                 <button
-                                    onClick={() => { setRecording(true); setError(null); }}
+                                    onClick={() => { onRecord(); setError(null); }}
                                     className="ml-1.5 h-7 px-2.5 rounded-lg text-[11px] text-tone-500 hover:text-tone-800 hover:bg-fill-060 transition-colors cursor-pointer"
                                 >
                                     Change
@@ -146,13 +149,20 @@ function BindingRow({ binding, current, onSave, onReset }: {
     );
 }
 
-export default function KeysSection() {
+export default function KeysSection({ onRecordingChange }: { onRecordingChange?: (v: boolean) => void }) {
     const { get, set, reset } = useKeybindings();
     const [globalCombo, setGlobalCombo] = useState("");
+    const [recordingId, setRecordingId] = useState<string | null>(null);
 
     useEffect(() => {
         window.electronStore.get("openWindowBind").then(v => setGlobalCombo(v || ""));
     }, []);
+
+    // A half-recorded shortcut is the one unsaved edit in settings, so the
+    // shell's discard-changes guard follows it here.
+    useEffect(() => {
+        onRecordingChange?.(recordingId !== null);
+    }, [recordingId, onRecordingChange]);
 
     /** Returns an error string, or null when the binding was taken. */
     const save = async (b: Binding, combo: string): Promise<string | null> => {
@@ -193,6 +203,9 @@ export default function KeysSection() {
                                 key={b.id}
                                 binding={b}
                                 current={b.global ? globalCombo : get(b.id)}
+                                recording={recordingId === b.id}
+                                onRecord={() => setRecordingId(b.id)}
+                                onStop={() => setRecordingId(null)}
                                 onSave={combo => save(b, combo)}
                                 onReset={() => reset(b.id)}
                             />

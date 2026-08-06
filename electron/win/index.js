@@ -30,6 +30,7 @@ export { copyFileToClipboard } from "./clipboard.js";
 // Foreground-window tracking (restore focus to the previous app when Volt hides).
 export {
     initWindowFocusTracker,
+    setOwnWindowHandle,
     captureForegroundWindow,
     restoreForegroundWindow,
 } from "./windowFocus.js";

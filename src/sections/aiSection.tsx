@@ -6,7 +6,7 @@ import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select.tsx";
 import { SectionLead, GroupLabel } from "@/components/settingsLayout.tsx";
-import { providerLogo } from "@/ai/providerLogos.ts";
+import { providerLogo, providerLogoTint } from "@/ai/providerLogos.ts";
 
 /**
  * Setup for the AI view: which backends are usable, keys for the ones that need
@@ -91,8 +91,8 @@ export default function AiSection() {
         <div className="flex flex-col gap-8">
             <div className="flex flex-col gap-2">
                 <SectionLead>
-                    Ask questions without leaving Volt. Press <span className="text-white/60">Tab</span> from
-                    the search bar, or pick <span className="text-white/60">Ask AI</span> in the results.
+                    Ask questions without leaving Volt. Press <span className="text-ink/60">Tab</span> from
+                    the search bar, or pick <span className="text-ink/60">Ask AI</span> in the results.
                 </SectionLead>
                 {!canEncrypt && (
                     <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-400/[0.07] border border-amber-400/20">
@@ -110,14 +110,14 @@ export default function AiSection() {
                     <GroupLabel>Providers</GroupLabel>
                     <button
                         onClick={load}
-                        className="flex items-center gap-1.5 text-[10.5px] text-white/30 hover:text-white/65 transition-colors cursor-pointer"
+                        className="flex items-center gap-1.5 text-[10.5px] text-ink/30 hover:text-ink/65 transition-colors cursor-pointer"
                     >
                         <RefreshCw size={11} /> Re-check
                     </button>
                 </div>
 
                 {providers.length === 0 && (
-                    <p className="text-[11.5px] text-white/30">No providers are registered.</p>
+                    <p className="text-[11.5px] text-ink/30">No providers are registered.</p>
                 )}
 
                 {/* Split by how you authenticate: sign in through a tool you
@@ -128,8 +128,8 @@ export default function AiSection() {
                     return (
                         <div key={group.title} className="flex flex-col gap-2">
                             <div className="flex items-baseline gap-2 mt-1">
-                                <span className="text-[11px] font-medium text-white/45">{group.title}</span>
-                                <span className="text-[10px] text-white/20">{group.hint}</span>
+                                <span className="text-[11px] font-medium text-ink/45">{group.title}</span>
+                                <span className="text-[10px] text-ink/20">{group.hint}</span>
                             </div>
                             {members.map(p => (
                                 <ProviderCard
@@ -147,7 +147,7 @@ export default function AiSection() {
 
             <div className="flex flex-col gap-3">
                 <GroupLabel>Defaults</GroupLabel>
-                <p className="text-[11px] text-white/30 -mt-1 leading-relaxed">
+                <p className="text-[11px] text-ink/30 -mt-1 leading-relaxed">
                     What a new conversation starts with. You can still change any of it per chat.
                 </p>
 
@@ -179,11 +179,11 @@ export default function AiSection() {
 
                 {/* Without an explicit root the CLIs inherit whatever directory
                     the app was launched from, which is nobody's choice. */}
-                <div className="flex flex-col gap-2 px-4 py-3 rounded-lg bg-white/[0.025] border border-white/[0.05]">
+                <div className="flex flex-col gap-2 px-4 py-3 rounded-lg bg-fill-025 border border-line-050">
                     <div className="flex items-center justify-between gap-5">
                         <div className="min-w-0">
-                            <p className="text-[12px] text-white/70">Working folder</p>
-                            <p className="text-[10.5px] text-white/25 mt-0.5">
+                            <p className="text-[12px] text-ink/70">Working folder</p>
+                            <p className="text-[10.5px] text-ink/25 mt-0.5">
                                 Where the CLI providers read and write files
                             </p>
                         </div>
@@ -196,7 +196,7 @@ export default function AiSection() {
                                         setWorkspace(await window.ai.workspace());
                                     }
                                 }}
-                                className="flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-white/[0.05] border border-white/[0.08] text-[11px] text-white/65 hover:bg-white/[0.09] hover:text-white/85 transition-colors cursor-pointer"
+                                className="flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-fill-050 border border-line-080 text-[11px] text-ink/65 hover:bg-fill-090 hover:text-ink/85 transition-colors cursor-pointer"
                             >
                                 <FolderOpen size={12} /> Change
                             </button>
@@ -206,17 +206,17 @@ export default function AiSection() {
                                         await savePrefs({ workspace: null });
                                         setWorkspace(await window.ai.workspace());
                                     }}
-                                    className="h-7 px-2.5 rounded-md text-[11px] text-white/35 hover:text-white/70 hover:bg-white/[0.06] transition-colors cursor-pointer"
+                                    className="h-7 px-2.5 rounded-md text-[11px] text-ink/35 hover:text-ink/70 hover:bg-fill-060 transition-colors cursor-pointer"
                                 >
                                     Reset
                                 </button>
                             )}
                         </div>
                     </div>
-                    <p className="text-[10.5px] font-mono text-white/35 break-all">
+                    <p className="text-[10.5px] font-mono text-ink/35 break-all">
                         {workspace?.path ?? "…"}
                         {workspace?.isDefault && (
-                            <span className="ml-1.5 font-sans text-white/20">(managed default)</span>
+                            <span className="ml-1.5 font-sans text-ink/20">(managed default)</span>
                         )}
                     </p>
                 </div>
@@ -280,13 +280,13 @@ function ProviderCard({ provider, hasKey, canEncrypt, onChanged }: {
     const logo = providerLogo(provider.id);
 
     return (
-        <div className="px-4 py-3 rounded-lg bg-white/[0.025] border border-white/[0.05] hover:border-white/[0.09] transition-colors">
+        <div className="px-4 py-3 rounded-lg bg-fill-025 border border-line-050 hover:border-line-090 transition-colors">
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${ready ? "bg-emerald-400/70" : "bg-white/20"}`} />
-                        {logo && <img src={logo} alt="" className="w-4 h-4 shrink-0 object-contain" />}
-                        <h3 className="text-[12.5px] font-medium text-white/80 tracking-tight">{provider.label}</h3>
+                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${ready ? "bg-emerald-400/70" : "bg-ink/20"}`} />
+                        {logo && <img src={logo} alt="" className={`w-4 h-4 shrink-0 object-contain ${providerLogoTint(provider.id)}`} />}
+                        <h3 className="text-[12.5px] font-medium text-ink/80 tracking-tight">{provider.label}</h3>
                         {/* For a CLI, what matters is which wallet it draws on —
                             a plan you already pay for, or per-token billing. */}
                         {provider.needsKey ? (
@@ -299,7 +299,7 @@ function ProviderCard({ provider, hasKey, canEncrypt, onChanged }: {
                             <Badge tone="neutral">Local / CLI</Badge>
                         )}
                     </div>
-                    <p className="text-[11px] text-white/35 leading-relaxed mt-1 break-all">
+                    <p className="text-[11px] text-ink/35 leading-relaxed mt-1 break-all">
                         {provider.needsKey
                             ? (hasKey ? "Key stored in your system keychain." : "Add a key to enable this provider.")
                             : (provider.detail ?? (ready ? "Ready." : "Not detected."))}
@@ -315,7 +315,7 @@ function ProviderCard({ provider, hasKey, canEncrypt, onChanged }: {
                     <button
                         onClick={remove}
                         disabled={busy}
-                        className="shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-md text-[10.5px] text-white/30 hover:text-red-300/80 hover:bg-red-400/[0.07] transition-colors cursor-pointer disabled:opacity-40"
+                        className="shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-md text-[10.5px] text-ink/30 hover:text-red-300/80 hover:bg-red-400/[0.07] transition-colors cursor-pointer disabled:opacity-40"
                     >
                         <Trash2 size={11} /> Remove
                     </button>
@@ -325,7 +325,7 @@ function ProviderCard({ provider, hasKey, canEncrypt, onChanged }: {
             {provider.needsKey && !hasKey && (
                 <div className="mt-2.5 flex items-center gap-1.5">
                     <div className="relative flex-1">
-                        <KeyRound size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/25" />
+                        <KeyRound size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink/25" />
                         <input
                             type={reveal ? "text" : "password"}
                             value={draft}
@@ -335,12 +335,12 @@ function ProviderCard({ provider, hasKey, canEncrypt, onChanged }: {
                             placeholder={`${provider.label} API key`}
                             spellCheck={false}
                             autoComplete="off"
-                            className="w-full h-7 pl-7 pr-7 rounded-md bg-white/[0.03] border border-white/[0.07] text-[11.5px] text-white/80 placeholder:text-white/20 outline-none focus:border-white/[0.16] transition-colors disabled:opacity-40"
+                            className="w-full h-7 pl-7 pr-7 rounded-md bg-fill-030 border border-line-070 text-[11.5px] text-ink/80 placeholder:text-ink/20 outline-none focus:border-ink/[0.16] transition-colors disabled:opacity-40"
                         />
                         <button
                             onClick={() => setReveal(r => !r)}
                             aria-label={reveal ? "Hide key" : "Show key"}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-white/25 hover:text-white/60 transition-colors cursor-pointer"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-ink/25 hover:text-ink/60 transition-colors cursor-pointer"
                         >
                             {reveal ? <EyeOff size={12} /> : <Eye size={12} />}
                         </button>
@@ -348,7 +348,7 @@ function ProviderCard({ provider, hasKey, canEncrypt, onChanged }: {
                     <button
                         onClick={save}
                         disabled={!canEncrypt || busy || !draft.trim()}
-                        className="flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-white/[0.07] border border-white/[0.08] text-[11px] text-white/70 hover:bg-white/[0.11] hover:text-white/90 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-default"
+                        className="flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-fill-070 border border-line-080 text-[11px] text-ink/70 hover:bg-fill-110 hover:text-ink/90 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-default"
                     >
                         {busy ? <Spinner className="size-3" /> : <Check size={12} />} Save
                     </button>
@@ -374,7 +374,7 @@ const KEY_PROVIDERS = 4;
 
 function ProviderCardSkeleton() {
     return (
-        <div className="px-4 py-3 rounded-lg bg-white/[0.025] border border-white/[0.05]">
+        <div className="px-4 py-3 rounded-lg bg-fill-025 border border-line-050">
             <div className="flex items-center gap-2">
                 <Skeleton className="w-1.5 h-1.5 rounded-full" />
                 <Skeleton className="h-3 w-28" />
@@ -387,7 +387,7 @@ function ProviderCardSkeleton() {
 
 function RowSkeleton() {
     return (
-        <div className="flex items-center justify-between gap-5 px-4 py-2.5 rounded-lg bg-white/[0.025] border border-white/[0.05]">
+        <div className="flex items-center justify-between gap-5 px-4 py-2.5 rounded-lg bg-fill-025 border border-line-050">
             <div className="flex flex-col gap-1.5">
                 <Skeleton className="h-3 w-16" />
                 <Skeleton className="h-2 w-24" />
@@ -432,7 +432,7 @@ function Badge({ tone, children }: { tone: "good" | "warn" | "neutral"; children
     const tones = {
         good: "text-emerald-300/70 bg-emerald-400/[0.08] border-emerald-400/20",
         warn: "text-amber-300/70 bg-amber-400/[0.08] border-amber-400/20",
-        neutral: "text-white/30 bg-white/[0.05] border-white/[0.06]",
+        neutral: "text-ink/30 bg-fill-050 border-line-060",
     };
     return (
         <span className={`shrink-0 px-1.5 py-px rounded text-[9.5px] uppercase tracking-wide border ${tones[tone]}`}>
@@ -443,10 +443,10 @@ function Badge({ tone, children }: { tone: "good" | "warn" | "neutral"; children
 
 function Row({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
     return (
-        <div className="flex items-center justify-between gap-5 px-4 py-2.5 rounded-lg bg-white/[0.025] border border-white/[0.05]">
+        <div className="flex items-center justify-between gap-5 px-4 py-2.5 rounded-lg bg-fill-025 border border-line-050">
             <div className="min-w-0">
-                <p className="text-[12px] text-white/70">{label}</p>
-                {hint && <p className="text-[10.5px] text-white/25 mt-0.5">{hint}</p>}
+                <p className="text-[12px] text-ink/70">{label}</p>
+                {hint && <p className="text-[10.5px] text-ink/25 mt-0.5">{hint}</p>}
             </div>
             <div className="shrink-0">{children}</div>
         </div>
@@ -463,19 +463,19 @@ function SettingSelect({ value, onChange, options }: {
         <Select value={value} onValueChange={onChange}>
             <SelectTrigger
                 size="sm"
-                className="data-[size=sm]:h-7 w-44 rounded-md border-white/[0.08] bg-white/[0.03] px-2.5 text-[11.5px] text-white/75 shadow-none hover:bg-white/[0.06] focus-visible:ring-0 dark:bg-white/[0.03] dark:hover:bg-white/[0.06] [&_svg]:size-3 [&_svg:not([class*='text-'])]:text-white/30"
+                className="data-[size=sm]:h-7 w-44 rounded-md border-line-080 bg-fill-030 px-2.5 text-[11.5px] text-ink/75 shadow-none hover:bg-fill-060 focus-visible:ring-0 dark:bg-fill-030 dark:hover:bg-fill-060 [&_svg]:size-3 [&_svg:not([class*='text-'])]:text-ink/30"
             >
                 <SelectValue />
             </SelectTrigger>
             <SelectContent
                 position="popper"
-                className="rounded-lg border-white/[0.09] bg-[rgba(18,18,20,0.97)] backdrop-blur-md shadow-[0_8px_24px_rgba(0,0,0,0.45)]"
+                className="rounded-lg border-line-090 bg-surface-menu/[0.97] backdrop-blur-md shadow-[0_8px_24px_var(--shadow-2)]"
             >
                 {options.map(o => (
                     <SelectItem
                         key={o.id}
                         value={o.id}
-                        className="text-[11.5px] text-white/65 focus:bg-white/[0.07] focus:text-white/90 [&_svg]:size-3"
+                        className="text-[11.5px] text-ink/65 focus:bg-fill-070 focus:text-ink/90 [&_svg]:size-3"
                     >
                         {o.label}
                     </SelectItem>

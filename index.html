@@ -5,6 +5,23 @@
     <link rel="icon" href="/electron/Assets/appLogo2CroppedNoBg.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Volt</title>
+    <script>
+      // Runs before first paint. The launcher is summoned dozens of times a
+      // day, and reading the real preference is an IPC round-trip, so without
+      // this every open would flash the wrong theme for a frame. src/theme.tsx
+      // keeps this mirror in step with the stored setting.
+      (function () {
+        try {
+          var choice = localStorage.getItem("volt-theme") || "dark";
+          var dark = choice === "dark" || (choice === "system" &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.classList.toggle("dark", dark);
+          document.documentElement.style.colorScheme = dark ? "dark" : "light";
+        } catch (e) {
+          document.documentElement.classList.add("dark");
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

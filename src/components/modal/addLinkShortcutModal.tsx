@@ -75,7 +75,7 @@ export default function AddLinkShortcutModal({
             onOpenChange={setAddShortcutOpenModal}
         >
             <DialogContent
-                className="bg-[rgba(20,20,22,1)]"
+                className="bg-surface"
             >
                 <DialogTitle>
                     <Label className="flex self-center">Add Shortcut</Label>

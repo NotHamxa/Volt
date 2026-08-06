@@ -1,6 +1,21 @@
-import { BrowserWindow, screen } from 'electron'
+import { BrowserWindow, screen, nativeTheme } from 'electron'
+import Store from 'electron-store'
 import path from 'path'
 import { fileURLToPath } from 'url'
+
+const store = new Store()
+
+/**
+ * The toast is a separate window with its own stylesheet, so it has to be
+ * told which theme to draw. Mirrors src/theme.tsx: an explicit choice wins,
+ * "system" follows the OS, and an unset preference means dark.
+ */
+function resolvedTheme() {
+    const choice = store.get('theme')
+    if (choice === 'light' || choice === 'dark') return choice
+    if (choice === 'system') return nativeTheme.shouldUseDarkColors ? 'dark' : 'light'
+    return 'dark'
+}
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -73,7 +88,11 @@ function _sendNotification({ title, message, icon, duration }) {
         hideTimer = null
     }
 
-    notifWin.webContents.send('notify', { title, message, icon, isReset: notifWin.isVisible(), duration })
+    notifWin.webContents.send('notify', {
+        title, message, icon, duration,
+        isReset: notifWin.isVisible(),
+        theme: resolvedTheme(),
+    })
     notifWin.showInactive()
 
     hideTimer = setTimeout(() => {

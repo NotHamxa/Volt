@@ -66,7 +66,7 @@ function PinnedLinks({ link, removeLink, setEditLink, index }: IPinnedLinks) {
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <button
-                                    className="w-full h-full flex flex-col items-center justify-start pt-1 rounded-lg text-center transition-all duration-200 cursor-pointer select-none hover:bg-[#353737] active:scale-95"
+                                    className="w-full h-full flex flex-col items-center justify-start pt-1 rounded-lg text-center transition-all duration-200 cursor-pointer select-none hover:bg-fill-140 active:scale-95"
                                     onClick={() => window.electron.openExternal(shortcut)}
                                 >
                                     {favicon ? (
@@ -81,7 +81,7 @@ function PinnedLinks({ link, removeLink, setEditLink, index }: IPinnedLinks) {
                                     <span className="text-sm">{name}</span>
                                 </button>
                             </TooltipTrigger>
-                            <TooltipContent side="bottom" className="bg-[rgba(20,20,22,0.98)] border border-white/10 text-white/70 text-[11px]">
+                            <TooltipContent side="bottom" className="bg-surface/[0.98] border border-line-100 text-ink/70 text-[11px]">
                                 {shortcut}
                             </TooltipContent>
                         </Tooltip>

@@ -14,6 +14,7 @@ import {createNotificationWindow} from "./universal/notification.js";
 import {normaliseString} from "./universal/search.js";
 import {
     initWindowFocusTracker,
+    setOwnWindowHandle,
     captureForegroundWindow,
     restoreForegroundWindow,
     loadAppData,
@@ -108,6 +109,9 @@ const showMainWindow = () => {
     captureForegroundWindow();
 
     mainWindow.setOpacity(0);
+    // Dismissing minimises before hiding, so the window can come back from a
+    // minimised state — show() alone doesn't always undo that on Windows.
+    if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.show();
     mainWindow.focus();
 
@@ -115,14 +119,24 @@ const showMainWindow = () => {
         mainWindow.setOpacity(1);
     }, 50);
 };
-const hideMainWindow = () => {
+let hidingWindow = false;
+const hideMainWindow = (restoreFocus = true) => {
     // aiMode is deliberately not checked here: it only suppresses the *blur*
     // auto-hide (handled in the blur listener). An explicit hide — the hotkey,
     // Escape, tray — must still work while the AI view is open.
     if (!mainWindow || appStates.fixWindowOpen || appStates.windowLocked) return;
+    if (hidingWindow) return;
+    hidingWindow = true;
+    // hide() on its own just drops Volt off the screen: Windows is free to hand
+    // the foreground to the desktop instead of whatever the window was covering.
+    // Minimising first makes it promote the next window in the z-order — the app
+    // you were using before you opened Volt. SetForegroundWindow on the captured
+    // hwnd is the belt-and-braces pass for the cases where that isn't enough.
+    if (restoreFocus && mainWindow.isVisible()) mainWindow.minimize();
     mainWindow.hide();
     mainWindow.webContents.send('window-blurred');
-    restoreForegroundWindow();
+    if (restoreFocus) restoreForegroundWindow();
+    hidingWindow = false;
 };
 const handleWindowLock = ()=>{
     appStates.windowLocked = !appStates.windowLocked;
@@ -183,6 +197,13 @@ const createWindow = async () => {
         titleBarOverlay: false,
     });
 
+    const nativeHandle = mainWindow.getNativeWindowHandle();
+    setOwnWindowHandle(
+        nativeHandle.length >= 8
+            ? Number(nativeHandle.readBigUInt64LE(0))
+            : nativeHandle.readUInt32LE(0)
+    );
+
     const tray = new Tray(path.join(__dirname, "Assets/appLogo2CroppedNoBg.png"));
     tray.setToolTip("Volt")
     const contextMenu = Menu.buildFromTemplate([
@@ -204,7 +225,10 @@ const createWindow = async () => {
         // should be able to click away and read while an answer streams.
         if (appStates.aiMode) return;
         if (appStates.fixWindowOpen && !appStates.dialogOpen) mainWindow.focus();
-        else if (mainWindow?.isVisible()) hideMainWindow();
+        // No focus restore here: blur means the user has already put something
+        // else in front, and pulling the *previous* window forward would steal
+        // focus from whatever they just clicked.
+        else if (mainWindow?.isVisible()) hideMainWindow(false);
     });
 
     // Volt is a fixed-size launcher, so zooming only breaks the layout. Covers
@@ -279,7 +303,7 @@ app.whenReady().then(async () => {
     loadCommandsData(cache, store);
 
     if (!cache.firstTimeExperience)
-        hideMainWindow()
+        hideMainWindow(false)
     else
         showMainWindow()
 

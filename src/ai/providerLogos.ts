@@ -26,6 +26,22 @@ export const PROVIDER_LOGOS: Record<string, string> = {
     grok,
 };
 
+/**
+ * The marks that are a single flat white, with no colour of their own. They
+ * were picked to read on a dark panel, so on a light one they turn invisible.
+ * Inverting a pure-white glyph gives pure black, which is exactly the light
+ * variant these vendors ship — so no second copy of the artwork is needed.
+ *
+ * The colourful marks (Claude, Gemini, DeepSeek) must never be inverted: it
+ * would misrepresent the brand rather than adapt it.
+ */
+const WHITE_ONLY = new Set(["openai", "codex", "ollama", "grok"]);
+
 export function providerLogo(providerId: string): string | null {
     return PROVIDER_LOGOS[providerId] ?? null;
+}
+
+/** Classes to hang on the logo's `<img>` so it survives a light background. */
+export function providerLogoTint(providerId: string): string {
+    return WHITE_ONLY.has(providerId) ? "invert dark:invert-0" : "";
 }

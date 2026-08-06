@@ -89,7 +89,7 @@ export default function EditLinkShortcutModal({
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent className="bg-[rgba(20,20,22,1)]">
+            <DialogContent className="bg-surface">
                 <DialogTitle>
                     <Label className="flex self-center">
                         Edit Shortcut

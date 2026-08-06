@@ -3,73 +3,222 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * Theme tokens
+ * ────────────
+ * The UI is built almost entirely out of alpha overlays on a translucent
+ * panel, so a theme is really just two questions: what colour do we draw
+ * overlays in, and what sits behind them. `--ink` answers the first,
+ * `--surface-*` the second, and every call site keeps its own alpha —
+ * `text-ink/25`, `bg-ink/[0.05]`, `border-ink/[0.08]`.
+ *
+ * The dark values below are the exact colours the app already shipped, so
+ * dark mode renders identically to before the theme existed. Light mode is
+ * the same ladder with the ink inverted and the surfaces lifted.
+ */
+
 :root {
   --radius: 0.625rem;
+
+  /* The colour every overlay is drawn in. Near-black on light. */
+  --ink: oklch(14.1% 0.005 285.823);
+
+  /* Panel tiers, deepest last. Alpha is applied at the call site.
+     Near-white rather than grey: the fills above darken what they sit on, so
+     a card reads as a card only when the page beneath it is lighter. */
+  --surface: rgb(252 252 253);        /* app shell, tooltips, dialogs */
+  --surface-menu: rgb(255 255 255);   /* dropdowns, popovers, side rail */
+  --surface-modal: rgb(255 255 255);  /* modals and full overlays */
+  --surface-float: rgb(253 253 255);  /* glassy floating bars and pills */
+
+  /* Pre-mixed ink, for the handful of places that need a colour rather than
+     a utility — `scrollbar-color`, which takes two values and so can't be
+     expressed as a Tailwind arbitrary property cleanly. */
+  --ink-soft: color-mix(in oklab, var(--ink) 15%, transparent);
+
+  /*
+   * Structural fills and hairlines. These are the one part of the theme that
+   * can't share an alpha between modes: white at 5% on a near-black panel is
+   * a fivefold lift in luminance, while black at 5% on a near-white one is a
+   * 5% dip. Same number, nowhere near the same amount of contrast — sharing
+   * it is exactly what made the first light build look washed out.
+   *
+   * The step name is the dark alpha in per-mille, so `fill-050` is the 0.05
+   * the dark UI has always used. Light runs about 2.2x on fills and 1.8x on
+   * lines, since a hairline carries less weight than a filled block.
+   */
+  --fill-012: rgba(0,0,0,0.026);
+  --fill-015: rgba(0,0,0,0.033);
+  --fill-020: rgba(0,0,0,0.044);
+  --fill-025: rgba(0,0,0,0.055);
+  --fill-030: rgba(0,0,0,0.066);
+  --fill-035: rgba(0,0,0,0.077);
+  --fill-040: rgba(0,0,0,0.088);
+  --fill-050: rgba(0,0,0,0.11);
+  --fill-060: rgba(0,0,0,0.132);
+  --fill-070: rgba(0,0,0,0.154);
+  --fill-080: rgba(0,0,0,0.176);
+  --fill-090: rgba(0,0,0,0.198);
+  --fill-100: rgba(0,0,0,0.22);
+  --fill-110: rgba(0,0,0,0.242);
+  --fill-120: rgba(0,0,0,0.264);
+  --fill-140: rgba(0,0,0,0.308);
+  --fill-150: rgba(0,0,0,0.33);
+
+  --line-040: rgba(0,0,0,0.072);
+  --line-050: rgba(0,0,0,0.09);
+  --line-060: rgba(0,0,0,0.108);
+  --line-070: rgba(0,0,0,0.126);
+  --line-080: rgba(0,0,0,0.144);
+  --line-090: rgba(0,0,0,0.162);
+  --line-100: rgba(0,0,0,0.18);
+  --line-120: rgba(0,0,0,0.216);
+  --line-150: rgba(0,0,0,0.27);
+
+  /* Drop shadows. Light UIs need far less of one for the same lift. */
+  --shadow-1: rgba(0, 0, 0, 0.06);
+  --shadow-2: rgba(0, 0, 0, 0.09);
+  --shadow-3: rgba(0, 0, 0, 0.13);
+  /* The 1px inner highlight along the top edge of a raised panel. */
+  --edge-hi: rgba(255, 255, 255, 0.9);
+
+  /* Modal backdrops. Black in both themes — a scrim dims, it doesn't tint —
+     but a light UI needs less of one to read as "behind". */
+  --scrim-soft: rgba(0, 0, 0, 0.25);
+  --scrim: rgba(0, 0, 0, 0.35);
+  --scrim-strong: rgba(0, 0, 0, 0.45);
+
+  /* Code blocks and stack traces: recessed rather than raised, so this is
+     the one surface that goes *darker* than its panel in both themes. */
+  --code-bg: rgba(0, 0, 0, 0.045);
+
+  /* ── shadcn tokens, derived so the ui/* primitives follow the theme ── */
   --background: transparent;
-  --foreground: oklch(0.141 0.005 285.823);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.141 0.005 285.823);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.141 0.005 285.823);
-  --primary: oklch(0.21 0.006 285.885);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.967 0.001 286.375);
-  --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: oklch(0.967 0.001 286.375);
-  --muted-foreground: oklch(0.552 0.016 285.938);
-  --accent: oklch(0.967 0.001 286.375);
-  --accent-foreground: oklch(0.21 0.006 285.885);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.92 0.004 286.32);
-  --input: oklch(0.92 0.004 286.32);
-  --ring: oklch(0.705 0.015 286.067);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface-menu);
+  --popover-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: var(--surface);
+  --secondary: color-mix(in oklab, var(--ink) 6%, transparent);
+  --secondary-foreground: var(--ink);
+  --muted: color-mix(in oklab, var(--ink) 6%, transparent);
+  --muted-foreground: color-mix(in oklab, var(--ink) 55%, transparent);
+  --accent: color-mix(in oklab, var(--ink) 8%, transparent);
+  --accent-foreground: var(--ink);
+  --destructive: oklch(57.7% 0.245 27.325);  /* red-600 */
+  --border: color-mix(in oklab, var(--ink) 10%, transparent);
+  --input: color-mix(in oklab, var(--ink) 14%, transparent);
+  --ring: color-mix(in oklab, var(--ink) 30%, transparent);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.141 0.005 285.823);
-  --sidebar-primary: oklch(0.21 0.006 285.885);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.967 0.001 286.375);
-  --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
-  --sidebar-border: oklch(0.92 0.004 286.32);
-  --sidebar-ring: oklch(0.705 0.015 286.067);
+  --sidebar: var(--surface-menu);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--ink);
+  --sidebar-primary-foreground: var(--surface);
+  --sidebar-accent: color-mix(in oklab, var(--ink) 8%, transparent);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: color-mix(in oklab, var(--ink) 10%, transparent);
+  --sidebar-ring: color-mix(in oklab, var(--ink) 30%, transparent);
 }
 
-.dark {
-  --background: transparent;
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.21 0.006 285.885);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.21 0.006 285.885);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.92 0.004 286.32);
-  --primary-foreground: oklch(0.21 0.006 285.885);
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.274 0.006 286.033);
-  --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.274 0.006 286.033);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.552 0.016 285.938);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.21 0.006 285.885);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.274 0.006 286.033);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.552 0.016 285.938);
+/* `:root.dark`, not `.dark` — same element as the block above, so an equal
+   specificity would leave this depending on source order. */
+:root.dark {
+  --ink: #ffffff;
+
+  --surface: rgb(20 20 22);
+  --surface-menu: rgb(18 18 20);
+  --surface-modal: rgb(12 12 12);
+  --surface-float: rgb(23 23 27);
+
+  --shadow-1: rgba(0, 0, 0, 0.32);
+  --shadow-2: rgba(0, 0, 0, 0.5);
+  --shadow-3: rgba(0, 0, 0, 0.68);
+  --edge-hi: rgba(255, 255, 255, 0.04);
+
+  --scrim-soft: rgba(0, 0, 0, 0.4);
+  --scrim: rgba(0, 0, 0, 0.55);
+  --scrim-strong: rgba(0, 0, 0, 0.65);
+
+  --code-bg: rgba(0, 0, 0, 0.35);
+
+  --destructive: oklch(63.7% 0.237 25.331);  /* red-500 */
+
+  /* Each step is the alpha the dark UI already used, so these are a rename
+     rather than a retune. */
+  --fill-012: rgba(255,255,255,0.012);
+  --fill-015: rgba(255,255,255,0.015);
+  --fill-020: rgba(255,255,255,0.02);
+  --fill-025: rgba(255,255,255,0.025);
+  --fill-030: rgba(255,255,255,0.03);
+  --fill-035: rgba(255,255,255,0.035);
+  --fill-040: rgba(255,255,255,0.04);
+  --fill-050: rgba(255,255,255,0.05);
+  --fill-060: rgba(255,255,255,0.06);
+  --fill-070: rgba(255,255,255,0.07);
+  --fill-080: rgba(255,255,255,0.08);
+  --fill-090: rgba(255,255,255,0.09);
+  --fill-100: rgba(255,255,255,0.1);
+  --fill-110: rgba(255,255,255,0.11);
+  --fill-120: rgba(255,255,255,0.12);
+  --fill-140: rgba(255,255,255,0.14);
+  --fill-150: rgba(255,255,255,0.15);
+
+  --line-040: rgba(255,255,255,0.04);
+  --line-050: rgba(255,255,255,0.05);
+  --line-060: rgba(255,255,255,0.06);
+  --line-070: rgba(255,255,255,0.07);
+  --line-080: rgba(255,255,255,0.08);
+  --line-090: rgba(255,255,255,0.09);
+  --line-100: rgba(255,255,255,0.1);
+  --line-120: rgba(255,255,255,0.12);
+  --line-150: rgba(255,255,255,0.15);
+}
+
+/*
+ * Accents keep their palette names at the call site — `red` still means red,
+ * unlike `white`, which would be a lie in light mode. Only the shade each
+ * name resolves to changes, because a 300-weight tuned to read on near-black
+ * disappears on near-white. Tailwind v4 compiles `text-red-300/80` to a
+ * var() reference, so remapping the variable is enough; these rules sit
+ * outside @layer theme and therefore win over Tailwind's own defaults.
+ *
+ * Values are written out rather than pointed at `var(--color-red-700)`:
+ * Tailwind only emits a palette variable when some utility uses that exact
+ * shade, and nothing in the app asks for a 600 or 700. Referencing one would
+ * resolve to nothing and drop the colour entirely. Each literal below is
+ * copied from tailwindcss/theme.css.
+ *
+ * Dark mode is deliberately absent here: it keeps Tailwind's stock values,
+ * which is what the app already used.
+ */
+:root:not(.dark) {
+  --color-red-200: oklch(50.5% 0.213 27.518);   /* red-700 */
+  --color-red-300: oklch(50.5% 0.213 27.518);   /* red-700 */
+  --color-red-400: oklch(57.7% 0.245 27.325);   /* red-600 */
+  --color-red-500: oklch(57.7% 0.245 27.325);   /* red-600 */
+
+  --color-amber-100: oklch(47.3% 0.137 46.201); /* amber-800 */
+  --color-amber-200: oklch(47.3% 0.137 46.201); /* amber-800 */
+  --color-amber-300: oklch(55.5% 0.163 48.998); /* amber-700 */
+  --color-amber-400: oklch(66.6% 0.179 58.318); /* amber-600 */
+  --color-amber-500: oklch(66.6% 0.179 58.318); /* amber-600 */
+
+  --color-emerald-300: oklch(50.8% 0.118 165.612); /* emerald-700 */
+  --color-emerald-400: oklch(59.6% 0.145 163.225); /* emerald-600 */
+  --color-green-400: oklch(62.7% 0.194 149.214);   /* green-600 */
+
+  --color-sky-300: oklch(50% 0.134 242.749);    /* sky-700 */
+  --color-sky-400: oklch(58.8% 0.158 241.966);  /* sky-600 */
+  --color-sky-500: oklch(58.8% 0.158 241.966);  /* sky-600 */
+
+  --color-violet-300: oklch(49.1% 0.27 292.581); /* violet-700 */
+  --color-violet-500: oklch(54.1% 0.281 293.009); /* violet-600 */
 }
 
 @theme inline {
@@ -77,6 +226,41 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+
+  --color-ink: var(--ink);
+  --color-surface: var(--surface);
+  --color-surface-menu: var(--surface-menu);
+  --color-surface-modal: var(--surface-modal);
+  --color-surface-float: var(--surface-float);
+
+  --color-fill-012: var(--fill-012);
+  --color-fill-015: var(--fill-015);
+  --color-fill-020: var(--fill-020);
+  --color-fill-025: var(--fill-025);
+  --color-fill-030: var(--fill-030);
+  --color-fill-035: var(--fill-035);
+  --color-fill-040: var(--fill-040);
+  --color-fill-050: var(--fill-050);
+  --color-fill-060: var(--fill-060);
+  --color-fill-070: var(--fill-070);
+  --color-fill-080: var(--fill-080);
+  --color-fill-090: var(--fill-090);
+  --color-fill-100: var(--fill-100);
+  --color-fill-110: var(--fill-110);
+  --color-fill-120: var(--fill-120);
+  --color-fill-140: var(--fill-140);
+  --color-fill-150: var(--fill-150);
+
+  --color-line-040: var(--line-040);
+  --color-line-050: var(--line-050);
+  --color-line-060: var(--line-060);
+  --color-line-070: var(--line-070);
+  --color-line-080: var(--line-080);
+  --color-line-090: var(--line-090);
+  --color-line-100: var(--line-100);
+  --color-line-120: var(--line-120);
+  --color-line-150: var(--line-150);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -124,7 +308,7 @@
    gutter with a rounded thumb inset by a transparent border. */
 .scrollbar-thin-shadcn {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+  scrollbar-color: color-mix(in oklab, var(--ink) 14%, transparent) transparent;
 }
 .scrollbar-thin-shadcn::-webkit-scrollbar {
   width: 10px;
@@ -134,11 +318,11 @@
   background: transparent;
 }
 .scrollbar-thin-shadcn::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.14);
+  background-color: color-mix(in oklab, var(--ink) 14%, transparent);
   border: 3px solid transparent;
   background-clip: content-box;
   border-radius: 9999px;
 }
 .scrollbar-thin-shadcn::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(255, 255, 255, 0.24);
+  background-color: color-mix(in oklab, var(--ink) 24%, transparent);
 }

@@ -332,9 +332,9 @@ const QueryComponent = memo(({
             onFocus={handleFocus}
             onBlur={handleBlur}
             tabIndex={0}
-            className={`cursor-pointer flex items-center justify-between py-2 px-3 rounded-lg select-none transition-colors duration-150 gap-3 w-full hover:bg-white/10 ${
-                (highlighted || isFocused) ? "bg-white/10" : "bg-transparent"
-            } ${isFocused ? "outline outline-[1px] outline-offset-[-1px] outline-white/[0.18]" : "outline-none"}`}
+            className={`cursor-pointer flex items-center justify-between py-2 px-3 rounded-lg select-none transition-colors duration-150 gap-3 w-full hover:bg-fill-100 ${
+                (highlighted || isFocused) ? "bg-fill-100" : "bg-transparent"
+            } ${isFocused ? "outline outline-[1px] outline-offset-[-1px] outline-ink/[0.18]" : "outline-none"}`}
         >
             {/* min-w-0 lets the name shrink; without it the flex item keeps its
                 content width and a long file name wraps to a second line,
@@ -422,15 +422,15 @@ const QueryComponent = memo(({
 
             {(type === "commandConfirm" || type === "commandConfirmOpen") && (
                 <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
-                    <DialogContent className="sm:max-w-106.25 bg-[rgba(20,20,22,1)]">
+                    <DialogContent className="sm:max-w-106.25 bg-surface">
                         <DialogHeader>
                             <DialogTitle>Confirm Command</DialogTitle>
-                            <DialogDescription className="text-white/40">
+                            <DialogDescription className="text-ink/40">
                                 Are you sure you want to run this command?
                             </DialogDescription>
                         </DialogHeader>
                         <div className="py-2">
-                            <code className="block w-full p-3 rounded-lg text-sm font-mono break-all bg-white/[0.04] border border-white/[0.07] text-white/70">
+                            <code className="block w-full p-3 rounded-lg text-sm font-mono break-all bg-fill-040 border border-line-070 text-ink/70">
                                 {name}
                             </code>
                         </div>
@@ -438,7 +438,7 @@ const QueryComponent = memo(({
                             <Button
                                 variant="outline"
                                 onClick={handleCancel}
-                                className="border-white/10 text-white/45 hover:text-white/65"
+                                className="border-line-100 text-ink/45 hover:text-ink/65"
                             >
                                 Cancel (Esc)
                             </Button>
@@ -815,10 +815,10 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                             <button
                                 onClick={() => openBlockEntry(item)}
                                 tabIndex={0}
-                                className={`cursor-pointer flex items-center py-1.5 pl-11 pr-3 rounded-lg select-none transition-colors duration-150 gap-2 w-full hover:bg-white/10 ${focused ? "bg-white/10 outline outline-[1px] outline-offset-[-1px] outline-white/[0.18]" : "bg-transparent"}`}
+                                className={`cursor-pointer flex items-center py-1.5 pl-11 pr-3 rounded-lg select-none transition-colors duration-150 gap-2 w-full hover:bg-fill-100 ${focused ? "bg-fill-100 outline outline-[1px] outline-offset-[-1px] outline-ink/[0.18]" : "bg-transparent"}`}
                             >
-                                <Search className="w-3.5 h-3.5 shrink-0 text-white/30" />
-                                <span className="text-[12px] text-white/60 truncate">{item.name}</span>
+                                <Search className="w-3.5 h-3.5 shrink-0 text-ink/30" />
+                                <span className="text-[12px] text-ink/60 truncate">{item.name}</span>
                             </button>
                         </div>
                     );
@@ -850,38 +850,38 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
             ? `https://www.google.com/s2/favicons?sz=24&domain_url=${encodeURIComponent(resolved.bang.d)}`
             : null;
         const fallbackIcon = resolved.isDirectUrl
-            ? <Globe className="w-5 h-5 shrink-0 text-white/40" />
+            ? <Globe className="w-5 h-5 shrink-0 text-ink/40" />
             : <Google className="w-6 h-6 shrink-0" />;
 
         return (
             <div
                 key="web-row"
                 ref={el => { itemRefs.current[itemIndex] = el; }}
-                className={!promoteWeb && localCount > 0 ? "mt-2 pt-2 border-t border-white/[0.05]" : ""}
+                className={!promoteWeb && localCount > 0 ? "mt-2 pt-2 border-t border-line-050" : ""}
             >
                 <button
                     onClick={() => openSearch(toHistoryEntry(resolved))}
                     tabIndex={0}
-                    className={`cursor-pointer flex items-center justify-between py-2 px-3 rounded-lg select-none transition-colors duration-150 gap-3 w-full hover:bg-white/10 ${focused ? "bg-white/10 outline outline-[1px] outline-offset-[-1px] outline-white/[0.18]" : "bg-transparent"}`}
+                    className={`cursor-pointer flex items-center justify-between py-2 px-3 rounded-lg select-none transition-colors duration-150 gap-3 w-full hover:bg-fill-100 ${focused ? "bg-fill-100 outline outline-[1px] outline-offset-[-1px] outline-ink/[0.18]" : "bg-transparent"}`}
                 >
                     <div className="flex items-center gap-2 min-w-0">
                         <FaviconOrIcon key={faviconUrl ?? "none"} src={faviconUrl}>
                             {fallbackIcon}
                         </FaviconOrIcon>
-                        <span className="text-[13px] text-white/80 truncate">
+                        <span className="text-[13px] text-ink/80 truncate">
                             {resolved.isDirectUrl ? (
-                                <>Go to <span className="text-white font-medium">{resolved.searchTerm}</span></>
+                                <>Go to <span className="text-ink font-medium">{resolved.searchTerm}</span></>
                             ) : resolved.searchTerm ? (
                                 <>
                                     Search {resolved.bang.s} for{" "}
-                                    <span className="text-white font-medium">"{resolved.searchTerm}"</span>
+                                    <span className="text-ink font-medium">"{resolved.searchTerm}"</span>
                                 </>
                             ) : (
-                                <>Open <span className="text-white font-medium">{resolved.bang.s}</span></>
+                                <>Open <span className="text-ink font-medium">{resolved.bang.s}</span></>
                             )}
                         </span>
                     </div>
-                    <span className="ml-auto opacity-70 text-[12px] cursor-default text-white/50 shrink-0">
+                    <span className="ml-auto opacity-70 text-[12px] cursor-default text-ink/50 shrink-0">
                         {resolved.isDirectUrl ? "Link" : "Web"}
                     </span>
                 </button>
@@ -894,8 +894,8 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
         <ScrollArea ref={scrollAreaRef} className="w-full h-[420px] px-5">
             {isCmdCommand ? (
                 <div>
-                    <div className="text-center text-[11px] font-semibold tracking-[0.1em] uppercase text-white/25 mb-2">CMD Command</div>
-                    <div className="p-2 rounded-lg bg-white/5">
+                    <div className="text-center text-[11px] font-semibold tracking-[0.1em] uppercase text-ink/25 mb-2">CMD Command</div>
+                    <div className="p-2 rounded-lg bg-fill-050">
                         {cmdCommand}
                     </div>
                 </div>
@@ -908,13 +908,13 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                 allResults.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-[380px] select-none">
                         <div className="relative mb-4">
-                            <div className="absolute inset-0 blur-xl bg-white/[0.03] rounded-full" />
-                            <div className="relative w-16 h-16 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center">
-                                <SearchX className="w-7 h-7 text-white/30" strokeWidth={1.5} />
+                            <div className="absolute inset-0 blur-xl bg-fill-030 rounded-full" />
+                            <div className="relative w-16 h-16 rounded-xl bg-fill-030 border border-line-060 flex items-center justify-center">
+                                <SearchX className="w-7 h-7 text-ink/30" strokeWidth={1.5} />
                             </div>
                         </div>
-                        <div className="text-[13px] font-medium text-white/50">Nothing here</div>
-                        <div className="text-[11px] text-white/20 mt-1">Try a different search</div>
+                        <div className="text-[13px] font-medium text-ink/50">Nothing here</div>
+                        <div className="text-[11px] text-ink/20 mt-1">Try a different search</div>
                     </div>
                 ) : (
                     <>
@@ -957,16 +957,16 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                                     <button
                                         onClick={() => openAi(aiEntry.name)}
                                         tabIndex={0}
-                                        className={`cursor-pointer flex items-center justify-between py-2 px-3 rounded-lg select-none transition-colors duration-150 gap-3 w-full hover:bg-white/10 ${focused ? "bg-white/10 outline outline-[1px] outline-offset-[-1px] outline-white/[0.18]" : "bg-transparent"}`}
+                                        className={`cursor-pointer flex items-center justify-between py-2 px-3 rounded-lg select-none transition-colors duration-150 gap-3 w-full hover:bg-fill-100 ${focused ? "bg-fill-100 outline outline-[1px] outline-offset-[-1px] outline-ink/[0.18]" : "bg-transparent"}`}
                                     >
                                         <div className="flex items-center gap-2 min-w-0">
                                             <Sparkles className="w-5 h-5 shrink-0 text-amber-300/70" />
-                                            <span className="text-[13px] text-white/80 truncate">
+                                            <span className="text-[13px] text-ink/80 truncate">
                                                 Ask AI about{" "}
-                                                <span className="text-white font-medium">"{aiEntry.name}"</span>
+                                                <span className="text-ink font-medium">"{aiEntry.name}"</span>
                                             </span>
                                         </div>
-                                        <span className="ml-auto opacity-70 text-[12px] cursor-default text-white/50 shrink-0">AI</span>
+                                        <span className="ml-auto opacity-70 text-[12px] cursor-default text-ink/50 shrink-0">AI</span>
                                     </button>
                                 </div>
                             );

@@ -119,10 +119,10 @@ export default function PinnedApps({setStage, unPinApp, pinnedApps,setPinnedApps
             />
             <div className="h-[325px] shrink-0 flex flex-col">
                 <div className="flex items-center justify-between pr-[10px]">
-                    <span className="mx-3 text-[11px] font-semibold tracking-[0.1em] uppercase text-white/25">Pinned Apps</span>
+                    <span className="mx-3 text-[11px] font-semibold tracking-[0.1em] uppercase text-ink/25">Pinned Apps</span>
                     <Button
                         variant="ghost"
-                        className="text-white/40 hover:text-white/70 px-2.5 py-1 h-auto text-xs rounded-lg flex items-center gap-1 transition-colors duration-150 bg-white/5 border border-white/8"
+                        className="text-ink/40 hover:text-ink/70 px-2.5 py-1 h-auto text-xs rounded-lg flex items-center gap-1 transition-colors duration-150 bg-fill-050 border border-line-080"
                         onClick={() => setStage(2)}
                     >
                         All
@@ -143,16 +143,16 @@ export default function PinnedApps({setStage, unPinApp, pinnedApps,setPinnedApps
                     </div>
                 ) : (
                     <div className="flex-1 flex items-center justify-center">
-                        <label className="text-[13px] text-white/20">No Apps Pinned</label>
+                        <label className="text-[13px] text-ink/20">No Apps Pinned</label>
                     </div>
                 )}
             </div>
             <div className="flex-1 min-h-0 flex flex-col">
                 <div className="flex items-center justify-between pr-[10px]">
-                    <span className="mx-3 text-[11px] font-semibold tracking-[0.1em] uppercase text-white/25">Links</span>
+                    <span className="mx-3 text-[11px] font-semibold tracking-[0.1em] uppercase text-ink/25">Links</span>
                     <Button
                         variant="ghost"
-                        className="text-white/40 hover:text-white/70 px-2.5 py-1 h-auto text-xs rounded-lg flex items-center gap-1 transition-colors duration-150 bg-white/5 border border-white/8"
+                        className="text-ink/40 hover:text-ink/70 px-2.5 py-1 h-auto text-xs rounded-lg flex items-center gap-1 transition-colors duration-150 bg-fill-050 border border-line-080"
                         onClick={()=>{
                             if (linkShortcuts.length >= 8){
                                 window.electron.notify("Limit","You can only add 8 shortcuts.");
@@ -185,7 +185,7 @@ export default function PinnedApps({setStage, unPinApp, pinnedApps,setPinnedApps
                         </DndContext>
                     ) : (
                         <div className="flex-1 flex items-center justify-center">
-                            <label className="text-[13px] text-white/20">No Links Pinned</label>
+                            <label className="text-[13px] text-ink/20">No Links Pinned</label>
                         </div>
                     )}
                 </div>

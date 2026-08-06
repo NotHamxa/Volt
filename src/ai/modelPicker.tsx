@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Search, ChevronRight, Check, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover.tsx";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
-import { providerLogo } from "@/ai/providerLogos.ts";
+import { providerLogo, providerLogoTint } from "@/ai/providerLogos.ts";
 
 /**
  * Provider and model in one control: a rail of providers beside a searchable
@@ -111,13 +111,13 @@ export function ModelPicker({
             <PopoverTrigger asChild>
                 <button
                     aria-label="Choose a model"
-                    className="flex items-center gap-1 h-6 max-w-[190px] px-1.5 rounded-md text-[10.5px] font-medium text-white/45 hover:bg-white/[0.07] hover:text-white/80 aria-expanded:bg-white/[0.07] aria-expanded:text-white/80 transition-colors cursor-pointer"
+                    className="flex items-center gap-1 h-6 max-w-[190px] px-1.5 rounded-md text-[10.5px] font-medium text-ink/45 hover:bg-fill-070 hover:text-ink/80 aria-expanded:bg-fill-070 aria-expanded:text-ink/80 transition-colors cursor-pointer"
                 >
                     {currentLogo && (
-                        <img src={currentLogo} alt="" className="w-3.5 h-3.5 shrink-0 object-contain" />
+                        <img src={currentLogo} alt="" className={`w-3.5 h-3.5 shrink-0 object-contain ${current ? providerLogoTint(current.id) : ""}`} />
                     )}
                     <span className="truncate">{currentLabel}</span>
-                    <ChevronRight size={11} className="shrink-0 rotate-90 text-white/30" />
+                    <ChevronRight size={11} className="shrink-0 rotate-90 text-ink/30" />
                 </button>
             </PopoverTrigger>
 
@@ -125,12 +125,12 @@ export function ModelPicker({
                 side="top"
                 align="start"
                 sideOffset={8}
-                className="w-[400px] p-0 overflow-hidden rounded-xl border-white/[0.09] bg-[rgba(18,18,20,0.98)] backdrop-blur-xl shadow-[0_12px_36px_rgba(0,0,0,0.55)]"
+                className="w-[400px] p-0 overflow-hidden rounded-xl border-line-090 bg-surface-menu/[0.98] backdrop-blur-xl shadow-[0_12px_36px_var(--shadow-2)]"
             >
                 <div className="flex h-[300px]">
                     {/* Provider rail. Switching here re-filters the list rather
                         than committing, so you can look before choosing. */}
-                    <div className="w-11 shrink-0 flex flex-col items-center gap-1 py-2 border-r border-white/[0.06]">
+                    <div className="w-11 shrink-0 flex flex-col items-center gap-1 py-2 border-r border-line-060">
                         {providers.map(p => {
                             const isBrowsing = shown?.id === p.id;
                             const logo = providerLogo(p.id);
@@ -142,15 +142,15 @@ export function ModelPicker({
                                     aria-label={p.label}
                                     className={`relative flex items-center justify-center w-7 h-7 rounded-lg text-[9.5px] font-semibold transition-colors cursor-pointer ${
                                         isBrowsing
-                                            ? "bg-white/[0.1] text-white/85"
-                                            : "text-white/30 hover:bg-white/[0.06] hover:text-white/70"
+                                            ? "bg-fill-100 text-ink/85"
+                                            : "text-ink/30 hover:bg-fill-060 hover:text-ink/70"
                                     } ${p.available ? "" : "opacity-40"}`}
                                 >
                                     {isBrowsing && (
                                         <span className="absolute -left-1.5 h-4 w-[2px] rounded-full bg-sky-400/70" />
                                     )}
                                     {logo
-                                        ? <img src={logo} alt="" className="w-4 h-4 object-contain" />
+                                        ? <img src={logo} alt="" className={`w-4 h-4 object-contain ${providerLogoTint(p.id)}`} />
                                         : monogram(p.label)}
                                 </button>
                             );
@@ -158,8 +158,8 @@ export function ModelPicker({
                     </div>
 
                     <div className="flex-1 min-w-0 flex flex-col">
-                        <div className="relative shrink-0 border-b border-white/[0.06]">
-                            <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
+                        <div className="relative shrink-0 border-b border-line-060">
+                            <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/25" />
                             <input
                                 autoFocus
                                 value={search}
@@ -186,7 +186,7 @@ export function ModelPicker({
                                     }
                                 }}
                                 placeholder="Search models, or type an id…"
-                                className="w-full h-9 pl-8 pr-3 bg-transparent text-[12px] text-white/85 placeholder:text-white/25 outline-none"
+                                className="w-full h-9 pl-8 pr-3 bg-transparent text-[12px] text-ink/85 placeholder:text-ink/25 outline-none"
                             />
                         </div>
 
@@ -199,7 +199,7 @@ export function ModelPicker({
                                 )}
 
                                 {visible.length === 0 && !exactId && (
-                                    <p className="px-2 py-3 text-[11px] text-white/25">
+                                    <p className="px-2 py-3 text-[11px] text-ink/25">
                                         {!shown?.models.length && shown?.available
                                             ? "Loading models…"
                                             : "No models match."}
@@ -215,15 +215,15 @@ export function ModelPicker({
                                             onMouseEnter={() => setActive(i)}
                                             onClick={() => choose(m.id)}
                                             className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-left transition-colors cursor-pointer ${
-                                                i === active ? "bg-white/[0.07]" : ""
+                                                i === active ? "bg-fill-070" : ""
                                             }`}
                                         >
                                             {shownLogo && (
-                                                <img src={shownLogo} alt="" className="w-4 h-4 shrink-0 object-contain opacity-90" />
+                                                <img src={shownLogo} alt="" className={`w-4 h-4 shrink-0 object-contain opacity-90 ${shown ? providerLogoTint(shown.id) : ""}`} />
                                             )}
                                             <div className="flex-1 min-w-0">
-                                                <span className="block truncate text-[12px] text-white/85">{m.label}</span>
-                                                <span className="block truncate text-[10px] text-white/30 mt-px">
+                                                <span className="block truncate text-[12px] text-ink/85">{m.label}</span>
+                                                <span className="block truncate text-[10px] text-ink/30 mt-px">
                                                     {/* The wire id where the label is
                                                         an alias, so "Opus" says which
                                                         version it resolves to. */}
@@ -241,7 +241,7 @@ export function ModelPicker({
                                                         e.stopPropagation();
                                                         if (shown) onForget(shown.id, m.id);
                                                     }}
-                                                    className="shrink-0 p-0.5 rounded text-white/25 hover:text-red-300/80 transition-colors"
+                                                    className="shrink-0 p-0.5 rounded text-ink/25 hover:text-red-300/80 transition-colors"
                                                 >
                                                     <X size={11} />
                                                 </span>
@@ -259,13 +259,13 @@ export function ModelPicker({
                                 {exactId && (
                                     <button
                                         onClick={() => choose(exactId, true)}
-                                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left hover:bg-white/[0.06] transition-colors cursor-pointer"
+                                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left hover:bg-fill-060 transition-colors cursor-pointer"
                                     >
                                         <div className="flex-1 min-w-0">
-                                            <span className="block truncate text-[12px] text-white/75">
+                                            <span className="block truncate text-[12px] text-ink/75">
                                                 Use “{exactId}”
                                             </span>
-                                            <span className="block truncate text-[10px] text-white/30 mt-px">
+                                            <span className="block truncate text-[10px] text-ink/30 mt-px">
                                                 Adds it to the list for next time
                                             </span>
                                         </div>
@@ -275,15 +275,15 @@ export function ModelPicker({
                                 {collapsed && (
                                     <button
                                         onClick={() => setShowAll(true)}
-                                        className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-left hover:bg-white/[0.05] transition-colors cursor-pointer"
+                                        className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-left hover:bg-fill-050 transition-colors cursor-pointer"
                                     >
                                         <div className="flex-1 min-w-0">
-                                            <span className="block text-[12px] text-white/70">Older models</span>
-                                            <span className="block text-[10px] text-white/30 mt-px">
+                                            <span className="block text-[12px] text-ink/70">Older models</span>
+                                            <span className="block text-[10px] text-ink/30 mt-px">
                                                 {matches.length - SHOWN_BY_DEFAULT} more
                                             </span>
                                         </div>
-                                        <ChevronRight size={13} className="shrink-0 text-white/30" />
+                                        <ChevronRight size={13} className="shrink-0 text-ink/30" />
                                     </button>
                                 )}
                             </div>
@@ -293,7 +293,7 @@ export function ModelPicker({
                             Claude CLI lists five aliases but accepts any model
                             name — so say that rather than leave it to chance. */}
                         {!exactId && (
-                            <p className="shrink-0 px-3 py-1.5 border-t border-white/[0.06] text-[10px] text-white/25">
+                            <p className="shrink-0 px-3 py-1.5 border-t border-line-060 text-[10px] text-ink/25">
                                 Type any model id to use one that isn't listed
                             </p>
                         )}

@@ -1,9 +1,42 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button.tsx";
-import { Check, X, Keyboard, AlertTriangle, History, Power } from "lucide-react";
+import { Check, X, Keyboard, AlertTriangle, History, Power, Palette, Monitor, Sun, Moon } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { SettingCard, DeleteHistorySection, ResetAppData } from "@/components/settingsCard.tsx";
 import { SectionLead, GroupLabel, Toggle } from "@/components/settingsLayout.tsx";
+import { useTheme, ThemeChoice } from "@/theme.tsx";
+
+const THEME_OPTIONS: Array<{ id: ThemeChoice; label: string; icon: typeof Monitor }> = [
+    { id: "system", label: "System", icon: Monitor },
+    { id: "light", label: "Light", icon: Sun },
+    { id: "dark", label: "Dark", icon: Moon },
+];
+
+function ThemePicker() {
+    const { choice, setChoice } = useTheme();
+    return (
+        <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-fill-040 border border-line-070">
+            {THEME_OPTIONS.map(({ id, label, icon: Icon }) => {
+                const active = choice === id;
+                return (
+                    <button
+                        key={id}
+                        onClick={() => setChoice(id)}
+                        aria-pressed={active}
+                        className={`flex items-center gap-1.5 px-2.5 h-6 rounded-md text-[11px] font-medium transition-colors duration-150 cursor-pointer ${
+                            active
+                                ? "bg-fill-100 text-ink/85"
+                                : "text-ink/40 hover:text-ink/70 hover:bg-fill-040"
+                        }`}
+                    >
+                        <Icon size={11} />
+                        {label}
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
 
 interface GeneralSettingsSectionProps {
     setHasUnsaved: (val: boolean) => void;
@@ -88,17 +121,25 @@ export default function GeneralSettingsSection({ setHasUnsaved }: GeneralSetting
 
             <div className="space-y-2">
                 <SettingCard
+                    icon={Palette}
+                    title="Appearance"
+                    description="Match your system, or pin Volt to light or dark."
+                >
+                    <ThemePicker />
+                </SettingCard>
+
+                <SettingCard
                     icon={Keyboard}
                     title="Activation Shortcut"
                     description="The global keyboard combination used to toggle the search bar."
                 >
                     <div className="flex items-center gap-2">
                         {!listeningToKeyboard && (
-                            <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.04] border border-white/[0.07]">
+                            <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-fill-040 border border-line-070">
                                 {currentOpenBind.split("+").map((k, i) => (
                                     <span key={i} className="flex items-center gap-1">
-                                        {i > 0 && <span className="text-white/20 text-[10px]">+</span>}
-                                        <kbd className="px-1.5 py-0.5 rounded bg-white/[0.06] border border-white/[0.1] text-[10px] font-mono text-white/55 min-w-[22px] text-center">
+                                        {i > 0 && <span className="text-ink/20 text-[10px]">+</span>}
+                                        <kbd className="px-1.5 py-0.5 rounded bg-fill-060 border border-line-100 text-[10px] font-mono text-ink/55 min-w-[22px] text-center">
                                             {k.trim()}
                                         </kbd>
                                     </span>
@@ -106,19 +147,19 @@ export default function GeneralSettingsSection({ setHasUnsaved }: GeneralSetting
                             </div>
                         )}
                         {listeningToKeyboard ? (
-                            <div className="flex items-center gap-1 p-0.5 rounded-md bg-white/[0.04] border border-white/[0.08]">
-                                <span className="px-3 text-[11px] font-mono text-white/65 animate-pulse min-w-24 text-center">
+                            <div className="flex items-center gap-1 p-0.5 rounded-md bg-fill-040 border border-line-080">
+                                <span className="px-3 text-[11px] font-mono text-ink/65 animate-pulse min-w-24 text-center">
                                     {openBind || "Recording..."}
                                 </span>
-                                <Button size="icon" variant="ghost" className="h-6 w-6 rounded-sm hover:bg-white/10 text-white/40 hover:text-white/70" onClick={() => setListeningToKeyboard(false)}>
+                                <Button size="icon" variant="ghost" className="h-6 w-6 rounded-sm hover:bg-fill-100 text-ink/40 hover:text-ink/70" onClick={() => setListeningToKeyboard(false)}>
                                     <X size={12} />
                                 </Button>
-                                <Button size="icon" className="h-6 w-6 rounded-sm bg-white text-black hover:bg-white/90" onClick={confirmChangeBind}>
+                                <Button size="icon" className="h-6 w-6 rounded-sm bg-ink text-surface hover:bg-ink/90" onClick={confirmChangeBind}>
                                     {bindLoad ? <Spinner /> : <Check size={12} />}
                                 </Button>
                             </div>
                         ) : (
-                            <Button variant="outline" className="h-8 rounded-md border-white/[0.08] hover:bg-white/[0.05] hover:border-white/[0.15] px-3 text-white/60 hover:text-white/85 text-[12px]" onClick={() => setListeningToKeyboard(true)}>
+                            <Button variant="outline" className="h-8 rounded-md border-line-080 hover:bg-fill-050 hover:border-line-150 px-3 text-ink/60 hover:text-ink/85 text-[12px]" onClick={() => setListeningToKeyboard(true)}>
                                 Change
                             </Button>
                         )}

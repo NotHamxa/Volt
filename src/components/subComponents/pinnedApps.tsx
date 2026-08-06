@@ -65,7 +65,7 @@ function PinnedApp({app, unPinApp}: IPinnedApp) {
                         <TooltipTrigger asChild>
                             <button
                                 aria-label={`Open ${app.name}`}
-                                className="flex items-center justify-start w-[100px] h-[90px] bg-transparent rounded-lg transition-all duration-300 cursor-pointer flex-col overflow-hidden text-center select-none pt-[5px] hover:bg-[#353737] active:scale-95"
+                                className="flex items-center justify-start w-[100px] h-[90px] bg-transparent rounded-lg transition-all duration-300 cursor-pointer flex-col overflow-hidden text-center select-none pt-[5px] hover:bg-fill-140 active:scale-95"
                                 onClick={async () => {
                                     await window.apps.openApp(app);
                                 }}
@@ -78,7 +78,7 @@ function PinnedApp({app, unPinApp}: IPinnedApp) {
                                 <label className="mt-2 text-[12px] max-w-[90px] truncate">{app.name}</label>
                             </button>
                         </TooltipTrigger>
-                        <TooltipContent side="bottom" className="bg-[rgba(20,20,22,0.98)] border border-white/10 text-white/70 text-[11px]">
+                        <TooltipContent side="bottom" className="bg-surface/[0.98] border border-line-100 text-ink/70 text-[11px]">
                             {app.name}
                         </TooltipContent>
                     </Tooltip>

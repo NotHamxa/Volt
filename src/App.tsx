@@ -101,8 +101,6 @@ export default function App() {
     };
 
     useEffect(() => {
-        document.documentElement.classList.add("dark");
-
         const checkIntroModal = async ()=>{
             const check = await window.electronStore.get("showIntroModal")
             window.electron.log("intro "+check);
@@ -261,25 +259,25 @@ export default function App() {
             ? Math.min(100, Math.round((cacheProgress.current / cacheProgress.total) * 100))
             : 0;
         return (
-            <div className="w-screen h-screen bg-[rgba(20,20,22,0.99)] flex items-center justify-center rounded-xl" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
+            <div className="w-screen h-screen bg-surface dark:bg-surface/[0.99] flex items-center justify-center rounded-xl" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
                 <div className="flex flex-col items-center gap-5">
                     <div className="relative flex items-center justify-center w-16 h-16">
-                        <div className="absolute inset-0 rounded-full border border-white/[0.07]" />
-                        <div className="absolute inset-0 rounded-full border-t border-white/30 animate-spin" style={{ animationDuration: '1.4s' }} />
+                        <div className="absolute inset-0 rounded-full border border-line-070" />
+                        <div className="absolute inset-0 rounded-full border-t border-ink/30 animate-spin" style={{ animationDuration: '1.4s' }} />
                         <img src={logo} alt="Volt" className="w-8 h-8 object-contain opacity-60" />
                     </div>
                     <div className="flex flex-col items-center gap-2.5">
-                        <span className="text-[10px] tracking-[0.25em] uppercase text-white/20">
+                        <span className="text-[10px] tracking-[0.25em] uppercase text-ink/20">
                             {hasProgress ? `Loading ${pct}%` : 'Loading'}
                         </span>
-                        <div className="w-32 h-0.5 rounded-full bg-white/[0.06] overflow-hidden">
+                        <div className="w-32 h-0.5 rounded-full bg-fill-060 overflow-hidden">
                             {hasProgress ? (
                                 <div
-                                    className="h-full bg-white/30 rounded-full transition-[width] duration-200 ease-out"
+                                    className="h-full bg-ink/30 rounded-full transition-[width] duration-200 ease-out"
                                     style={{ width: `${pct}%` }}
                                 />
                             ) : (
-                                <div className="h-full bg-white/20 rounded-full animate-pulse" style={{ width: '40%', animationDuration: '1.4s' }} />
+                                <div className="h-full bg-ink/20 rounded-full animate-pulse" style={{ width: '40%', animationDuration: '1.4s' }} />
                             )}
                         </div>
                     </div>
@@ -289,7 +287,7 @@ export default function App() {
     }
 
     return (
-        <div className="w-screen h-screen overflow-hidden bg-[rgba(20,20,22,0.99)] flex flex-col rounded-xl">
+        <div className="w-screen h-screen overflow-hidden bg-surface dark:bg-surface/[0.99] flex flex-col rounded-xl">
             <div className="h-1 w-full shrink-0" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties} />
             <Toaster />
             <IntroModal
@@ -308,9 +306,9 @@ export default function App() {
                 version={updateModalVersion}
             />
             {(showUnlockedIcon || showLockedIcon) &&
-                <div className="absolute top-3 right-3 flex items-center gap-2 z-50 bg-[rgba(20,20,22,0.92)] px-3 py-2 rounded-lg backdrop-blur-[10px] border border-white/[0.08] shadow-[0_4px_15px_rgba(0,0,0,0.3)] animate-in fade-in slide-in-from-top-2 duration-200">
-                    {showLockedIcon && <><Lock size={14} className="text-white/60" /><span className="text-[11px] text-white/50">Locked</span></>}
-                    {showUnlockedIcon && <><Unlock size={14} className="text-white/60" /><span className="text-[11px] text-white/50">Unlocked</span></>}
+                <div className="absolute top-3 right-3 flex items-center gap-2 z-50 bg-surface/[0.92] px-3 py-2 rounded-lg backdrop-blur-[10px] border border-line-080 shadow-[0_4px_15px_var(--shadow-1)] animate-in fade-in slide-in-from-top-2 duration-200">
+                    {showLockedIcon && <><Lock size={14} className="text-ink/60" /><span className="text-[11px] text-ink/50">Locked</span></>}
+                    {showUnlockedIcon && <><Unlock size={14} className="text-ink/60" /><span className="text-[11px] text-ink/50">Unlocked</span></>}
                 </div>
             }
 
@@ -342,10 +340,10 @@ export default function App() {
                 </ErrorBoundary>
             </div>
 
-            <div className="border-t border-white/[0.07] h-10 shrink-0 flex items-center justify-between px-4 w-[800px]">
+            <div className="border-t border-line-070 h-10 shrink-0 flex items-center justify-between px-4 w-[800px]">
                 <button
                     aria-label="GitHub"
-                    className="text-white/25 hover:text-white/60 transition-colors duration-150"
+                    className="text-ink/25 hover:text-ink/60 transition-colors duration-150"
                     onClick={async () => {
                         window.electron.openExternal("https://github.com/NotHamxa");
                     }}
@@ -365,18 +363,18 @@ export default function App() {
                         ) : updateProgress !== null ? (
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                    <span className="flex items-center text-white/25 cursor-default">
+                                    <span className="flex items-center text-ink/25 cursor-default">
                                         <Loader2 size={13} className="animate-spin" />
                                     </span>
                                 </TooltipTrigger>
-                                <TooltipContent side="top" className="bg-[rgba(20,20,22,0.98)] border border-white/10 text-white/70 text-[11px]">
+                                <TooltipContent side="top" className="bg-surface/[0.98] border border-line-100 text-ink/70 text-[11px]">
                                     Downloading update… {updateProgress}%
                                 </TooltipContent>
                             </Tooltip>
                         ) : null}
                     </TooltipProvider>
 
-                    <div data-walkthrough="settings-btn" className="flex items-center space-x-2 text-white/25 text-sm">
+                    <div data-walkthrough="settings-btn" className="flex items-center space-x-2 text-ink/25 text-sm">
                         <button
                             onClick={() => {
                                 if (locationRef.current === '/settings') {
@@ -385,13 +383,13 @@ export default function App() {
                                     navigate('/settings');
                                 }
                             }}
-                            className="hover:text-white/55 transition-colors duration-150 cursor-pointer"
+                            className="hover:text-ink/55 transition-colors duration-150 cursor-pointer"
                         >
                             Settings
                         </button>
-                        <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-white/[0.07] border border-white/10">Ctrl</span>
-                        <span className="text-white/15">+</span>
-                        <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-white/[0.07] border border-white/10">H</span>
+                        <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-fill-070 border border-line-100">Ctrl</span>
+                        <span className="text-ink/15">+</span>
+                        <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-fill-070 border border-line-100">H</span>
                     </div>
                 </div>
             </div>

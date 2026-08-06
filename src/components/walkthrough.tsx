@@ -171,35 +171,35 @@ export function Walkthrough({ open, onClose }: WalkthroughProps) {
             {target ? (
                 <>
                     <motion.div
-                        className="absolute bg-black/55 pointer-events-auto"
+                        className="absolute bg-[var(--scrim)] pointer-events-auto"
                         style={{ top: 0, left: 0, right: 0, height: Math.max(0, target.top) }}
                         initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                         transition={{ duration: 0.2 }}
                         onClick={close}
                     />
                     <motion.div
-                        className="absolute bg-black/55 pointer-events-auto"
+                        className="absolute bg-[var(--scrim)] pointer-events-auto"
                         style={{ top: target.top + target.height, left: 0, right: 0, bottom: 0 }}
                         initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                         transition={{ duration: 0.2 }}
                         onClick={close}
                     />
                     <motion.div
-                        className="absolute bg-black/55 pointer-events-auto"
+                        className="absolute bg-[var(--scrim)] pointer-events-auto"
                         style={{ top: target.top, left: 0, width: Math.max(0, target.left), height: target.height }}
                         initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                         transition={{ duration: 0.2 }}
                         onClick={close}
                     />
                     <motion.div
-                        className="absolute bg-black/55 pointer-events-auto"
+                        className="absolute bg-[var(--scrim)] pointer-events-auto"
                         style={{ top: target.top, left: target.left + target.width, right: 0, height: target.height }}
                         initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                         transition={{ duration: 0.2 }}
                         onClick={close}
                     />
                     <motion.div
-                        className="absolute rounded-lg ring-2 ring-white/45 pointer-events-none"
+                        className="absolute rounded-lg ring-2 ring-ink/45 pointer-events-none"
                         style={{ top: target.top, left: target.left, width: target.width, height: target.height }}
                         initial={{ opacity: 0, scale: 0.96 }}
                         animate={{ opacity: 1, scale: 1 }}
@@ -208,7 +208,7 @@ export function Walkthrough({ open, onClose }: WalkthroughProps) {
                 </>
             ) : (
                 <motion.div
-                    className="absolute inset-0 bg-black/65 backdrop-blur-[2px] pointer-events-auto"
+                    className="absolute inset-0 bg-[var(--scrim-strong)] backdrop-blur-[2px] pointer-events-auto"
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                     transition={{ duration: 0.25 }}
                     onClick={close}
@@ -230,33 +230,33 @@ export function Walkthrough({ open, onClose }: WalkthroughProps) {
                     exit={{ opacity: 0, y: -4 }}
                     transition={{ duration: 0.2 }}
                     style={{ ...tooltipStyle, width: TOOLTIP_WIDTH }}
-                    className="absolute pointer-events-auto rounded-xl bg-[rgba(14,14,14,0.98)] border border-white/[0.09] shadow-[0_20px_50px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.04)] p-3.5"
+                    className="absolute pointer-events-auto rounded-xl bg-surface-modal/[0.98] border border-line-090 shadow-[0_20px_50px_var(--shadow-3),inset_0_1px_0_var(--edge-hi)] p-3.5"
                 >
                     <div className="flex items-center justify-between mb-2">
-                        <p className="text-[10px] uppercase tracking-widest text-white/25">
+                        <p className="text-[10px] uppercase tracking-widest text-ink/25">
                             {step + 1} / {STEPS.length}
                         </p>
                         <button
                             onClick={close}
-                            className="text-[10px] text-white/25 hover:text-white/55 transition-colors"
+                            className="text-[10px] text-ink/25 hover:text-ink/55 transition-colors"
                         >
                             Skip
                         </button>
                     </div>
-                    <h3 className="text-[14px] font-semibold text-white tracking-[-0.01em] mb-1.5">{current.title}</h3>
-                    <p className="text-[12px] text-white/45 leading-relaxed mb-3.5">{current.body}</p>
+                    <h3 className="text-[14px] font-semibold text-ink tracking-[-0.01em] mb-1.5">{current.title}</h3>
+                    <p className="text-[12px] text-ink/45 leading-relaxed mb-3.5">{current.body}</p>
                     <div className="flex items-center justify-between">
                         <div className="flex gap-1">
                             {STEPS.map((_, i) => (
                                 <div
                                     key={i}
-                                    className={`h-1 rounded-full transition-all duration-200 ${i === step ? "w-4 bg-white/75" : "w-1 bg-white/15"}`}
+                                    className={`h-1 rounded-full transition-all duration-200 ${i === step ? "w-4 bg-ink/75" : "w-1 bg-fill-150"}`}
                                 />
                             ))}
                         </div>
                         <button
                             onClick={next}
-                            className="px-3 py-1.5 rounded-lg text-[11px] font-medium text-black bg-white hover:opacity-90 active:scale-[0.98] transition-all"
+                            className="px-3 py-1.5 rounded-lg text-[11px] font-medium text-surface bg-ink hover:opacity-90 active:scale-[0.98] transition-all"
                         >
                             {current.nextLabel ?? "Next"}
                         </button>

@@ -5,6 +5,7 @@ let psReady = false;
 let outputBuffer = '';
 let pendingHwndResolve = null;
 let lastForeignHwnd = null;
+let ownHwnd = null;
 
 export function initWindowFocusTracker() {
     ps = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-NoExit', '-Command', '-'], {
@@ -54,10 +55,18 @@ Write-Output "READY"
 `);
 }
 
+// Volt's own hwnd, so a capture that lands a beat too late — after the window
+// has already taken the foreground — doesn't record Volt as the app to go back
+// to. The query runs in the PowerShell helper, so it's inherently racy against
+// our own show().
+export function setOwnWindowHandle(hwnd) {
+    ownHwnd = hwnd;
+}
+
 export function captureForegroundWindow() {
     if (!psReady || !ps) return;
     pendingHwndResolve = (hwnd) => {
-        lastForeignHwnd = hwnd;
+        if (hwnd !== ownHwnd) lastForeignHwnd = hwnd;
     };
     ps.stdin.write('[VoltWin32]::GetForegroundWindow()\n');
 }

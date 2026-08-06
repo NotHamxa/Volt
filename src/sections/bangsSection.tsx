@@ -26,40 +26,40 @@ export default function QuickBangsSection() {
 
     return (
         <div className="space-y-5">
-            <p className="text-[12px] text-white/40 leading-relaxed">
-                Use shortcuts like <code className="text-white/65 font-mono text-[11px]">!g</code> or <code className="text-white/65 font-mono text-[11px]">!yt</code> to search specific sites.
+            <p className="text-[12px] text-ink/40 leading-relaxed">
+                Use shortcuts like <code className="text-ink/65 font-mono text-[11px]">!g</code> or <code className="text-ink/65 font-mono text-[11px]">!yt</code> to search specific sites.
             </p>
 
             <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" size={14} />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/25" size={14} />
                 <input
                     value={bangSearch}
                     placeholder="Search over 10,000 shortcuts (e.g. Google, GitHub...)"
                     onChange={(e) => setBangSearch(e.target.value)}
-                    className="w-full h-9 pl-9 pr-3 text-[12px] rounded-md bg-white/[0.03] border border-white/[0.06] text-white/75 placeholder:text-white/20 focus:outline-none focus:border-white/[0.12] transition-colors"
+                    className="w-full h-9 pl-9 pr-3 text-[12px] rounded-md bg-fill-030 border border-line-060 text-ink/75 placeholder:text-ink/20 focus:outline-none focus:border-line-120 transition-colors"
                 />
             </div>
 
-            <ScrollArea className="rounded-md p-1 max-h-[480px] border border-white/[0.05] bg-white/[0.012]">
+            <ScrollArea className="rounded-md p-1 max-h-[480px] border border-line-050 bg-fill-012">
                 <div className="grid grid-cols-1 gap-0.5">
                     {showingPopular && (
                         <div className="px-3 pt-2 pb-1">
-                            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/[0.22]">Popular</span>
+                            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink/[0.22]">Popular</span>
                         </div>
                     )}
                     {displayBangs.map((bang, i) => (
-                        <div key={i} className="flex items-center justify-between px-3 py-2 rounded-sm transition-colors cursor-default hover:bg-white/[0.04]">
+                        <div key={i} className="flex items-center justify-between px-3 py-2 rounded-sm transition-colors cursor-default hover:bg-fill-040">
                             <div className="flex flex-col gap-0.5 min-w-0">
-                                <span className="text-[12px] font-medium text-white/75 truncate">{bang.s}</span>
-                                <span className="text-[10px] text-white/25 uppercase tracking-tight">{bang.d || 'Search Provider'}</span>
+                                <span className="text-[12px] font-medium text-ink/75 truncate">{bang.s}</span>
+                                <span className="text-[10px] text-ink/25 uppercase tracking-tight">{bang.d || 'Search Provider'}</span>
                             </div>
-                            <div className="px-1.5 py-0.5 rounded font-mono text-[10px] text-white/55 bg-white/[0.06] border border-white/[0.09] shrink-0 ml-3">
+                            <div className="px-1.5 py-0.5 rounded font-mono text-[10px] text-ink/55 bg-fill-060 border border-line-090 shrink-0 ml-3">
                                 !{bang.t}
                             </div>
                         </div>
                     ))}
                     {bangs && bangs.length === 0 && (
-                        <div className="p-8 text-center text-white/25 text-[12px]">No matching bangs found.</div>
+                        <div className="p-8 text-center text-ink/25 text-[12px]">No matching bangs found.</div>
                     )}
                 </div>
             </ScrollArea>

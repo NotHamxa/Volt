@@ -47,10 +47,10 @@ function SearchQueryFilter({filters,setFilters}:SearchQueryFilterT) {
         <div className="mr-2.5 shrink-0">
             <DropdownMenu>
                 <DropdownMenuTrigger>
-                    <div className="flex items-center gap-1.5 px-2 py-1 hover:bg-white/10 rounded-lg cursor-pointer transition-colors text-white/50 hover:text-white/70">
+                    <div className="flex items-center gap-1.5 px-2 py-1 hover:bg-fill-100 rounded-lg cursor-pointer transition-colors text-ink/50 hover:text-ink/70">
                         <SlidersHorizontal size={15}/>
                         {activeCount < totalCount && (
-                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-white/10 text-white/50">{activeCount}</span>
+                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-fill-100 text-ink/50">{activeCount}</span>
                         )}
                     </div>
                 </DropdownMenuTrigger>

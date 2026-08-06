@@ -68,7 +68,7 @@ export default function AiCommandComposer({ existing, onDraft, placeholder }: {
 
     if (!provider) {
         return (
-            <p className="text-[11px] text-white/25 leading-relaxed">
+            <p className="text-[11px] text-ink/25 leading-relaxed">
                 Set up a provider in Settings → AI to draft commands from a description.
             </p>
         );
@@ -92,20 +92,20 @@ export default function AiCommandComposer({ existing, onDraft, placeholder }: {
                         }}
                         disabled={busy}
                         placeholder={placeholder ?? "Describe the command you want…"}
-                        className="w-full h-8 pl-7 pr-3 rounded-md bg-white/[0.03] border border-white/[0.07] text-[11.5px] text-white/80 placeholder:text-white/25 outline-none focus:border-white/[0.16] transition-colors disabled:opacity-50"
+                        className="w-full h-8 pl-7 pr-3 rounded-md bg-fill-030 border border-line-070 text-[11.5px] text-ink/80 placeholder:text-ink/25 outline-none focus:border-ink/[0.16] transition-colors disabled:opacity-50"
                     />
                 </div>
                 <button
                     onClick={generate}
                     disabled={busy || !description.trim()}
-                    className="flex items-center gap-1.5 h-8 px-3 rounded-md bg-white/[0.07] border border-white/[0.08] text-[11px] text-white/70 hover:bg-white/[0.11] hover:text-white/90 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-default"
+                    className="flex items-center gap-1.5 h-8 px-3 rounded-md bg-fill-070 border border-line-080 text-[11px] text-ink/70 hover:bg-fill-110 hover:text-ink/90 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-default"
                 >
                     {busy ? <Spinner className="size-3" /> : <CornerDownLeft size={12} />}
                     {busy ? "Drafting…" : existing ? "Rewrite" : "Draft"}
                 </button>
             </div>
 
-            <p className="flex items-center gap-1.5 text-[10px] text-white/20">
+            <p className="flex items-center gap-1.5 text-[10px] text-ink/20">
                 <TriangleAlert size={10} className="shrink-0" />
                 Drafted with {provider.label}. Read the script before saving — nothing runs until you do.
             </p>

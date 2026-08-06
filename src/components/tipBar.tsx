@@ -61,20 +61,20 @@ export default function TipBar() {
         // slides the tip out to the left, away from the window edge.
         <div className="absolute right-4 bottom-2 z-10 flex items-center justify-end gap-1.5">
             <div
-                className={`flex items-center gap-2 overflow-hidden whitespace-nowrap rounded-md bg-[rgba(18,18,20,0.92)] backdrop-blur-sm transition-all duration-200 ease-out ${
+                className={`flex items-center gap-2 overflow-hidden whitespace-nowrap rounded-md bg-surface-menu/[0.92] backdrop-blur-sm transition-all duration-200 ease-out ${
                     open
                         ? "max-w-[560px] opacity-100 px-2.5 py-1.5"
                         : "max-w-0 opacity-0 px-0 py-1.5"
                 }`}
             >
-                <p className="text-[11px] text-white/45 truncate min-w-0">{tip.title}</p>
+                <p className="text-[11px] text-ink/45 truncate min-w-0">{tip.title}</p>
 
                 {tip.keys && (
                     <div className="flex items-center gap-1 shrink-0">
                         {tip.keys.map((k, i) => (
                             <span
                                 key={i}
-                                className="inline-flex items-center px-1.5 py-[1px] text-[9px] rounded-md bg-white/[0.05] border border-white/[0.08] text-white/40 font-mono"
+                                className="inline-flex items-center px-1.5 py-[1px] text-[9px] rounded-md bg-fill-050 border border-line-080 text-ink/40 font-mono"
                             >
                                 {k}
                             </span>
@@ -85,7 +85,7 @@ export default function TipBar() {
                 <div className="flex items-center gap-0.5 shrink-0 pl-1">
                     <button
                         onClick={next}
-                        className="p-1 rounded-md text-white/30 hover:text-white/70 hover:bg-white/[0.06] transition-colors"
+                        className="p-1 rounded-md text-ink/30 hover:text-ink/70 hover:bg-fill-060 transition-colors"
                         title="Next tip"
                         aria-label="Next tip"
                     >
@@ -93,7 +93,7 @@ export default function TipBar() {
                     </button>
                     <button
                         onClick={dismissSession}
-                        className="p-1 rounded-md text-white/30 hover:text-white/70 hover:bg-white/[0.06] transition-colors"
+                        className="p-1 rounded-md text-ink/30 hover:text-ink/70 hover:bg-fill-060 transition-colors"
                         title="Hide for this session"
                         aria-label="Hide tip"
                     >
@@ -101,7 +101,7 @@ export default function TipBar() {
                     </button>
                     <button
                         onClick={dismissForever}
-                        className="p-1 rounded-md text-white/25 hover:text-red-300/70 hover:bg-red-400/[0.06] transition-colors"
+                        className="p-1 rounded-md text-ink/25 hover:text-red-300/70 hover:bg-red-400/[0.06] transition-colors"
                         title="Don't show tips again"
                         aria-label="Don't show again"
                     >
@@ -118,7 +118,7 @@ export default function TipBar() {
                 className={`shrink-0 flex items-center justify-center w-6 h-6 rounded-full border transition-colors ${
                     open
                         ? "bg-amber-400/12 border-amber-400/25"
-                        : "bg-white/[0.04] border-white/[0.07] hover:bg-white/[0.08]"
+                        : "bg-fill-040 border-line-070 hover:bg-fill-080"
                 }`}
             >
                 <Lightbulb size={11} className="text-amber-300/70" strokeWidth={2} />

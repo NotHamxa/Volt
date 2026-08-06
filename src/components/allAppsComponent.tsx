@@ -67,7 +67,7 @@ function App({app,pinnedApps,pinApp,unPinApp}:IApp) {
                     onFocus={handleFocus}
                     onBlur={handleBlur}
                     tabIndex={0}
-                    className={`cursor-pointer flex items-center gap-2 p-2 rounded-lg select-none transition-colors duration-150 hover:bg-white/10 ${isFocused ? "bg-white/10 outline outline-2 outline-[#3faffa]" : "outline-none"}`}
+                    className={`cursor-pointer flex items-center gap-2 p-2 rounded-lg select-none transition-colors duration-150 hover:bg-fill-100 ${isFocused ? "bg-fill-100 outline outline-2 outline-[#3faffa]" : "outline-none"}`}
                 >
                     {logo ? <img className="w-6 h-6 object-contain" src={logo}/> : <AppWindowIcon size={24} />}
                     <Label>{app.name}</Label>
@@ -164,12 +164,12 @@ export default function AllApps({setStage, apps,pinnedApps,pinApp,unPinApp}:IAll
         <div className="h-full flex flex-col">
             <div className="flex items-center justify-between pr-[10px]">
                 <div className="flex items-center gap-2">
-                    <span className="mx-3 text-[11px] font-semibold tracking-[0.1em] uppercase text-white/25">All Apps</span>
-                    <span className="text-[10px] text-white/15">{apps.length}</span>
+                    <span className="mx-3 text-[11px] font-semibold tracking-[0.1em] uppercase text-ink/25">All Apps</span>
+                    <span className="text-[10px] text-ink/15">{apps.length}</span>
                 </div>
                 <Button
                     variant="ghost"
-                    className="text-white/40 hover:text-white/70 px-2.5 py-1 h-auto text-xs rounded-lg flex items-center gap-1 transition-colors duration-150 bg-white/5 border border-white/8"
+                    className="text-ink/40 hover:text-ink/70 px-2.5 py-1 h-auto text-xs rounded-lg flex items-center gap-1 transition-colors duration-150 bg-fill-050 border border-line-080"
                     onClick={() => {
                         setStage(1)
                     }}
@@ -182,7 +182,7 @@ export default function AllApps({setStage, apps,pinnedApps,pinApp,unPinApp}:IAll
                 <ScrollArea className="w-full h-[400px] px-4" ref={scrollRef}>
                     {grouped.map(([letter, group]) => (
                         <div key={letter} className="mb-4" data-letter={letter}>
-                            <div className="font-semibold text-white/20 text-[11px] tracking-[0.08em] uppercase mb-1.5 pl-2">
+                            <div className="font-semibold text-ink/20 text-[11px] tracking-[0.08em] uppercase mb-1.5 pl-2">
                                 {letter}
                             </div>
                             {group.map(app => (
@@ -203,7 +203,7 @@ export default function AllApps({setStage, apps,pinnedApps,pinApp,unPinApp}:IAll
                         <button
                             key={l}
                             onClick={() => scrollToLetter(l)}
-                            className="text-[9px] text-white/20 hover:text-white/60 w-4 h-3.5 flex items-center justify-center rounded transition-colors"
+                            className="text-[9px] text-ink/20 hover:text-ink/60 w-4 h-3.5 flex items-center justify-center rounded transition-colors"
                         >
                             {l}
                         </button>

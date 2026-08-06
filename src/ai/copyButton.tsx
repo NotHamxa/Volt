@@ -38,7 +38,7 @@ export function CopyButton({ getText, label = "Copy", className = "" }: {
             onClick={copy}
             aria-label={copied ? "Copied" : label}
             title={copied ? "Copied" : label}
-            className={`flex items-center justify-center w-6 h-6 rounded-md text-white/35 hover:text-white/80 transition-colors cursor-pointer ${className}`}
+            className={`flex items-center justify-center w-6 h-6 rounded-md text-ink/35 hover:text-ink/80 transition-colors cursor-pointer ${className}`}
         >
             {copied
                 ? <Check size={11} className="text-emerald-300/80" />

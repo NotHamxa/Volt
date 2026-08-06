@@ -80,13 +80,13 @@ export default function ArgEntryBar({ command, initialValues, onRun, onCancel }:
     };
 
     return (
-        <div className="flex flex-row gap-2.5 items-center px-5 border-b border-white/[0.07] mb-[5px] min-h-[44px] py-1.5">
-            <Terminal size={18} className="text-white/40 shrink-0" />
-            <span className="inline-flex items-center gap-1.5 pl-2 pr-1 py-1 rounded-md bg-white/[0.07] border border-white/[0.12] text-[11.5px] text-white/80 font-medium shrink-0">
+        <div className="flex flex-row gap-2.5 items-center px-5 border-b border-line-070 mb-[5px] min-h-[44px] py-1.5">
+            <Terminal size={18} className="text-ink/40 shrink-0" />
+            <span className="inline-flex items-center gap-1.5 pl-2 pr-1 py-1 rounded-md bg-fill-070 border border-line-120 text-[11.5px] text-ink/80 font-medium shrink-0">
                 <span className="truncate max-w-[140px]">{command.name}</span>
                 <button
                     onClick={onCancel}
-                    className="p-0.5 rounded text-white/35 hover:text-white/85 hover:bg-white/[0.08] transition-colors"
+                    className="p-0.5 rounded text-ink/35 hover:text-ink/85 hover:bg-fill-080 transition-colors"
                     aria-label="Cancel argument entry"
                     tabIndex={-1}
                 >
@@ -99,7 +99,7 @@ export default function ArgEntryBar({ command, initialValues, onRun, onCancel }:
                     const isMissing = arg.required && !value.trim();
                     return (
                         <div key={arg.name} className="flex items-center gap-1.5 shrink-0">
-                            <span className={`text-[10px] font-semibold uppercase tracking-[0.12em] ${isMissing ? "text-red-400/75" : "text-white/35"}`}>
+                            <span className={`text-[10px] font-semibold uppercase tracking-[0.12em] ${isMissing ? "text-red-400/75" : "text-ink/35"}`}>
                                 {arg.label || arg.name}
                                 {arg.required && <span className="ml-0.5 text-red-400/70">*</span>}
                             </span>
@@ -109,8 +109,8 @@ export default function ArgEntryBar({ command, initialValues, onRun, onCancel }:
                                 onChange={e => setValues(v => ({ ...v, [arg.name]: e.target.value }))}
                                 onKeyDown={e => handleKey(e, i)}
                                 placeholder={arg.defaultValue || "—"}
-                                className={`bg-transparent border-b outline-none text-[13px] text-white/85 placeholder:text-white/20 transition-colors min-w-[80px] max-w-[180px] py-1 ${
-                                    isMissing ? "border-red-500/40 focus:border-red-500/70" : "border-white/[0.1] focus:border-white/[0.4]"
+                                className={`bg-transparent border-b outline-none text-[13px] text-ink/85 placeholder:text-ink/20 transition-colors min-w-[80px] max-w-[180px] py-1 ${
+                                    isMissing ? "border-red-500/40 focus:border-red-500/70" : "border-line-100 focus:border-ink/[0.4]"
                                 }`}
                             />
                         </div>
@@ -118,10 +118,10 @@ export default function ArgEntryBar({ command, initialValues, onRun, onCancel }:
                 })}
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
-                <span className="text-[10px] text-white/30">
+                <span className="text-[10px] text-ink/30">
                     {missingRequired ? "Fill required" : "Run"}
                 </span>
-                <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-white/[0.05] border border-white/[0.08] text-white/40 font-mono">↵</span>
+                <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-fill-050 border border-line-080 text-ink/40 font-mono">↵</span>
             </div>
         </div>
     );

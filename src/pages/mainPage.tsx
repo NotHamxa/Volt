@@ -145,10 +145,10 @@ export default function MainLayout({ inputRef, query, setQuery, argCommand, argI
                     onCancel={exitArgMode}
                 />
             ) : (
-                <div data-walkthrough="search-input" className="flex flex-row gap-2.5 items-center px-5 border-b border-white/[0.07] mb-[5px]">
+                <div data-walkthrough="search-input" className="flex flex-row gap-2.5 items-center px-5 border-b border-line-070 mb-[5px]">
                     {faviconUrl
                         ? <img src={faviconUrl} className="w-6 h-6" />
-                        : <Search size={20} className="text-white/30 shrink-0" />
+                        : <Search size={20} className="text-ink/30 shrink-0" />
                     }
                     <div className="relative w-full">
                     {/* Ghost text sits behind the input, showing only the part
@@ -160,7 +160,7 @@ export default function MainLayout({ inputRef, query, setQuery, argCommand, argI
                             className="pointer-events-none absolute inset-0 my-2.5 flex h-9 items-center px-3 text-base md:text-sm"
                         >
                             <span className="invisible whitespace-pre">{query}</span>
-                            <span className="text-white/25 whitespace-pre">{suffix}</span>
+                            <span className="text-ink/25 whitespace-pre">{suffix}</span>
                         </div>
                     )}
                     <Input
@@ -196,7 +196,11 @@ export default function MainLayout({ inputRef, query, setQuery, argCommand, argI
                             }, 0);
                         }}
                         placeholder="Search apps, files and the web"
-                        className="w-full my-2.5 block border-0 bg-transparent relative"
+                        // shadow-none: the Input primitive ships a shadow-sm, which
+                        // drew a faint rounded outline around the search field.
+                        // It was nearly invisible on the dark panel and obvious on
+                        // the light one — and this is chrome, not a form field.
+                        className="w-full my-2.5 block border-0 shadow-none bg-transparent relative"
                         autoFocus
                     />
                     </div>
@@ -209,8 +213,8 @@ export default function MainLayout({ inputRef, query, setQuery, argCommand, argI
                 Outlet must still render, since /ai is a child route. */}
             {argCommand && !isAiRoute ? (
                 <div className="flex-1 min-h-0 flex items-center justify-center px-8">
-                    <p className="text-[11px] text-white/30 text-center leading-relaxed">
-                        Filling arguments for <span className="text-white/55 font-medium">{argCommand.name}</span>.<br />
+                    <p className="text-[11px] text-ink/30 text-center leading-relaxed">
+                        Filling arguments for <span className="text-ink/55 font-medium">{argCommand.name}</span>.<br />
                         Tab to move between fields. Enter to run. Esc to cancel.
                     </p>
                 </div>

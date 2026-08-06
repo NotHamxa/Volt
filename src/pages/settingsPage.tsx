@@ -105,32 +105,32 @@ export default function SettingsPage() {
     useEscape(cancelDiscard, !!pendingSection);
 
     return (
-        <div className="flex flex-col w-full h-full text-white/80">
+        <div className="flex flex-col w-full h-full text-ink/80">
             {/* ── Top header — back, title, version, hint ─────────────────── */}
-            <header className="flex items-center gap-3 px-4 h-[42px] border-b border-white/[0.06] shrink-0">
+            <header className="flex items-center gap-3 px-4 h-[42px] border-b border-line-060 shrink-0">
                 <button
                     onClick={goBack}
                     aria-label="Back to search"
-                    className="flex items-center gap-1.5 px-2 py-1 -ml-1 rounded-md text-white/40 hover:text-white/80 hover:bg-white/[0.05] transition-colors"
+                    className="flex items-center gap-1.5 px-2 py-1 -ml-1 rounded-md text-ink/40 hover:text-ink/80 hover:bg-fill-050 transition-colors"
                 >
                     <ArrowLeft size={13} strokeWidth={2.2} />
                     <span className="text-[11px] font-medium">Back</span>
                 </button>
 
-                <div className="h-3.5 w-px bg-white/[0.07]" />
+                <div className="h-3.5 w-px bg-fill-070" />
 
                 <div className="flex items-baseline gap-2">
-                    <span className="text-[12px] font-semibold text-white/70 tracking-[-0.01em]">Settings</span>
+                    <span className="text-[12px] font-semibold text-ink/70 tracking-[-0.01em]">Settings</span>
                     {appVersion && (
-                        <span className="text-[10px] font-mono text-white/25">v{appVersion}</span>
+                        <span className="text-[10px] font-mono text-ink/25">v{appVersion}</span>
                     )}
                 </div>
 
                 <div className="ml-auto flex items-center gap-1.5">
-                    <span className="text-[10px] uppercase tracking-[0.18em] text-white/25">Close</span>
-                    <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-white/[0.05] border border-white/[0.08] text-white/40 font-mono">Ctrl</span>
-                    <span className="text-white/15 text-[10px]">+</span>
-                    <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-white/[0.05] border border-white/[0.08] text-white/40 font-mono">H</span>
+                    <span className="text-[10px] uppercase tracking-[0.18em] text-ink/25">Close</span>
+                    <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-fill-050 border border-line-080 text-ink/40 font-mono">Ctrl</span>
+                    <span className="text-ink/15 text-[10px]">+</span>
+                    <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-fill-050 border border-line-080 text-ink/40 font-mono">H</span>
                 </div>
             </header>
 
@@ -138,10 +138,10 @@ export default function SettingsPage() {
             <div className="px-4 pt-3 pb-2 shrink-0">
                 <div
                     ref={trackRef}
-                    className="relative flex items-center gap-0.5 p-1 rounded-xl bg-white/[0.025] border border-white/[0.06] w-full"
+                    className="relative flex items-center gap-0.5 p-1 rounded-xl bg-fill-025 border border-line-060 w-full"
                 >
                     <div
-                        className="absolute top-1 bottom-1 rounded-lg bg-white/[0.07] border border-white/[0.07] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-250 ease-out"
+                        className="absolute top-1 bottom-1 rounded-lg bg-fill-070 border border-line-070 shadow-[inset_0_1px_0_var(--edge-hi)] transition-all duration-250 ease-out"
                         style={{ left: pill.left, width: pill.width }}
                     />
                     {NAV.map((item, i) => {
@@ -153,7 +153,7 @@ export default function SettingsPage() {
                                 ref={el => { tabRefs.current[i] = el; }}
                                 onClick={() => handleSectionChange(item.id)}
                                 className={`relative z-10 flex items-center justify-center gap-1.5 flex-1 h-7 rounded-lg transition-colors duration-150 ${
-                                    active ? "text-white/90" : "text-white/35 hover:text-white/65"
+                                    active ? "text-ink/90" : "text-ink/35 hover:text-ink/65"
                                 }`}
                             >
                                 <Icon size={12} strokeWidth={active ? 2.4 : 1.8} />
@@ -195,12 +195,12 @@ export default function SettingsPage() {
 
             {/* ── Discard-changes modal ───────────────────────────────────── */}
             {pendingSection && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-[6px]">
-                    <div className="bg-[rgba(12,12,12,0.98)] border border-white/[0.07] rounded-2xl p-6 w-80 shadow-[0_40px_90px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.04)]">
-                        <h3 className="text-[14px] font-semibold text-white/85 mb-2 tracking-[-0.01em]">Discard changes?</h3>
-                        <p className="text-[12px] text-white/40 mb-5 leading-relaxed">You have unsaved changes. They will be lost if you switch sections.</p>
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--scrim-strong)] backdrop-blur-[6px]">
+                    <div className="bg-surface-modal/[0.98] border border-line-070 rounded-2xl p-6 w-80 shadow-[0_40px_90px_var(--shadow-3),inset_0_1px_0_var(--edge-hi)]">
+                        <h3 className="text-[14px] font-semibold text-ink/85 mb-2 tracking-[-0.01em]">Discard changes?</h3>
+                        <p className="text-[12px] text-ink/40 mb-5 leading-relaxed">You have unsaved changes. They will be lost if you switch sections.</p>
                         <div className="flex justify-end gap-2">
-                            <button onClick={cancelDiscard} className="px-4 py-2 text-[12px] text-white/45 hover:text-white/70 rounded-lg hover:bg-white/[0.05] transition-colors">
+                            <button onClick={cancelDiscard} className="px-4 py-2 text-[12px] text-ink/45 hover:text-ink/70 rounded-lg hover:bg-fill-050 transition-colors">
                                 Stay
                             </button>
                             <button onClick={confirmDiscard} className="px-4 py-2 text-[12px] text-red-400 hover:bg-red-500/15 rounded-lg transition-colors">

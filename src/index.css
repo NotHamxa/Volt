@@ -65,6 +65,36 @@
   --fill-140: rgba(0,0,0,0.308);
   --fill-150: rgba(0,0,0,0.33);
 
+  /*
+   * Text tones. Dimmed text is the worst case for a shared alpha: white at
+   * 25% still reads on a near-black panel, black at 25% on a near-white one
+   * is a ghost — which is what made the labels and secondary buttons look
+   * washed out.
+   *
+   * Light is the dark alpha raised to 0.62 rather than multiplied: that lifts
+   * the dim end hard (0.25 -> 0.42) while leaving near-solid text where it is
+   * (0.9 -> 0.94). A flat multiplier would either leave the dim end
+   * unreadable or push the solid end past black.
+   */
+  --tone-150: rgba(0,0,0,0.308);
+  --tone-200: rgba(0,0,0,0.369);
+  --tone-220: rgba(0,0,0,0.391);
+  --tone-250: rgba(0,0,0,0.423);
+  --tone-300: rgba(0,0,0,0.474);
+  --tone-350: rgba(0,0,0,0.522);
+  --tone-400: rgba(0,0,0,0.567);
+  --tone-450: rgba(0,0,0,0.61);
+  --tone-500: rgba(0,0,0,0.651);
+  --tone-550: rgba(0,0,0,0.69);
+  --tone-600: rgba(0,0,0,0.729);
+  --tone-650: rgba(0,0,0,0.766);
+  --tone-700: rgba(0,0,0,0.802);
+  --tone-750: rgba(0,0,0,0.837);
+  --tone-800: rgba(0,0,0,0.871);
+  --tone-850: rgba(0,0,0,0.904);
+  --tone-900: rgba(0,0,0,0.937);
+  --tone-950: rgba(0,0,0,0.969);
+
   --line-040: rgba(0,0,0,0.072);
   --line-050: rgba(0,0,0,0.09);
   --line-060: rgba(0,0,0,0.108);
@@ -81,6 +111,10 @@
   --shadow-3: rgba(0, 0, 0, 0.13);
   /* The 1px inner highlight along the top edge of a raised panel. */
   --edge-hi: rgba(255, 255, 255, 0.9);
+
+  /* GitHub's mark is monochrome by design and ships in two versions; this is
+     the one meant for a light background. */
+  --gh-mark: #1b1f23;
 
   /* Modal backdrops. Black in both themes — a scrim dims, it doesn't tint —
      but a light UI needs less of one to read as "behind". */
@@ -146,6 +180,7 @@
   --scrim-strong: rgba(0, 0, 0, 0.65);
 
   --code-bg: rgba(0, 0, 0, 0.35);
+  --gh-mark: #ffffff;
 
   --destructive: oklch(63.7% 0.237 25.331);  /* red-500 */
 
@@ -168,6 +203,25 @@
   --fill-120: rgba(255,255,255,0.12);
   --fill-140: rgba(255,255,255,0.14);
   --fill-150: rgba(255,255,255,0.15);
+
+  --tone-150: rgba(255,255,255,0.15);
+  --tone-200: rgba(255,255,255,0.2);
+  --tone-220: rgba(255,255,255,0.22);
+  --tone-250: rgba(255,255,255,0.25);
+  --tone-300: rgba(255,255,255,0.3);
+  --tone-350: rgba(255,255,255,0.35);
+  --tone-400: rgba(255,255,255,0.4);
+  --tone-450: rgba(255,255,255,0.45);
+  --tone-500: rgba(255,255,255,0.5);
+  --tone-550: rgba(255,255,255,0.55);
+  --tone-600: rgba(255,255,255,0.6);
+  --tone-650: rgba(255,255,255,0.65);
+  --tone-700: rgba(255,255,255,0.7);
+  --tone-750: rgba(255,255,255,0.75);
+  --tone-800: rgba(255,255,255,0.8);
+  --tone-850: rgba(255,255,255,0.85);
+  --tone-900: rgba(255,255,255,0.9);
+  --tone-950: rgba(255,255,255,0.95);
 
   --line-040: rgba(255,255,255,0.04);
   --line-050: rgba(255,255,255,0.05);
@@ -250,6 +304,25 @@
   --color-fill-120: var(--fill-120);
   --color-fill-140: var(--fill-140);
   --color-fill-150: var(--fill-150);
+
+  --color-tone-150: var(--tone-150);
+  --color-tone-200: var(--tone-200);
+  --color-tone-220: var(--tone-220);
+  --color-tone-250: var(--tone-250);
+  --color-tone-300: var(--tone-300);
+  --color-tone-350: var(--tone-350);
+  --color-tone-400: var(--tone-400);
+  --color-tone-450: var(--tone-450);
+  --color-tone-500: var(--tone-500);
+  --color-tone-550: var(--tone-550);
+  --color-tone-600: var(--tone-600);
+  --color-tone-650: var(--tone-650);
+  --color-tone-700: var(--tone-700);
+  --color-tone-750: var(--tone-750);
+  --color-tone-800: var(--tone-800);
+  --color-tone-850: var(--tone-850);
+  --color-tone-900: var(--tone-900);
+  --color-tone-950: var(--tone-950);
 
   --color-line-040: var(--line-040);
   --color-line-050: var(--line-050);

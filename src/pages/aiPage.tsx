@@ -348,7 +348,7 @@ export default function AiPage() {
                 {empty ? (
                     <div className="flex flex-col items-center gap-2.5 pb-5">
                         <img src={logo} alt="" className="w-9 h-9 object-contain opacity-70" />
-                        <p className="text-[12px] text-ink/35">Ask anything</p>
+                        <p className="text-[12px] text-tone-350">Ask anything</p>
                         {provider && !provider.available && (
                             <p className="text-[10px] text-amber-300/60 text-center max-w-xs">
                                 {provider.detail}
@@ -371,7 +371,7 @@ export default function AiPage() {
                                             <div className="opacity-0 group-hover/msg:opacity-100 focus-within:opacity-100 transition-opacity mt-1">
                                                 <CopyButton getText={() => m.content} label="Copy message" />
                                             </div>
-                                            <div className="rounded-2xl rounded-br-md bg-fill-070 border border-line-060 px-3.5 py-2 text-[12.5px] leading-relaxed text-ink/85 whitespace-pre-wrap break-words">
+                                            <div className="rounded-2xl rounded-br-md bg-fill-070 border border-line-060 px-3.5 py-2 text-[12.5px] leading-relaxed text-tone-850 whitespace-pre-wrap break-words">
                                                 {m.content}
                                             </div>
                                         </div>
@@ -385,7 +385,7 @@ export default function AiPage() {
                                     <div key={i} className="group/msg self-start flex gap-2.5 w-full min-w-0">
                                         <img src={logo} alt="" className="w-4 h-4 mt-0.5 shrink-0 object-contain opacity-50" />
                                         {live && !body ? (
-                                            <span className="flex items-center gap-1.5 text-[11.5px] text-ink/35">
+                                            <span className="flex items-center gap-1.5 text-[11.5px] text-tone-350">
                                                 <Spinner className="size-3" /> Thinking…
                                             </span>
                                         ) : (
@@ -412,7 +412,7 @@ export default function AiPage() {
                                                                 }}
                                                                 aria-label="Ask again"
                                                                 title="Ask again"
-                                                                className="flex items-center justify-center w-6 h-6 rounded-md text-ink/35 hover:text-ink/80 transition-colors cursor-pointer"
+                                                                className="flex items-center justify-center w-6 h-6 rounded-md text-tone-350 hover:text-tone-800 transition-colors cursor-pointer"
                                                             >
                                                                 <RotateCcw size={11} />
                                                             </button>
@@ -441,7 +441,7 @@ export default function AiPage() {
                 {!empty && !following && (
                     <button
                         onClick={jumpToLatest}
-                        className="absolute left-1/2 -translate-x-1/2 bottom-[104px] z-40 flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-line-100 bg-surface-float/[0.92] backdrop-blur-md shadow-[0_4px_14px_var(--shadow-1)] text-[10.5px] text-ink/65 hover:text-ink/90 hover:border-ink/[0.18] transition-colors cursor-pointer animate-in fade-in slide-in-from-bottom-1 duration-150"
+                        className="absolute left-1/2 -translate-x-1/2 bottom-[104px] z-40 flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-line-100 bg-surface-float/[0.92] backdrop-blur-md shadow-[0_4px_14px_var(--shadow-1)] text-[10.5px] text-tone-650 hover:text-tone-900 hover:border-ink/[0.18] transition-colors cursor-pointer animate-in fade-in slide-in-from-bottom-1 duration-150"
                     >
                         <ArrowDown size={11} />
                         {streaming ? "Jump to latest" : "Jump to bottom"}
@@ -471,7 +471,7 @@ export default function AiPage() {
                                 placeholder="Ask anything…"
                                 // field-sizing grows the box with the text instead
                                 // of scrolling inside a fixed two rows.
-                                className="field-sizing-content scrollbar-thin-shadcn min-h-[46px] max-h-32 px-3.5 pt-3 pb-1 text-[12.5px] leading-relaxed text-ink/85 placeholder:text-ink/25"
+                                className="field-sizing-content scrollbar-thin-shadcn min-h-[46px] max-h-32 px-3.5 pt-3 pb-1 text-[12.5px] leading-relaxed text-tone-850 placeholder:text-tone-250"
                             />
 
                             <InputGroupAddon align="block-end" className="gap-1 border-t border-line-050 px-2.5">
@@ -526,10 +526,10 @@ export default function AiPage() {
                                             aria-label={stopping ? "Stopping" : streaming ? "Stop" : "Send"}
                                             className={`ml-auto relative rounded-full transition-colors disabled:opacity-100 ${
                                                 stopping
-                                                    ? "bg-fill-060 text-ink/35"
+                                                    ? "bg-fill-060 text-tone-350"
                                                     : streaming
                                                         ? "bg-red-400/[0.16] text-red-200/90 hover:bg-red-400/[0.26]"
-                                                        : "bg-fill-140 text-ink/85 hover:bg-ink/[0.22] disabled:opacity-25"
+                                                        : "bg-fill-140 text-tone-850 hover:bg-ink/[0.22] disabled:opacity-25"
                                             }`}
                                         >
                                             {/* A ring that turns while a turn is
@@ -548,13 +548,13 @@ export default function AiPage() {
                                     </TooltipTrigger>
                                     <TooltipContent
                                         side="top"
-                                        className="flex items-center gap-1.5 border border-line-100 bg-surface/[0.98] px-2 py-1 text-[11px] text-ink/70"
+                                        className="flex items-center gap-1.5 border border-line-100 bg-surface/[0.98] px-2 py-1 text-[11px] text-tone-700"
                                     >
                                         {stopping
                                             ? "Stopping…"
                                             : streaming
                                                 ? "Stop generating"
-                                                : <>Send <Kbd className="bg-fill-100 text-ink/55">Enter</Kbd></>}
+                                                : <>Send <Kbd className="bg-fill-100 text-tone-550">Enter</Kbd></>}
                                     </TooltipContent>
                                 </Tooltip>
                             </InputGroupAddon>
@@ -629,7 +629,7 @@ function ChatSidebar({ chats, activeId, running, onOpen, onNew, onDelete, onDele
                     aria-label="Conversations"
                     aria-expanded={open}
                     className={`p-1.5 rounded-md transition-colors cursor-pointer ${
-                        open ? "text-ink/70 bg-fill-070" : "text-ink/30 hover:text-ink/70 hover:bg-fill-060"
+                        open ? "text-tone-700 bg-fill-070" : "text-tone-300 hover:text-tone-700 hover:bg-fill-060"
                     }`}
                 >
                     <PanelLeft size={14} />
@@ -646,26 +646,26 @@ function ChatSidebar({ chats, activeId, running, onOpen, onNew, onDelete, onDele
                         <button
                             onClick={() => setPinned(p => !p)}
                             aria-label="Conversations"
-                            className="p-1.5 rounded-md text-ink/50 hover:text-ink/80 hover:bg-fill-060 transition-colors cursor-pointer"
+                            className="p-1.5 rounded-md text-tone-500 hover:text-tone-800 hover:bg-fill-060 transition-colors cursor-pointer"
                         >
                             <PanelLeft size={14} />
                         </button>
-                        {pinned && <span className="text-[9px] uppercase tracking-wide text-ink/20 pr-1">Pinned</span>}
+                        {pinned && <span className="text-[9px] uppercase tracking-wide text-tone-200 pr-1">Pinned</span>}
                     </div>
 
                     <button
                         onClick={onNew}
-                        className="mx-2 flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-[12px] text-ink/75 hover:bg-fill-070 transition-colors cursor-pointer"
+                        className="mx-2 flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-[12px] text-tone-750 hover:bg-fill-070 transition-colors cursor-pointer"
                     >
-                        <Plus size={14} className="text-ink/45" />
+                        <Plus size={14} className="text-tone-450" />
                         New chat
                     </button>
 
-                    <p className="px-4 pt-3 pb-1 text-[10px] text-ink/25">Recents</p>
+                    <p className="px-4 pt-3 pb-1 text-[10px] text-tone-250">Recents</p>
 
                     <ScrollArea className="flex-1 min-h-0 px-2 pb-2">
                         {chats.length === 0 ? (
-                            <p className="px-2 py-1.5 text-[11px] text-ink/20">No conversations yet</p>
+                            <p className="px-2 py-1.5 text-[11px] text-tone-200">No conversations yet</p>
                         ) : chats.map(c => (
                             <div
                                 key={c.id}
@@ -691,7 +691,7 @@ function ChatSidebar({ chats, activeId, running, onOpen, onNew, onDelete, onDele
                                                 setRenamingId(null);
                                             }
                                         }}
-                                        className="flex-1 min-w-0 mx-1 my-0.5 px-1.5 py-1 rounded bg-fill-060 border border-line-120 text-[11.5px] text-ink/85 outline-none"
+                                        className="flex-1 min-w-0 mx-1 my-0.5 px-1.5 py-1 rounded bg-fill-060 border border-line-120 text-[11.5px] text-tone-850 outline-none"
                                     />
                                 ) : (
                                     <>
@@ -708,9 +708,9 @@ function ChatSidebar({ chats, activeId, running, onOpen, onNew, onDelete, onDele
                                                     <span className="w-1.5 h-1.5 rounded-full bg-sky-400/80" />
                                                 </span>
                                             ) : (
-                                                <MessageCircle size={13} className="shrink-0 text-ink/30" />
+                                                <MessageCircle size={13} className="shrink-0 text-tone-300" />
                                             )}
-                                            <span className="block truncate text-left text-[11.5px] text-ink/70">{c.title}</span>
+                                            <span className="block truncate text-left text-[11.5px] text-tone-700">{c.title}</span>
                                         </button>
                                         {/* Both live on the row itself rather
                                             than behind a menu — one click to
@@ -723,7 +723,7 @@ function ChatSidebar({ chats, activeId, running, onOpen, onNew, onDelete, onDele
                                                     onClick={() => { setDraft(c.title); setRenamingId(c.id); }}
                                                     aria-label={`Rename ${c.title}`}
                                                     title="Rename"
-                                                    className="p-1 rounded text-ink/30 hover:text-ink/80 hover:bg-fill-070 transition-colors cursor-pointer"
+                                                    className="p-1 rounded text-tone-300 hover:text-tone-800 hover:bg-fill-070 transition-colors cursor-pointer"
                                                 >
                                                     <Pencil size={11} />
                                                 </button>
@@ -744,7 +744,7 @@ function ChatSidebar({ chats, activeId, running, onOpen, onNew, onDelete, onDele
                                                 className={`p-1 rounded transition-colors cursor-pointer ${
                                                     confirmId === c.id
                                                         ? "text-red-300/90 bg-red-400/[0.14]"
-                                                        : "text-ink/30 hover:text-red-300/80 hover:bg-red-400/[0.08]"
+                                                        : "text-tone-300 hover:text-red-300/80 hover:bg-red-400/[0.08]"
                                                 }`}
                                             >
                                                 {confirmId === c.id ? <Check size={11} /> : <Trash2 size={11} />}
@@ -768,7 +768,7 @@ function ChatSidebar({ chats, activeId, running, onOpen, onNew, onDelete, onDele
                                     </button>
                                     <button
                                         onClick={() => setConfirmingAll(false)}
-                                        className="px-2 py-1.5 rounded-md text-[11px] text-ink/45 hover:text-ink/75 hover:bg-fill-060 transition-colors cursor-pointer"
+                                        className="px-2 py-1.5 rounded-md text-[11px] text-tone-450 hover:text-tone-750 hover:bg-fill-060 transition-colors cursor-pointer"
                                     >
                                         Cancel
                                     </button>
@@ -776,7 +776,7 @@ function ChatSidebar({ chats, activeId, running, onOpen, onNew, onDelete, onDele
                             ) : (
                                 <button
                                     onClick={() => setConfirmingAll(true)}
-                                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-[11px] text-ink/30 hover:text-red-300/80 hover:bg-red-400/[0.07] transition-colors cursor-pointer"
+                                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-[11px] text-tone-300 hover:text-red-300/80 hover:bg-red-400/[0.07] transition-colors cursor-pointer"
                                 >
                                     <Trash2 size={12} /> Clear all conversations
                                 </button>
@@ -803,7 +803,7 @@ function ControlSelect({ value, onChange, options }: {
         <Select value={value} onValueChange={onChange}>
             <SelectTrigger
                 size="sm"
-                className="data-[size=sm]:h-6 w-fit max-w-[150px] gap-1 rounded-md border-none bg-transparent px-1.5 text-[10.5px] font-medium text-ink/45 shadow-none hover:bg-fill-070 hover:text-ink/80 focus-visible:ring-0 aria-expanded:bg-fill-070 aria-expanded:text-ink/80 dark:bg-transparent dark:hover:bg-fill-070 [&_svg]:size-3 [&_svg:not([class*='text-'])]:text-ink/30"
+                className="data-[size=sm]:h-6 w-fit max-w-[150px] gap-1 rounded-md border-none bg-transparent px-1.5 text-[10.5px] font-medium text-tone-450 shadow-none hover:bg-fill-070 hover:text-tone-800 focus-visible:ring-0 aria-expanded:bg-fill-070 aria-expanded:text-tone-800 dark:bg-transparent dark:hover:bg-fill-070 [&_svg]:size-3 [&_svg:not([class*='text-'])]:text-tone-300"
             >
                 <SelectValue />
             </SelectTrigger>
@@ -815,7 +815,7 @@ function ControlSelect({ value, onChange, options }: {
                     <SelectItem
                         key={o.id}
                         value={o.id}
-                        className="text-[11px] text-ink/65 focus:bg-fill-070 focus:text-ink/90 [&_svg]:size-3"
+                        className="text-[11px] text-tone-650 focus:bg-fill-070 focus:text-tone-900 [&_svg]:size-3"
                     >
                         {o.label}
                     </SelectItem>

@@ -2,14 +2,14 @@ import { ReactNode } from "react";
 
 export function SectionLead({ children }: { children: ReactNode }) {
     return (
-        <p className="text-[12px] text-ink/40 leading-relaxed">{children}</p>
+        <p className="text-[12px] text-tone-400 leading-relaxed">{children}</p>
     );
 }
 
 export function GroupLabel({ children, accent = "default" }: { children: ReactNode; accent?: "default" | "danger" }) {
     return (
         <div className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${
-            accent === "danger" ? "text-red-400/55" : "text-ink/[0.22]"
+            accent === "danger" ? "text-red-400/55" : "text-tone-220"
         }`}>
             {children}
         </div>

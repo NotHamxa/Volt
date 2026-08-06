@@ -1,19 +1,13 @@
 import type { SVGProps } from "react";
 
-/**
- * LinkedIn's mark, path data from svgl.
- *
- * Drawn in `currentColor` rather than svgl's `#0A66C2`: this sits in the
- * Connect list beside Mail and Globe, which are monochrome lucide icons, and a
- * single brand-blue entry among them reads as a mistake rather than a brand.
- */
-export const LinkedIn = ({ width = 16, height = 16, ...props }: SVGProps<SVGSVGElement>) => (
+/** LinkedIn's mark, from svgl, in its own blue. */
+export const LinkedIn = ({ size = 16, width, height, ...props }: SVGProps<SVGSVGElement> & { size?: number }) => (
     <svg
         {...props}
-        width={width}
-        height={height}
+        width={width ?? size}
+        height={height ?? size}
         viewBox="0 0 256 256"
-        fill="currentColor"
+        fill="#0A66C2"
         preserveAspectRatio="xMidYMid"
         aria-hidden="true"
     >

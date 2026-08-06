@@ -60,7 +60,7 @@ export function IntroModal({ open, setOpen, onStartTour }: IntroModalProps) {
                         <h1 className="text-[42px] font-semibold text-ink leading-none mb-2.5 tracking-[-0.04em]">
                             Volt
                         </h1>
-                        <p className="text-[13px] text-ink/35 tracking-wide">
+                        <p className="text-[13px] text-tone-350 tracking-wide">
                             Your system, at your fingertips.
                         </p>
                     </motion.div>
@@ -88,7 +88,7 @@ export function IntroModal({ open, setOpen, onStartTour }: IntroModalProps) {
                         </button>
                         <button
                             onClick={() => close(false)}
-                            className="text-[11px] text-ink/20 hover:text-ink/45 transition-colors duration-150 py-1"
+                            className="text-[11px] text-tone-200 hover:text-tone-450 transition-colors duration-150 py-1"
                         >
                             Skip
                         </button>

@@ -233,18 +233,18 @@ export function Walkthrough({ open, onClose }: WalkthroughProps) {
                     className="absolute pointer-events-auto rounded-xl bg-surface-modal/[0.98] border border-line-090 shadow-[0_20px_50px_var(--shadow-3),inset_0_1px_0_var(--edge-hi)] p-3.5"
                 >
                     <div className="flex items-center justify-between mb-2">
-                        <p className="text-[10px] uppercase tracking-widest text-ink/25">
+                        <p className="text-[10px] uppercase tracking-widest text-tone-250">
                             {step + 1} / {STEPS.length}
                         </p>
                         <button
                             onClick={close}
-                            className="text-[10px] text-ink/25 hover:text-ink/55 transition-colors"
+                            className="text-[10px] text-tone-250 hover:text-tone-550 transition-colors"
                         >
                             Skip
                         </button>
                     </div>
                     <h3 className="text-[14px] font-semibold text-ink tracking-[-0.01em] mb-1.5">{current.title}</h3>
-                    <p className="text-[12px] text-ink/45 leading-relaxed mb-3.5">{current.body}</p>
+                    <p className="text-[12px] text-tone-450 leading-relaxed mb-3.5">{current.body}</p>
                     <div className="flex items-center justify-between">
                         <div className="flex gap-1">
                             {STEPS.map((_, i) => (

@@ -81,7 +81,7 @@ function PinnedLinks({ link, removeLink, setEditLink, index }: IPinnedLinks) {
                                     <span className="text-sm">{name}</span>
                                 </button>
                             </TooltipTrigger>
-                            <TooltipContent side="bottom" className="bg-surface/[0.98] border border-line-100 text-ink/70 text-[11px]">
+                            <TooltipContent side="bottom" className="bg-surface/[0.98] border border-line-100 text-tone-700 text-[11px]">
                                 {shortcut}
                             </TooltipContent>
                         </Tooltip>

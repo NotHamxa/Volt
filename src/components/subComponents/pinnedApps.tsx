@@ -78,7 +78,7 @@ function PinnedApp({app, unPinApp}: IPinnedApp) {
                                 <label className="mt-2 text-[12px] max-w-[90px] truncate">{app.name}</label>
                             </button>
                         </TooltipTrigger>
-                        <TooltipContent side="bottom" className="bg-surface/[0.98] border border-line-100 text-ink/70 text-[11px]">
+                        <TooltipContent side="bottom" className="bg-surface/[0.98] border border-line-100 text-tone-700 text-[11px]">
                             {app.name}
                         </TooltipContent>
                     </Tooltip>

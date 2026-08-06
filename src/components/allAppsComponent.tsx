@@ -164,12 +164,12 @@ export default function AllApps({setStage, apps,pinnedApps,pinApp,unPinApp}:IAll
         <div className="h-full flex flex-col">
             <div className="flex items-center justify-between pr-[10px]">
                 <div className="flex items-center gap-2">
-                    <span className="mx-3 text-[11px] font-semibold tracking-[0.1em] uppercase text-ink/25">All Apps</span>
-                    <span className="text-[10px] text-ink/15">{apps.length}</span>
+                    <span className="mx-3 text-[11px] font-semibold tracking-[0.1em] uppercase text-tone-250">All Apps</span>
+                    <span className="text-[10px] text-tone-150">{apps.length}</span>
                 </div>
                 <Button
                     variant="ghost"
-                    className="text-ink/40 hover:text-ink/70 px-2.5 py-1 h-auto text-xs rounded-lg flex items-center gap-1 transition-colors duration-150 bg-fill-050 border border-line-080"
+                    className="text-tone-400 hover:text-tone-700 px-2.5 py-1 h-auto text-xs rounded-lg flex items-center gap-1 transition-colors duration-150 bg-fill-050 border border-line-080"
                     onClick={() => {
                         setStage(1)
                     }}
@@ -182,7 +182,7 @@ export default function AllApps({setStage, apps,pinnedApps,pinApp,unPinApp}:IAll
                 <ScrollArea className="w-full h-[400px] px-4" ref={scrollRef}>
                     {grouped.map(([letter, group]) => (
                         <div key={letter} className="mb-4" data-letter={letter}>
-                            <div className="font-semibold text-ink/20 text-[11px] tracking-[0.08em] uppercase mb-1.5 pl-2">
+                            <div className="font-semibold text-tone-200 text-[11px] tracking-[0.08em] uppercase mb-1.5 pl-2">
                                 {letter}
                             </div>
                             {group.map(app => (
@@ -203,7 +203,7 @@ export default function AllApps({setStage, apps,pinnedApps,pinApp,unPinApp}:IAll
                         <button
                             key={l}
                             onClick={() => scrollToLetter(l)}
-                            className="text-[9px] text-ink/20 hover:text-ink/60 w-4 h-3.5 flex items-center justify-center rounded transition-colors"
+                            className="text-[9px] text-tone-200 hover:text-tone-600 w-4 h-3.5 flex items-center justify-center rounded transition-colors"
                         >
                             {l}
                         </button>

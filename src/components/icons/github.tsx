@@ -1,19 +1,21 @@
 import type { SVGProps } from "react";
 
 /**
- * GitHub's mark, path data from svgl (github_light).
+ * GitHub's mark, from svgl, in its own colours — which for this brand means
+ * two: `#1b1f23` on a light background, white on a dark one. `--gh-mark`
+ * picks the right one per theme.
  *
- * svgl ships it with a baked `#1b1f23` fill, which would disappear against the
- * dark panel. It is drawn in `currentColor` instead, so it takes the theme's
- * ink and sits consistently beside the lucide icons it is listed with.
+ * The path comes from github_light. svgl's github_dark ships 16-unit path
+ * data inside a 1024 viewBox, so it renders as a speck in the corner; only
+ * its fill was worth taking.
  */
-export const GitHub = ({ width = 16, height = 16, ...props }: SVGProps<SVGSVGElement>) => (
+export const GitHub = ({ size = 16, width, height, ...props }: SVGProps<SVGSVGElement> & { size?: number }) => (
     <svg
         {...props}
-        width={width}
-        height={height}
+        width={width ?? size}
+        height={height ?? size}
         viewBox="0 0 1024 1024"
-        fill="currentColor"
+        fill="var(--gh-mark)"
         aria-hidden="true"
     >
         <path

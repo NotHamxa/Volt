@@ -111,13 +111,13 @@ export function ModelPicker({
             <PopoverTrigger asChild>
                 <button
                     aria-label="Choose a model"
-                    className="flex items-center gap-1 h-6 max-w-[190px] px-1.5 rounded-md text-[10.5px] font-medium text-ink/45 hover:bg-fill-070 hover:text-ink/80 aria-expanded:bg-fill-070 aria-expanded:text-ink/80 transition-colors cursor-pointer"
+                    className="flex items-center gap-1 h-6 max-w-[190px] px-1.5 rounded-md text-[10.5px] font-medium text-tone-450 hover:bg-fill-070 hover:text-tone-800 aria-expanded:bg-fill-070 aria-expanded:text-tone-800 transition-colors cursor-pointer"
                 >
                     {currentLogo && (
                         <img src={currentLogo} alt="" className={`w-3.5 h-3.5 shrink-0 object-contain ${current ? providerLogoTint(current.id) : ""}`} />
                     )}
                     <span className="truncate">{currentLabel}</span>
-                    <ChevronRight size={11} className="shrink-0 rotate-90 text-ink/30" />
+                    <ChevronRight size={11} className="shrink-0 rotate-90 text-tone-300" />
                 </button>
             </PopoverTrigger>
 
@@ -142,8 +142,8 @@ export function ModelPicker({
                                     aria-label={p.label}
                                     className={`relative flex items-center justify-center w-7 h-7 rounded-lg text-[9.5px] font-semibold transition-colors cursor-pointer ${
                                         isBrowsing
-                                            ? "bg-fill-100 text-ink/85"
-                                            : "text-ink/30 hover:bg-fill-060 hover:text-ink/70"
+                                            ? "bg-fill-100 text-tone-850"
+                                            : "text-tone-300 hover:bg-fill-060 hover:text-tone-700"
                                     } ${p.available ? "" : "opacity-40"}`}
                                 >
                                     {isBrowsing && (
@@ -159,7 +159,7 @@ export function ModelPicker({
 
                     <div className="flex-1 min-w-0 flex flex-col">
                         <div className="relative shrink-0 border-b border-line-060">
-                            <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/25" />
+                            <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-tone-250" />
                             <input
                                 autoFocus
                                 value={search}
@@ -186,7 +186,7 @@ export function ModelPicker({
                                     }
                                 }}
                                 placeholder="Search models, or type an id…"
-                                className="w-full h-9 pl-8 pr-3 bg-transparent text-[12px] text-ink/85 placeholder:text-ink/25 outline-none"
+                                className="w-full h-9 pl-8 pr-3 bg-transparent text-[12px] text-tone-850 placeholder:text-tone-250 outline-none"
                             />
                         </div>
 
@@ -199,7 +199,7 @@ export function ModelPicker({
                                 )}
 
                                 {visible.length === 0 && !exactId && (
-                                    <p className="px-2 py-3 text-[11px] text-ink/25">
+                                    <p className="px-2 py-3 text-[11px] text-tone-250">
                                         {!shown?.models.length && shown?.available
                                             ? "Loading models…"
                                             : "No models match."}
@@ -222,8 +222,8 @@ export function ModelPicker({
                                                 <img src={shownLogo} alt="" className={`w-4 h-4 shrink-0 object-contain opacity-90 ${shown ? providerLogoTint(shown.id) : ""}`} />
                                             )}
                                             <div className="flex-1 min-w-0">
-                                                <span className="block truncate text-[12px] text-ink/85">{m.label}</span>
-                                                <span className="block truncate text-[10px] text-ink/30 mt-px">
+                                                <span className="block truncate text-[12px] text-tone-850">{m.label}</span>
+                                                <span className="block truncate text-[10px] text-tone-300 mt-px">
                                                     {/* The wire id where the label is
                                                         an alias, so "Opus" says which
                                                         version it resolves to. */}
@@ -241,7 +241,7 @@ export function ModelPicker({
                                                         e.stopPropagation();
                                                         if (shown) onForget(shown.id, m.id);
                                                     }}
-                                                    className="shrink-0 p-0.5 rounded text-ink/25 hover:text-red-300/80 transition-colors"
+                                                    className="shrink-0 p-0.5 rounded text-tone-250 hover:text-red-300/80 transition-colors"
                                                 >
                                                     <X size={11} />
                                                 </span>
@@ -262,10 +262,10 @@ export function ModelPicker({
                                         className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left hover:bg-fill-060 transition-colors cursor-pointer"
                                     >
                                         <div className="flex-1 min-w-0">
-                                            <span className="block truncate text-[12px] text-ink/75">
+                                            <span className="block truncate text-[12px] text-tone-750">
                                                 Use “{exactId}”
                                             </span>
-                                            <span className="block truncate text-[10px] text-ink/30 mt-px">
+                                            <span className="block truncate text-[10px] text-tone-300 mt-px">
                                                 Adds it to the list for next time
                                             </span>
                                         </div>
@@ -278,12 +278,12 @@ export function ModelPicker({
                                         className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-left hover:bg-fill-050 transition-colors cursor-pointer"
                                     >
                                         <div className="flex-1 min-w-0">
-                                            <span className="block text-[12px] text-ink/70">Older models</span>
-                                            <span className="block text-[10px] text-ink/30 mt-px">
+                                            <span className="block text-[12px] text-tone-700">Older models</span>
+                                            <span className="block text-[10px] text-tone-300 mt-px">
                                                 {matches.length - SHOWN_BY_DEFAULT} more
                                             </span>
                                         </div>
-                                        <ChevronRight size={13} className="shrink-0 text-ink/30" />
+                                        <ChevronRight size={13} className="shrink-0 text-tone-300" />
                                     </button>
                                 )}
                             </div>
@@ -293,7 +293,7 @@ export function ModelPicker({
                             Claude CLI lists five aliases but accepts any model
                             name — so say that rather than leave it to chance. */}
                         {!exactId && (
-                            <p className="shrink-0 px-3 py-1.5 border-t border-line-060 text-[10px] text-ink/25">
+                            <p className="shrink-0 px-3 py-1.5 border-t border-line-060 text-[10px] text-tone-250">
                                 Type any model id to use one that isn't listed
                             </p>
                         )}

@@ -25,8 +25,8 @@ function ThemePicker() {
                         aria-pressed={active}
                         className={`flex items-center gap-1.5 px-2.5 h-6 rounded-md text-[11px] font-medium transition-colors duration-150 cursor-pointer ${
                             active
-                                ? "bg-fill-100 text-ink/85"
-                                : "text-ink/40 hover:text-ink/70 hover:bg-fill-040"
+                                ? "bg-fill-100 text-tone-850"
+                                : "text-tone-400 hover:text-tone-700 hover:bg-fill-040"
                         }`}
                     >
                         <Icon size={11} />
@@ -138,8 +138,8 @@ export default function GeneralSettingsSection({ setHasUnsaved }: GeneralSetting
                             <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-fill-040 border border-line-070">
                                 {currentOpenBind.split("+").map((k, i) => (
                                     <span key={i} className="flex items-center gap-1">
-                                        {i > 0 && <span className="text-ink/20 text-[10px]">+</span>}
-                                        <kbd className="px-1.5 py-0.5 rounded bg-fill-060 border border-line-100 text-[10px] font-mono text-ink/55 min-w-[22px] text-center">
+                                        {i > 0 && <span className="text-tone-200 text-[10px]">+</span>}
+                                        <kbd className="px-1.5 py-0.5 rounded bg-fill-060 border border-line-100 text-[10px] font-mono text-tone-550 min-w-[22px] text-center">
                                             {k.trim()}
                                         </kbd>
                                     </span>
@@ -148,10 +148,10 @@ export default function GeneralSettingsSection({ setHasUnsaved }: GeneralSetting
                         )}
                         {listeningToKeyboard ? (
                             <div className="flex items-center gap-1 p-0.5 rounded-md bg-fill-040 border border-line-080">
-                                <span className="px-3 text-[11px] font-mono text-ink/65 animate-pulse min-w-24 text-center">
+                                <span className="px-3 text-[11px] font-mono text-tone-650 animate-pulse min-w-24 text-center">
                                     {openBind || "Recording..."}
                                 </span>
-                                <Button size="icon" variant="ghost" className="h-6 w-6 rounded-sm hover:bg-fill-100 text-ink/40 hover:text-ink/70" onClick={() => setListeningToKeyboard(false)}>
+                                <Button size="icon" variant="ghost" className="h-6 w-6 rounded-sm hover:bg-fill-100 text-tone-400 hover:text-tone-700" onClick={() => setListeningToKeyboard(false)}>
                                     <X size={12} />
                                 </Button>
                                 <Button size="icon" className="h-6 w-6 rounded-sm bg-ink text-surface hover:bg-ink/90" onClick={confirmChangeBind}>
@@ -159,7 +159,7 @@ export default function GeneralSettingsSection({ setHasUnsaved }: GeneralSetting
                                 </Button>
                             </div>
                         ) : (
-                            <Button variant="outline" className="h-8 rounded-md border-line-080 hover:bg-fill-050 hover:border-line-150 px-3 text-ink/60 hover:text-ink/85 text-[12px]" onClick={() => setListeningToKeyboard(true)}>
+                            <Button variant="outline" className="h-8 rounded-md border-line-080 hover:bg-fill-050 hover:border-line-150 px-3 text-tone-600 hover:text-tone-850 text-[12px]" onClick={() => setListeningToKeyboard(true)}>
                                 Change
                             </Button>
                         )}

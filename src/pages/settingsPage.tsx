@@ -59,24 +59,28 @@ export default function SettingsPage() {
     const hasUnsavedRef = useRef(false);
     const navigate = useNavigate();
 
-    // Sliding-pill measurement
+    // Sliding-highlight measurement
     const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
     const trackRef = useRef<HTMLDivElement>(null);
     const [pill, setPill] = useState({ left: 0, width: 0 });
+    // The highlight follows the pointer and falls back to the open section, so
+    // one moving block does the work of both a hover state and a selection
+    // marker. null means "nothing hovered".
+    const [hovered, setHovered] = useState<number | null>(null);
 
     useEffect(() => {
         window.electron.getAppVersion().then(setAppVersion);
     }, []);
 
     useLayoutEffect(() => {
-        const idx = NAV.findIndex(n => n.id === activeSection);
+        const idx = hovered ?? NAV.findIndex(n => n.id === activeSection);
         const btn = tabRefs.current[idx];
         const track = trackRef.current;
         if (!btn || !track) return;
         const tRect = track.getBoundingClientRect();
         const bRect = btn.getBoundingClientRect();
         setPill({ left: bRect.left - tRect.left, width: bRect.width });
-    }, [activeSection]);
+    }, [activeSection, hovered]);
 
     const setHasUnsaved = (val: boolean) => { hasUnsavedRef.current = val; };
 
@@ -105,13 +109,13 @@ export default function SettingsPage() {
     useEscape(cancelDiscard, !!pendingSection);
 
     return (
-        <div className="flex flex-col w-full h-full text-ink/80">
+        <div className="flex flex-col w-full h-full text-tone-800">
             {/* ── Top header — back, title, version, hint ─────────────────── */}
             <header className="flex items-center gap-3 px-4 h-[42px] border-b border-line-060 shrink-0">
                 <button
                     onClick={goBack}
                     aria-label="Back to search"
-                    className="flex items-center gap-1.5 px-2 py-1 -ml-1 rounded-md text-ink/40 hover:text-ink/80 hover:bg-fill-050 transition-colors"
+                    className="flex items-center gap-1.5 px-2 py-1 -ml-1 rounded-md text-tone-400 hover:text-tone-800 hover:bg-fill-050 transition-colors"
                 >
                     <ArrowLeft size={13} strokeWidth={2.2} />
                     <span className="text-[11px] font-medium">Back</span>
@@ -120,28 +124,32 @@ export default function SettingsPage() {
                 <div className="h-3.5 w-px bg-fill-070" />
 
                 <div className="flex items-baseline gap-2">
-                    <span className="text-[12px] font-semibold text-ink/70 tracking-[-0.01em]">Settings</span>
+                    <span className="text-[12px] font-semibold text-tone-700 tracking-[-0.01em]">Settings</span>
                     {appVersion && (
-                        <span className="text-[10px] font-mono text-ink/25">v{appVersion}</span>
+                        <span className="text-[10px] font-mono text-tone-250">v{appVersion}</span>
                     )}
                 </div>
 
                 <div className="ml-auto flex items-center gap-1.5">
-                    <span className="text-[10px] uppercase tracking-[0.18em] text-ink/25">Close</span>
-                    <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-fill-050 border border-line-080 text-ink/40 font-mono">Ctrl</span>
-                    <span className="text-ink/15 text-[10px]">+</span>
-                    <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-fill-050 border border-line-080 text-ink/40 font-mono">H</span>
+                    <span className="text-[10px] uppercase tracking-[0.18em] text-tone-250">Close</span>
+                    <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-fill-050 border border-line-080 text-tone-400 font-mono">Ctrl</span>
+                    <span className="text-tone-150 text-[10px]">+</span>
+                    <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-fill-050 border border-line-080 text-tone-400 font-mono">H</span>
                 </div>
             </header>
 
-            {/* ── Sliding-pill tab nav (mirrors Files/Web toggle vocabulary) ─ */}
+            {/* ── Tab nav: one highlight slides between tabs ──────────────── */}
             <div className="px-4 pt-3 pb-2 shrink-0">
                 <div
                     ref={trackRef}
-                    className="relative flex items-center gap-0.5 p-1 rounded-xl bg-fill-025 border border-line-060 w-full"
+                    onMouseLeave={() => setHovered(null)}
+                    className="relative flex items-center gap-0.5 py-1 w-full border-b border-line-050"
                 >
+                    {/* No track behind the tabs — the moving block is the only
+                        chrome, which keeps the row quiet until you reach for it. */}
                     <div
-                        className="absolute top-1 bottom-1 rounded-lg bg-fill-070 border border-line-070 shadow-[inset_0_1px_0_var(--edge-hi)] transition-all duration-250 ease-out"
+                        aria-hidden
+                        className="absolute top-1 bottom-1 rounded-lg bg-fill-060 transition-all duration-300 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)]"
                         style={{ left: pill.left, width: pill.width }}
                     />
                     {NAV.map((item, i) => {
@@ -152,14 +160,23 @@ export default function SettingsPage() {
                                 key={item.id}
                                 ref={el => { tabRefs.current[i] = el; }}
                                 onClick={() => handleSectionChange(item.id)}
-                                className={`relative z-10 flex items-center justify-center gap-1.5 flex-1 h-7 rounded-lg transition-colors duration-150 ${
-                                    active ? "text-ink/90" : "text-ink/35 hover:text-ink/65"
+                                onMouseEnter={() => setHovered(i)}
+                                onFocus={() => setHovered(i)}
+                                aria-current={active ? "page" : undefined}
+                                className={`relative z-10 flex items-center justify-center gap-1.5 flex-1 h-7 rounded-lg transition-colors duration-150 cursor-pointer ${
+                                    active ? "text-tone-900" : "text-tone-400 hover:text-tone-800"
                                 }`}
                             >
                                 <Icon size={12} strokeWidth={active ? 2.4 : 1.8} />
                                 <span className={`text-[11px] ${active ? "font-medium" : "font-normal"}`}>
                                     {item.short}
                                 </span>
+                                {/* The highlight can wander off to whatever is
+                                    hovered, so the open section needs a marker
+                                    that stays put. */}
+                                {active && (
+                                    <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-[2px] w-5 rounded-full bg-ink/70" />
+                                )}
                             </button>
                         );
                     })}
@@ -197,10 +214,10 @@ export default function SettingsPage() {
             {pendingSection && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--scrim-strong)] backdrop-blur-[6px]">
                     <div className="bg-surface-modal/[0.98] border border-line-070 rounded-2xl p-6 w-80 shadow-[0_40px_90px_var(--shadow-3),inset_0_1px_0_var(--edge-hi)]">
-                        <h3 className="text-[14px] font-semibold text-ink/85 mb-2 tracking-[-0.01em]">Discard changes?</h3>
-                        <p className="text-[12px] text-ink/40 mb-5 leading-relaxed">You have unsaved changes. They will be lost if you switch sections.</p>
+                        <h3 className="text-[14px] font-semibold text-tone-850 mb-2 tracking-[-0.01em]">Discard changes?</h3>
+                        <p className="text-[12px] text-tone-400 mb-5 leading-relaxed">You have unsaved changes. They will be lost if you switch sections.</p>
                         <div className="flex justify-end gap-2">
-                            <button onClick={cancelDiscard} className="px-4 py-2 text-[12px] text-ink/45 hover:text-ink/70 rounded-lg hover:bg-fill-050 transition-colors">
+                            <button onClick={cancelDiscard} className="px-4 py-2 text-[12px] text-tone-450 hover:text-tone-700 rounded-lg hover:bg-fill-050 transition-colors">
                                 Stay
                             </button>
                             <button onClick={confirmDiscard} className="px-4 py-2 text-[12px] text-red-400 hover:bg-red-500/15 rounded-lg transition-colors">

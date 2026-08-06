@@ -24,7 +24,7 @@ function ShellSelector({ value, onChange }: { value: ShellChoice; onChange: (v: 
                     type="button"
                     onClick={() => onChange(o.id)}
                     className={`px-2 h-6 text-[10.5px] rounded transition-colors ${
-                        value === o.id ? "bg-fill-080 text-ink/85" : "text-ink/45 hover:text-ink/70"
+                        value === o.id ? "bg-fill-080 text-tone-850" : "text-tone-450 hover:text-tone-700"
                     }`}
                 >
                     {o.label}
@@ -52,7 +52,7 @@ function ArgsEditor({ args, onChange }: { args: CommandArgDef[]; onChange: (next
                                 value={a.name}
                                 onChange={e => update(i, { name: e.target.value })}
                                 placeholder="argName"
-                                className={`flex-1 min-w-0 h-7 px-2 rounded bg-fill-040 border text-[11.5px] font-mono text-ink/80 focus:outline-none transition-colors ${
+                                className={`flex-1 min-w-0 h-7 px-2 rounded bg-fill-040 border text-[11.5px] font-mono text-tone-800 focus:outline-none transition-colors ${
                                     nameInvalid ? "border-red-500/40 focus:border-red-500/60" : "border-line-080 focus:border-ink/[0.18]"
                                 }`}
                             />
@@ -60,14 +60,14 @@ function ArgsEditor({ args, onChange }: { args: CommandArgDef[]; onChange: (next
                                 value={a.defaultValue ?? ""}
                                 onChange={e => update(i, { defaultValue: e.target.value || undefined })}
                                 placeholder="default (optional)"
-                                className="flex-1 min-w-0 h-7 px-2 rounded bg-fill-040 border border-line-080 text-[11.5px] text-ink/80 focus:outline-none focus:border-ink/[0.18] transition-colors"
+                                className="flex-1 min-w-0 h-7 px-2 rounded bg-fill-040 border border-line-080 text-[11.5px] text-tone-800 focus:outline-none focus:border-ink/[0.18] transition-colors"
                             />
                             <StyledCheckbox
                                 checked={!!a.required}
                                 onChange={v => update(i, { required: v })}
                                 label="required"
                             />
-                            <Button variant="ghost" size="icon" className="h-7 w-7 rounded text-ink/30 hover:text-red-400 hover:bg-red-500/10 shrink-0" onClick={() => remove(i)}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 rounded text-tone-300 hover:text-red-400 hover:bg-red-500/10 shrink-0" onClick={() => remove(i)}>
                                 <X size={11} />
                             </Button>
                         </div>
@@ -77,13 +77,13 @@ function ArgsEditor({ args, onChange }: { args: CommandArgDef[]; onChange: (next
                     </div>
                 );
             })}
-            <Button variant="outline" onClick={add} className="border-line-080 hover:bg-fill-050 hover:border-line-150 rounded-md px-2.5 h-7 text-[10.5px] font-medium transition-all text-ink/55 hover:text-ink/85 w-full">
+            <Button variant="outline" onClick={add} className="border-line-080 hover:bg-fill-050 hover:border-line-150 rounded-md px-2.5 h-7 text-[10.5px] font-medium transition-all text-tone-550 hover:text-tone-850 w-full">
                 <Plus size={11} className="mr-1.5" />
                 Add argument
             </Button>
             {args.length > 0 && (
-                <p className="text-[10px] text-ink/30 leading-relaxed pl-0.5">
-                    Reference args in the script with <code className="text-ink/45 font-mono">{"{argName}"}</code>. Values are quoted for the target shell automatically.
+                <p className="text-[10px] text-tone-300 leading-relaxed pl-0.5">
+                    Reference args in the script with <code className="text-tone-450 font-mono">{"{argName}"}</code>. Values are quoted for the target shell automatically.
                 </p>
             )}
         </div>
@@ -155,7 +155,7 @@ function ExpandablePanel({ open, children }: { open: boolean; children: React.Re
 
 function StyledCheckbox({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
     return (
-        <label className="flex items-center gap-1.5 text-[10.5px] text-ink/45 cursor-pointer select-none shrink-0 group">
+        <label className="flex items-center gap-1.5 text-[10.5px] text-tone-450 cursor-pointer select-none shrink-0 group">
             <button
                 type="button"
                 onClick={() => onChange(!checked)}
@@ -344,28 +344,28 @@ export default function CommandsSection() {
         <div className="space-y-5 min-w-0 overflow-hidden">
             <div>
                 <div className="flex items-start justify-between gap-4 mb-3">
-                    <p className="text-[12px] text-ink/40 leading-relaxed">Add custom shell commands and scripts that appear in search results.</p>
+                    <p className="text-[12px] text-tone-400 leading-relaxed">Add custom shell commands and scripts that appear in search results.</p>
                     <Button onClick={() => setShowAddForm(!showAddForm)} className="bg-ink text-surface hover:bg-ink/90 rounded-md px-3 h-8 text-[12px] font-medium transition-all active:scale-95 shrink-0">
                         <Plus size={14} className="mr-1.5" />
                         Add Command
                     </Button>
                 </div>
                 <div className="flex gap-1.5">
-                    <Button onClick={handleImportScript} variant="outline" className="border-line-080 hover:bg-fill-050 hover:border-line-150 rounded-md px-3 h-8 text-[11px] font-medium transition-all active:scale-95 text-ink/55 hover:text-ink/85">
+                    <Button onClick={handleImportScript} variant="outline" className="border-line-080 hover:bg-fill-050 hover:border-line-150 rounded-md px-3 h-8 text-[11px] font-medium transition-all active:scale-95 text-tone-550 hover:text-tone-850">
                         <FileUp size={12} className="mr-1.5" />
                         Import Script
                     </Button>
-                    <Button onClick={handleImportJson} variant="outline" className="border-line-080 hover:bg-fill-050 hover:border-line-150 rounded-md px-3 h-8 text-[11px] font-medium transition-all active:scale-95 text-ink/55 hover:text-ink/85">
+                    <Button onClick={handleImportJson} variant="outline" className="border-line-080 hover:bg-fill-050 hover:border-line-150 rounded-md px-3 h-8 text-[11px] font-medium transition-all active:scale-95 text-tone-550 hover:text-tone-850">
                         <FileJson size={12} className="mr-1.5" />
                         Import JSON
                     </Button>
                     {commands.length > 0 && (
-                        <Button onClick={handleExport} variant="outline" className="border-line-080 hover:bg-fill-050 hover:border-line-150 rounded-md px-3 h-8 text-[11px] font-medium transition-all active:scale-95 text-ink/55 hover:text-ink/85">
+                        <Button onClick={handleExport} variant="outline" className="border-line-080 hover:bg-fill-050 hover:border-line-150 rounded-md px-3 h-8 text-[11px] font-medium transition-all active:scale-95 text-tone-550 hover:text-tone-850">
                             <FileDown size={12} className="mr-1.5" />
                             Export
                         </Button>
                     )}
-                    <Button onClick={() => setShowPresets(true)} variant="outline" className="border-line-080 hover:bg-fill-050 hover:border-line-150 rounded-md px-3 h-8 text-[11px] font-medium transition-all active:scale-95 text-ink/55 hover:text-ink/85 ml-auto">
+                    <Button onClick={() => setShowPresets(true)} variant="outline" className="border-line-080 hover:bg-fill-050 hover:border-line-150 rounded-md px-3 h-8 text-[11px] font-medium transition-all active:scale-95 text-tone-550 hover:text-tone-850 ml-auto">
                         <BookOpen size={12} className="mr-1.5" />
                         Built-in
                     </Button>
@@ -375,50 +375,50 @@ export default function CommandsSection() {
             <ExpandablePanel open={showAddForm}>
                 <div className="p-4 rounded-lg bg-fill-025 border border-line-060 space-y-3">
                     <div className="space-y-1.5 pb-3 border-b border-line-060">
-                        <label className="text-[10px] font-semibold text-ink/45 uppercase tracking-[0.18em]">Draft with AI</label>
+                        <label className="text-[10px] font-semibold text-tone-450 uppercase tracking-[0.18em]">Draft with AI</label>
                         <AiCommandComposer onDraft={applyDraft} />
                     </div>
                     <div className="space-y-1.5">
-                        <label className="text-[10px] font-semibold text-ink/45 uppercase tracking-[0.18em]">Name</label>
+                        <label className="text-[10px] font-semibold text-tone-450 uppercase tracking-[0.18em]">Name</label>
                         <input
                             type="text"
                             value={name}
                             onChange={e => setName(e.target.value)}
                             placeholder="e.g. Clear Temp Files"
-                            className="w-full h-8 px-2.5 rounded-md bg-fill-040 border border-line-080 text-[12px] text-ink/80 placeholder:text-ink/20 focus:outline-none focus:border-ink/[0.18] transition-colors"
+                            className="w-full h-8 px-2.5 rounded-md bg-fill-040 border border-line-080 text-[12px] text-tone-800 placeholder:text-tone-200 focus:outline-none focus:border-ink/[0.18] transition-colors"
                         />
                     </div>
                     <div className="space-y-1.5">
-                        <label className="text-[10px] font-semibold text-ink/45 uppercase tracking-[0.18em]">Script / Command</label>
+                        <label className="text-[10px] font-semibold text-tone-450 uppercase tracking-[0.18em]">Script / Command</label>
                         <textarea
                             value={script}
                             onChange={e => setScript(e.target.value)}
                             placeholder={'e.g. del /q /f %temp%\\*\n\nOr import a .ps1 / .bat file to paste its content here'}
                             rows={5}
-                            className="w-full px-2.5 py-2 rounded-md bg-fill-040 border border-line-080 text-[12px] text-ink/80 font-mono placeholder:text-ink/20 focus:outline-none focus:border-ink/[0.18] transition-colors resize-none leading-relaxed [scrollbar-width:thin] [scrollbar-color:var(--ink-soft)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-fill-150 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-ink/25"
+                            className="w-full px-2.5 py-2 rounded-md bg-fill-040 border border-line-080 text-[12px] text-tone-800 font-mono placeholder:text-tone-200 focus:outline-none focus:border-ink/[0.18] transition-colors resize-none leading-relaxed [scrollbar-width:thin] [scrollbar-color:var(--ink-soft)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-fill-150 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-ink/25"
                         />
                     </div>
                     <div className="flex items-center justify-between gap-3">
-                        <span className="text-[10px] font-semibold text-ink/45 uppercase tracking-[0.18em]">Shell</span>
+                        <span className="text-[10px] font-semibold text-tone-450 uppercase tracking-[0.18em]">Shell</span>
                         <ShellSelector value={shell} onChange={setShell} />
                     </div>
                     <div className="space-y-1.5">
-                        <label className="text-[10px] font-semibold text-ink/45 uppercase tracking-[0.18em]">Arguments</label>
+                        <label className="text-[10px] font-semibold text-tone-450 uppercase tracking-[0.18em]">Arguments</label>
                         <ArgsEditor args={args} onChange={setArgs} />
                     </div>
                     <div className="flex items-center justify-between pt-1 gap-4 flex-wrap">
                         <div className="flex flex-col gap-2">
                             <label className="flex items-center gap-2 cursor-pointer">
                                 <ToggleSwitch checked={requireConfirm} onChange={() => setRequireConfirm(!requireConfirm)} small />
-                                <span className="text-[11.5px] text-ink/55">Require confirmation before running</span>
+                                <span className="text-[11.5px] text-tone-550">Require confirmation before running</span>
                             </label>
                             <label className="flex items-center gap-2 cursor-pointer">
                                 <ToggleSwitch checked={openInTerminal} onChange={() => setOpenInTerminal(!openInTerminal)} small />
-                                <span className="text-[11.5px] text-ink/55">Open in a new terminal window <span className="text-ink/30">(visible output)</span></span>
+                                <span className="text-[11.5px] text-tone-550">Open in a new terminal window <span className="text-tone-300">(visible output)</span></span>
                             </label>
                         </div>
                         <div className="flex gap-1.5">
-                            <Button variant="ghost" onClick={() => setShowAddForm(false)} className="h-8 rounded-md text-[11.5px] text-ink/40 hover:text-ink/65">
+                            <Button variant="ghost" onClick={() => setShowAddForm(false)} className="h-8 rounded-md text-[11.5px] text-tone-400 hover:text-tone-650">
                                 Cancel
                             </Button>
                             <Button onClick={handleAdd} className="bg-ink text-surface hover:bg-ink/90 rounded-md px-4 h-8 text-[11.5px] font-medium">
@@ -432,16 +432,16 @@ export default function CommandsSection() {
             {/* Filter input */}
             {commands.length > 3 && (
                 <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/25" size={13} />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-tone-250" size={13} />
                     <input
                         type="text"
                         value={filter}
                         onChange={e => setFilter(e.target.value)}
                         placeholder="Filter commands..."
-                        className="w-full h-8 pl-9 pr-3 rounded-md bg-fill-030 border border-line-060 text-[12px] text-ink/75 placeholder:text-ink/20 focus:outline-none focus:border-line-120 transition-colors"
+                        className="w-full h-8 pl-9 pr-3 rounded-md bg-fill-030 border border-line-060 text-[12px] text-tone-750 placeholder:text-tone-200 focus:outline-none focus:border-line-120 transition-colors"
                     />
                     {filter && (
-                        <button onClick={() => setFilter("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink/25 hover:text-ink/55">
+                        <button onClick={() => setFilter("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-tone-250 hover:text-tone-550">
                             <X size={12} />
                         </button>
                     )}
@@ -453,9 +453,9 @@ export default function CommandsSection() {
                     <div className="py-10 flex justify-center"><Spinner /></div>
                 ) : commands.length === 0 && !showAddForm ? (
                     <div className="py-10 text-center rounded-lg border border-dashed border-line-060">
-                        <Terminal className="mx-auto text-ink/15 mb-3" size={28} strokeWidth={1.2} />
-                        <p className="text-ink/30 text-[12px]">No custom commands yet.</p>
-                        <p className="text-ink/20 text-[11px] mt-0.5">Add commands or import a script file.</p>
+                        <Terminal className="mx-auto text-tone-150 mb-3" size={28} strokeWidth={1.2} />
+                        <p className="text-tone-300 text-[12px]">No custom commands yet.</p>
+                        <p className="text-tone-200 text-[11px] mt-0.5">Add commands or import a script file.</p>
                     </div>
                 ) : (
                     filtered.map((cmd, index) => (
@@ -474,37 +474,37 @@ export default function CommandsSection() {
                                     type="text"
                                     value={editName}
                                     onChange={e => setEditName(e.target.value)}
-                                    className="w-full h-8 px-2.5 rounded-md bg-fill-050 border border-line-080 text-[12px] text-ink/85 focus:outline-none focus:border-ink/[0.18] transition-colors"
+                                    className="w-full h-8 px-2.5 rounded-md bg-fill-050 border border-line-080 text-[12px] text-tone-850 focus:outline-none focus:border-ink/[0.18] transition-colors"
                                     placeholder="Name"
                                 />
                                 <textarea
                                     value={editScript}
                                     onChange={e => setEditScript(e.target.value)}
-                                    className="w-full px-2.5 py-2 rounded-md bg-fill-050 border border-line-080 text-[12px] text-ink/85 font-mono focus:outline-none focus:border-ink/[0.18] transition-colors resize-none leading-relaxed [scrollbar-width:thin] [scrollbar-color:var(--ink-soft)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-fill-150 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-ink/25"
+                                    className="w-full px-2.5 py-2 rounded-md bg-fill-050 border border-line-080 text-[12px] text-tone-850 font-mono focus:outline-none focus:border-ink/[0.18] transition-colors resize-none leading-relaxed [scrollbar-width:thin] [scrollbar-color:var(--ink-soft)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-fill-150 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-ink/25"
                                     placeholder="Script / Command"
                                     rows={4}
                                 />
                                 <div className="flex items-center justify-between gap-3">
-                                    <span className="text-[10px] font-semibold text-ink/45 uppercase tracking-[0.18em]">Shell</span>
+                                    <span className="text-[10px] font-semibold text-tone-450 uppercase tracking-[0.18em]">Shell</span>
                                     <ShellSelector value={editShell} onChange={setEditShell} />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <label className="text-[10px] font-semibold text-ink/45 uppercase tracking-[0.18em]">Arguments</label>
+                                    <label className="text-[10px] font-semibold text-tone-450 uppercase tracking-[0.18em]">Arguments</label>
                                     <ArgsEditor args={editArgs} onChange={setEditArgs} />
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                         <label className="flex items-center gap-1.5 cursor-pointer">
                                             <ToggleSwitch checked={editConfirm} onChange={() => setEditConfirm(!editConfirm)} small />
-                                            <span className="text-[11px] text-ink/40">Confirm</span>
+                                            <span className="text-[11px] text-tone-400">Confirm</span>
                                         </label>
                                         <label className="flex items-center gap-1.5 cursor-pointer">
                                             <ToggleSwitch checked={editOpen} onChange={() => setEditOpen(!editOpen)} small />
-                                            <span className="text-[11px] text-ink/40">Open terminal</span>
+                                            <span className="text-[11px] text-tone-400">Open terminal</span>
                                         </label>
                                     </div>
                                     <div className="flex gap-1">
-                                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md text-ink/30 hover:text-ink/65 hover:bg-fill-060" onClick={cancelEdit}>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md text-tone-300 hover:text-tone-650 hover:bg-fill-060" onClick={cancelEdit}>
                                             <X size={12} />
                                         </Button>
                                         <Button size="icon" className="h-7 w-7 rounded-md bg-ink text-surface hover:bg-ink/90" onClick={saveEdit}>
@@ -517,13 +517,13 @@ export default function CommandsSection() {
                             <div key={index} className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-md transition-colors group bg-fill-025 border border-line-050 hover:border-line-090 overflow-hidden">
                                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
                                     <div className="p-1.5 rounded-md shrink-0 bg-fill-040 border border-line-070">
-                                        <Terminal size={13} className="text-ink/45" strokeWidth={1.8} />
+                                        <Terminal size={13} className="text-tone-450" strokeWidth={1.8} />
                                     </div>
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-1.5 min-w-0">
-                                            <span className="text-[12px] text-ink/75 font-medium truncate min-w-0">{cmd.name}</span>
+                                            <span className="text-[12px] text-tone-750 font-medium truncate min-w-0">{cmd.name}</span>
                                             {cmd.shell && cmd.shell !== "auto" && (
-                                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-fill-060 text-ink/55 font-medium uppercase tracking-wider shrink-0">{cmd.shell === "powershell" ? "ps" : "cmd"}</span>
+                                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-fill-060 text-tone-550 font-medium uppercase tracking-wider shrink-0">{cmd.shell === "powershell" ? "ps" : "cmd"}</span>
                                             )}
                                             {cmd.args && cmd.args.length > 0 && (
                                                 <span className="text-[9px] px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-300/80 font-medium uppercase tracking-wider shrink-0">{cmd.args.length} arg{cmd.args.length === 1 ? "" : "s"}</span>
@@ -537,14 +537,14 @@ export default function CommandsSection() {
                                                 </span>
                                             )}
                                         </div>
-                                        <span className="text-[10.5px] text-ink/25 font-mono truncate block mt-0.5 max-w-full">{(cmd.path || "").split("\n")[0]}{(cmd.path || "").includes("\n") ? " …" : ""}</span>
+                                        <span className="text-[10.5px] text-tone-250 font-mono truncate block mt-0.5 max-w-full">{(cmd.path || "").split("\n")[0]}{(cmd.path || "").includes("\n") ? " …" : ""}</span>
                                     </div>
                                 </div>
                                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md hover:bg-fill-060 text-ink/30 hover:text-ink/65" onClick={() => startEdit(cmd)}>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md hover:bg-fill-060 text-tone-300 hover:text-tone-650" onClick={() => startEdit(cmd)}>
                                         <Pencil size={12} />
                                     </Button>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md hover:bg-red-500/12 text-ink/30 hover:text-red-400" onClick={() => handleRemove(cmd.name)}>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md hover:bg-red-500/12 text-tone-300 hover:text-red-400" onClick={() => handleRemove(cmd.name)}>
                                         {removing === cmd.name ? <Spinner /> : <Trash size={12} />}
                                     </Button>
                                 </div>
@@ -553,13 +553,13 @@ export default function CommandsSection() {
                     ))
                 )}
                 {!loading && commands.length > 0 && filtered.length === 0 && filter && (
-                    <div className="py-7 text-center text-ink/25 text-[12px]">No commands match "{filter}"</div>
+                    <div className="py-7 text-center text-tone-250 text-[12px]">No commands match "{filter}"</div>
                 )}
             </div>
 
             <div className="pt-3 border-t border-line-040">
-                <p className="text-[10.5px] text-ink/25 leading-relaxed">
-                    Import a <code className="text-ink/40 font-mono">.ps1</code>, <code className="text-ink/40 font-mono">.bat</code>, or <code className="text-ink/40 font-mono">.cmd</code> file to auto-fill the script content.
+                <p className="text-[10.5px] text-tone-250 leading-relaxed">
+                    Import a <code className="text-tone-400 font-mono">.ps1</code>, <code className="text-tone-400 font-mono">.bat</code>, or <code className="text-tone-400 font-mono">.cmd</code> file to auto-fill the script content.
                     Multi-line scripts are fully supported.
                 </p>
             </div>
@@ -600,16 +600,16 @@ function PresetCommandsModal({ open, onClose }: { open: boolean; onClose: () => 
                 <header className="flex items-center justify-between gap-3 px-5 pt-4 pb-3 border-b border-line-050">
                     <div className="flex items-center gap-2 min-w-0">
                         <div className="p-1.5 rounded-md bg-fill-040 border border-line-070">
-                            <BookOpen size={13} className="text-ink/55" strokeWidth={1.8} />
+                            <BookOpen size={13} className="text-tone-550" strokeWidth={1.8} />
                         </div>
                         <div className="min-w-0">
-                            <h3 className="text-[13px] font-semibold text-ink/85 tracking-[-0.01em]">Built-in Commands</h3>
-                            <p className="text-[10.5px] text-ink/35">Reference for the commands shipped with Volt.</p>
+                            <h3 className="text-[13px] font-semibold text-tone-850 tracking-[-0.01em]">Built-in Commands</h3>
+                            <p className="text-[10.5px] text-tone-350">Reference for the commands shipped with Volt.</p>
                         </div>
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-1.5 rounded-md text-ink/30 hover:text-ink/75 hover:bg-fill-050 transition-colors"
+                        className="p-1.5 rounded-md text-tone-300 hover:text-tone-750 hover:bg-fill-050 transition-colors"
                         aria-label="Close"
                     >
                         <X size={13} />
@@ -618,13 +618,13 @@ function PresetCommandsModal({ open, onClose }: { open: boolean; onClose: () => 
 
                 <div className="px-5 pt-3 pb-2">
                     <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/25" size={13} />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-tone-250" size={13} />
                         <input
                             value={q}
                             onChange={e => setQ(e.target.value)}
                             placeholder="Filter built-in commands..."
                             autoFocus
-                            className="w-full h-8 pl-9 pr-3 text-[12px] rounded-md bg-fill-030 border border-line-060 text-ink/75 placeholder:text-ink/20 focus:outline-none focus:border-line-120 transition-colors"
+                            className="w-full h-8 pl-9 pr-3 text-[12px] rounded-md bg-fill-030 border border-line-060 text-tone-750 placeholder:text-tone-200 focus:outline-none focus:border-line-120 transition-colors"
                         />
                     </div>
                 </div>
@@ -635,7 +635,7 @@ function PresetCommandsModal({ open, onClose }: { open: boolean; onClose: () => 
                             <div className="py-10 flex justify-center"><Spinner /></div>
                         )}
                         {!loading && filtered.length === 0 && (
-                            <div className="py-10 text-center text-ink/25 text-[12px]">
+                            <div className="py-10 text-center text-tone-250 text-[12px]">
                                 {q ? `No built-in commands match "${q}".` : "No built-in commands available."}
                             </div>
                         )}
@@ -645,8 +645,8 @@ function PresetCommandsModal({ open, onClose }: { open: boolean; onClose: () => 
                                 className="px-3 py-2 rounded-md bg-fill-020 border border-line-050 hover:border-line-090 transition-colors"
                             >
                                 <div className="flex items-center gap-2 mb-1">
-                                    <Terminal size={11} className="text-ink/40 shrink-0" strokeWidth={1.8} />
-                                    <span className="text-[12px] font-medium text-ink/80">{p.name}</span>
+                                    <Terminal size={11} className="text-tone-400 shrink-0" strokeWidth={1.8} />
+                                    <span className="text-[12px] font-medium text-tone-800">{p.name}</span>
                                     {isConfirmType(p.type) && (
                                         <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400/75 font-medium uppercase tracking-wider">confirm</span>
                                     )}
@@ -656,7 +656,7 @@ function PresetCommandsModal({ open, onClose }: { open: boolean; onClose: () => 
                                         </span>
                                     )}
                                 </div>
-                                <code className="block text-[10.5px] font-mono text-ink/40 leading-relaxed whitespace-pre-wrap break-all pl-[18px]">
+                                <code className="block text-[10.5px] font-mono text-tone-400 leading-relaxed whitespace-pre-wrap break-all pl-[18px]">
                                     {p.path}
                                 </code>
                             </div>
@@ -665,12 +665,12 @@ function PresetCommandsModal({ open, onClose }: { open: boolean; onClose: () => 
                 </ScrollArea>
 
                 <footer className="flex items-center justify-between gap-3 px-5 py-3 border-t border-line-050">
-                    <span className="text-[10.5px] text-ink/30">{filtered.length} of {presets.length} commands</span>
+                    <span className="text-[10.5px] text-tone-300">{filtered.length} of {presets.length} commands</span>
                     <button
                         onClick={onClose}
-                        className="text-[11px] text-ink/50 hover:text-ink/85 px-3 py-1.5 rounded-md hover:bg-fill-050 transition-colors"
+                        className="text-[11px] text-tone-500 hover:text-tone-850 px-3 py-1.5 rounded-md hover:bg-fill-050 transition-colors"
                     >
-                        Close <span className="text-ink/25 ml-1 font-mono">Esc</span>
+                        Close <span className="text-tone-250 ml-1 font-mono">Esc</span>
                     </button>
                 </footer>
             </div>

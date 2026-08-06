@@ -6,9 +6,9 @@ import { ChangelogEntry } from "@/data/changelog.ts";
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
 const sectionIcons: Record<string, ReactNode> = {
-    "New Features": <Sparkles size={13} className="text-ink/50" strokeWidth={1.5} />,
-    "Improvements": <Wrench size={13} className="text-ink/50" strokeWidth={1.5} />,
-    "Bug Fixes": <Bug size={13} className="text-ink/50" strokeWidth={1.5} />,
+    "New Features": <Sparkles size={13} className="text-tone-500" strokeWidth={1.5} />,
+    "Improvements": <Wrench size={13} className="text-tone-500" strokeWidth={1.5} />,
+    "Bug Fixes": <Bug size={13} className="text-tone-500" strokeWidth={1.5} />,
 };
 
 interface UpdateModalProps {
@@ -41,10 +41,10 @@ export function UpdateModal({ open, onClose, changelog, version }: UpdateModalPr
                     <div className="px-7 pt-7 pb-4">
                         <div className="flex items-center gap-2.5 mb-2">
                             <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-fill-060 border border-line-090">
-                                <Sparkles size={15} className="text-ink/60" strokeWidth={1.5} />
+                                <Sparkles size={15} className="text-tone-600" strokeWidth={1.5} />
                             </div>
                             <div>
-                                <p className="text-[11px] uppercase tracking-widest text-ink/20">Updated to</p>
+                                <p className="text-[11px] uppercase tracking-widest text-tone-200">Updated to</p>
                                 <h2 className="text-[18px] font-semibold text-ink tracking-[-0.02em] leading-tight">
                                     v{version}
                                 </h2>
@@ -55,8 +55,8 @@ export function UpdateModal({ open, onClose, changelog, version }: UpdateModalPr
                             <div className="mt-4 flex flex-col gap-1.5">
                                 {changelog.highlights.map((h, i) => (
                                     <div key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-fill-030 border border-line-060">
-                                        <ArrowRight size={11} className="text-ink/30 shrink-0" />
-                                        <span className="text-[12px] text-ink/60">{h}</span>
+                                        <ArrowRight size={11} className="text-tone-300 shrink-0" />
+                                        <span className="text-[12px] text-tone-600">{h}</span>
                                     </div>
                                 ))}
                             </div>
@@ -68,8 +68,8 @@ export function UpdateModal({ open, onClose, changelog, version }: UpdateModalPr
                         {changelog?.sections.map((section, si) => (
                             <div key={si} className="mb-4">
                                 <div className="flex items-center gap-2 mb-2">
-                                    {sectionIcons[section.title] ?? <Sparkles size={13} className="text-ink/50" strokeWidth={1.5} />}
-                                    <h3 className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink/30">
+                                    {sectionIcons[section.title] ?? <Sparkles size={13} className="text-tone-500" strokeWidth={1.5} />}
+                                    <h3 className="text-[11px] font-semibold uppercase tracking-[0.1em] text-tone-300">
                                         {section.title}
                                     </h3>
                                 </div>
@@ -77,7 +77,7 @@ export function UpdateModal({ open, onClose, changelog, version }: UpdateModalPr
                                     {section.items.map((item, ii) => (
                                         <div key={ii} className="flex items-start gap-2 pl-1">
                                             <span className="mt-1.5 w-1 h-1 rounded-full bg-fill-150 shrink-0" />
-                                            <span className="text-[12px] text-ink/45 leading-relaxed">{item}</span>
+                                            <span className="text-[12px] text-tone-450 leading-relaxed">{item}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -86,8 +86,8 @@ export function UpdateModal({ open, onClose, changelog, version }: UpdateModalPr
 
                         {!changelog && (
                             <div className="py-6 text-center">
-                                <p className="text-[13px] text-ink/40">Volt has been updated to v{version}.</p>
-                                <p className="text-[12px] text-ink/25 mt-1">Check the changelog for details.</p>
+                                <p className="text-[13px] text-tone-400">Volt has been updated to v{version}.</p>
+                                <p className="text-[12px] text-tone-250 mt-1">Check the changelog for details.</p>
                             </div>
                         )}
                     </div>

@@ -24,23 +24,23 @@ import { splitPoint } from "@/ai/streamSplit.ts";
 const components: Components = {
     p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
 
-    h1: ({ children }) => <h1 className="mt-3 first:mt-0 mb-1.5 text-[14px] font-semibold text-ink/90">{children}</h1>,
-    h2: ({ children }) => <h2 className="mt-3 first:mt-0 mb-1.5 text-[13.5px] font-semibold text-ink/90">{children}</h2>,
-    h3: ({ children }) => <h3 className="mt-3 first:mt-0 mb-1 text-[13px] font-semibold text-ink/85">{children}</h3>,
-    h4: ({ children }) => <h4 className="mt-2.5 first:mt-0 mb-1 text-[12.5px] font-semibold text-ink/80">{children}</h4>,
+    h1: ({ children }) => <h1 className="mt-3 first:mt-0 mb-1.5 text-[14px] font-semibold text-tone-900">{children}</h1>,
+    h2: ({ children }) => <h2 className="mt-3 first:mt-0 mb-1.5 text-[13.5px] font-semibold text-tone-900">{children}</h2>,
+    h3: ({ children }) => <h3 className="mt-3 first:mt-0 mb-1 text-[13px] font-semibold text-tone-850">{children}</h3>,
+    h4: ({ children }) => <h4 className="mt-2.5 first:mt-0 mb-1 text-[12.5px] font-semibold text-tone-800">{children}</h4>,
 
-    ul: ({ children }) => <ul className="mb-2 last:mb-0 pl-4 list-disc marker:text-ink/25 space-y-0.5">{children}</ul>,
-    ol: ({ children }) => <ol className="mb-2 last:mb-0 pl-4 list-decimal marker:text-ink/25 space-y-0.5">{children}</ol>,
+    ul: ({ children }) => <ul className="mb-2 last:mb-0 pl-4 list-disc marker:text-tone-250 space-y-0.5">{children}</ul>,
+    ol: ({ children }) => <ol className="mb-2 last:mb-0 pl-4 list-decimal marker:text-tone-250 space-y-0.5">{children}</ol>,
     li: ({ children }) => <li className="leading-relaxed pl-0.5">{children}</li>,
 
-    strong: ({ children }) => <strong className="font-semibold text-ink/95">{children}</strong>,
-    em: ({ children }) => <em className="italic text-ink/70">{children}</em>,
-    del: ({ children }) => <del className="line-through text-ink/40">{children}</del>,
+    strong: ({ children }) => <strong className="font-semibold text-tone-950">{children}</strong>,
+    em: ({ children }) => <em className="italic text-tone-700">{children}</em>,
+    del: ({ children }) => <del className="line-through text-tone-400">{children}</del>,
 
     hr: () => <hr className="my-3 border-line-080" />,
 
     blockquote: ({ children }) => (
-        <blockquote className="my-2 pl-3 border-l-2 border-line-120 text-ink/55">{children}</blockquote>
+        <blockquote className="my-2 pl-3 border-l-2 border-line-120 text-tone-550">{children}</blockquote>
     ),
 
     // Links open in the real browser. The main process blocks in-window
@@ -70,7 +70,7 @@ const components: Components = {
             );
         }
         return (
-            <code className={`${className ?? ""} font-mono text-[11px] leading-relaxed text-ink/80`} {...props}>
+            <code className={`${className ?? ""} font-mono text-[11px] leading-relaxed text-tone-800`} {...props}>
                 {children}
             </code>
         );
@@ -97,7 +97,7 @@ const components: Components = {
     th: ({ children, style }) => (
         <th
             style={style}
-            className="px-3 py-2 text-left font-medium text-ink/75 whitespace-nowrap border-b border-line-100 border-r border-line-050 last:border-r-0"
+            className="px-3 py-2 text-left font-medium text-tone-750 whitespace-nowrap border-b border-line-100 border-r border-line-050 last:border-r-0"
         >
             {children}
         </th>
@@ -105,7 +105,7 @@ const components: Components = {
     td: ({ children, style }) => (
         <td
             style={style}
-            className="px-3 py-1.5 align-top text-ink/65 border-r border-line-040 last:border-r-0"
+            className="px-3 py-1.5 align-top text-tone-650 border-r border-line-040 last:border-r-0"
         >
             {children}
         </td>
@@ -167,7 +167,7 @@ export const StreamingMarkdown = memo(function StreamingMarkdown({ children }: {
  */
 export const Markdown = memo(function Markdown({ children }: { children: string }) {
     return (
-        <div className="text-[12.5px] leading-relaxed text-ink/75 break-words">
+        <div className="text-[12.5px] leading-relaxed text-tone-750 break-words">
             <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={components}>
                 {children}
             </ReactMarkdown>

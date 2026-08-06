@@ -425,12 +425,12 @@ const QueryComponent = memo(({
                     <DialogContent className="sm:max-w-106.25 bg-surface">
                         <DialogHeader>
                             <DialogTitle>Confirm Command</DialogTitle>
-                            <DialogDescription className="text-ink/40">
+                            <DialogDescription className="text-tone-400">
                                 Are you sure you want to run this command?
                             </DialogDescription>
                         </DialogHeader>
                         <div className="py-2">
-                            <code className="block w-full p-3 rounded-lg text-sm font-mono break-all bg-fill-040 border border-line-070 text-ink/70">
+                            <code className="block w-full p-3 rounded-lg text-sm font-mono break-all bg-fill-040 border border-line-070 text-tone-700">
                                 {name}
                             </code>
                         </div>
@@ -438,7 +438,7 @@ const QueryComponent = memo(({
                             <Button
                                 variant="outline"
                                 onClick={handleCancel}
-                                className="border-line-100 text-ink/45 hover:text-ink/65"
+                                className="border-line-100 text-tone-450 hover:text-tone-650"
                             >
                                 Cancel (Esc)
                             </Button>
@@ -817,8 +817,8 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                                 tabIndex={0}
                                 className={`cursor-pointer flex items-center py-1.5 pl-11 pr-3 rounded-lg select-none transition-colors duration-150 gap-2 w-full hover:bg-fill-100 ${focused ? "bg-fill-100 outline outline-[1px] outline-offset-[-1px] outline-ink/[0.18]" : "bg-transparent"}`}
                             >
-                                <Search className="w-3.5 h-3.5 shrink-0 text-ink/30" />
-                                <span className="text-[12px] text-ink/60 truncate">{item.name}</span>
+                                <Search className="w-3.5 h-3.5 shrink-0 text-tone-300" />
+                                <span className="text-[12px] text-tone-600 truncate">{item.name}</span>
                             </button>
                         </div>
                     );
@@ -850,7 +850,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
             ? `https://www.google.com/s2/favicons?sz=24&domain_url=${encodeURIComponent(resolved.bang.d)}`
             : null;
         const fallbackIcon = resolved.isDirectUrl
-            ? <Globe className="w-5 h-5 shrink-0 text-ink/40" />
+            ? <Globe className="w-5 h-5 shrink-0 text-tone-400" />
             : <Google className="w-6 h-6 shrink-0" />;
 
         return (
@@ -868,7 +868,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                         <FaviconOrIcon key={faviconUrl ?? "none"} src={faviconUrl}>
                             {fallbackIcon}
                         </FaviconOrIcon>
-                        <span className="text-[13px] text-ink/80 truncate">
+                        <span className="text-[13px] text-tone-800 truncate">
                             {resolved.isDirectUrl ? (
                                 <>Go to <span className="text-ink font-medium">{resolved.searchTerm}</span></>
                             ) : resolved.searchTerm ? (
@@ -881,7 +881,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                             )}
                         </span>
                     </div>
-                    <span className="ml-auto opacity-70 text-[12px] cursor-default text-ink/50 shrink-0">
+                    <span className="ml-auto opacity-70 text-[12px] cursor-default text-tone-500 shrink-0">
                         {resolved.isDirectUrl ? "Link" : "Web"}
                     </span>
                 </button>
@@ -894,7 +894,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
         <ScrollArea ref={scrollAreaRef} className="w-full h-[420px] px-5">
             {isCmdCommand ? (
                 <div>
-                    <div className="text-center text-[11px] font-semibold tracking-[0.1em] uppercase text-ink/25 mb-2">CMD Command</div>
+                    <div className="text-center text-[11px] font-semibold tracking-[0.1em] uppercase text-tone-250 mb-2">CMD Command</div>
                     <div className="p-2 rounded-lg bg-fill-050">
                         {cmdCommand}
                     </div>
@@ -910,11 +910,11 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                         <div className="relative mb-4">
                             <div className="absolute inset-0 blur-xl bg-fill-030 rounded-full" />
                             <div className="relative w-16 h-16 rounded-xl bg-fill-030 border border-line-060 flex items-center justify-center">
-                                <SearchX className="w-7 h-7 text-ink/30" strokeWidth={1.5} />
+                                <SearchX className="w-7 h-7 text-tone-300" strokeWidth={1.5} />
                             </div>
                         </div>
-                        <div className="text-[13px] font-medium text-ink/50">Nothing here</div>
-                        <div className="text-[11px] text-ink/20 mt-1">Try a different search</div>
+                        <div className="text-[13px] font-medium text-tone-500">Nothing here</div>
+                        <div className="text-[11px] text-tone-200 mt-1">Try a different search</div>
                     </div>
                 ) : (
                     <>
@@ -961,12 +961,12 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                                     >
                                         <div className="flex items-center gap-2 min-w-0">
                                             <Sparkles className="w-5 h-5 shrink-0 text-amber-300/70" />
-                                            <span className="text-[13px] text-ink/80 truncate">
+                                            <span className="text-[13px] text-tone-800 truncate">
                                                 Ask AI about{" "}
                                                 <span className="text-ink font-medium">"{aiEntry.name}"</span>
                                             </span>
                                         </div>
-                                        <span className="ml-auto opacity-70 text-[12px] cursor-default text-ink/50 shrink-0">AI</span>
+                                        <span className="ml-auto opacity-70 text-[12px] cursor-default text-tone-500 shrink-0">AI</span>
                                     </button>
                                 </div>
                             );

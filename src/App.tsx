@@ -267,7 +267,7 @@ export default function App() {
                         <img src={logo} alt="Volt" className="w-8 h-8 object-contain opacity-60" />
                     </div>
                     <div className="flex flex-col items-center gap-2.5">
-                        <span className="text-[10px] tracking-[0.25em] uppercase text-ink/20">
+                        <span className="text-[10px] tracking-[0.25em] uppercase text-tone-200">
                             {hasProgress ? `Loading ${pct}%` : 'Loading'}
                         </span>
                         <div className="w-32 h-0.5 rounded-full bg-fill-060 overflow-hidden">
@@ -307,8 +307,8 @@ export default function App() {
             />
             {(showUnlockedIcon || showLockedIcon) &&
                 <div className="absolute top-3 right-3 flex items-center gap-2 z-50 bg-surface/[0.92] px-3 py-2 rounded-lg backdrop-blur-[10px] border border-line-080 shadow-[0_4px_15px_var(--shadow-1)] animate-in fade-in slide-in-from-top-2 duration-200">
-                    {showLockedIcon && <><Lock size={14} className="text-ink/60" /><span className="text-[11px] text-ink/50">Locked</span></>}
-                    {showUnlockedIcon && <><Unlock size={14} className="text-ink/60" /><span className="text-[11px] text-ink/50">Unlocked</span></>}
+                    {showLockedIcon && <><Lock size={14} className="text-tone-600" /><span className="text-[11px] text-tone-500">Locked</span></>}
+                    {showUnlockedIcon && <><Unlock size={14} className="text-tone-600" /><span className="text-[11px] text-tone-500">Unlocked</span></>}
                 </div>
             }
 
@@ -343,7 +343,9 @@ export default function App() {
             <div className="border-t border-line-070 h-10 shrink-0 flex items-center justify-between px-4 w-[800px]">
                 <button
                     aria-label="GitHub"
-                    className="text-ink/25 hover:text-ink/60 transition-colors duration-150"
+                    // The mark carries its own colour now, so a text-colour
+                    // hover has nothing to act on — fade it instead.
+                    className="opacity-40 hover:opacity-100 transition-opacity duration-150 cursor-pointer"
                     onClick={async () => {
                         window.electron.openExternal("https://github.com/NotHamxa");
                     }}
@@ -363,18 +365,18 @@ export default function App() {
                         ) : updateProgress !== null ? (
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                    <span className="flex items-center text-ink/25 cursor-default">
+                                    <span className="flex items-center text-tone-250 cursor-default">
                                         <Loader2 size={13} className="animate-spin" />
                                     </span>
                                 </TooltipTrigger>
-                                <TooltipContent side="top" className="bg-surface/[0.98] border border-line-100 text-ink/70 text-[11px]">
+                                <TooltipContent side="top" className="bg-surface/[0.98] border border-line-100 text-tone-700 text-[11px]">
                                     Downloading update… {updateProgress}%
                                 </TooltipContent>
                             </Tooltip>
                         ) : null}
                     </TooltipProvider>
 
-                    <div data-walkthrough="settings-btn" className="flex items-center space-x-2 text-ink/25 text-sm">
+                    <div data-walkthrough="settings-btn" className="flex items-center space-x-2 text-tone-250 text-sm">
                         <button
                             onClick={() => {
                                 if (locationRef.current === '/settings') {
@@ -383,12 +385,12 @@ export default function App() {
                                     navigate('/settings');
                                 }
                             }}
-                            className="hover:text-ink/55 transition-colors duration-150 cursor-pointer"
+                            className="hover:text-tone-550 transition-colors duration-150 cursor-pointer"
                         >
                             Settings
                         </button>
                         <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-fill-070 border border-line-100">Ctrl</span>
-                        <span className="text-ink/15">+</span>
+                        <span className="text-tone-150">+</span>
                         <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-fill-070 border border-line-100">H</span>
                     </div>
                 </div>

@@ -1,20 +1,23 @@
 import { useState, useRef, useEffect, ReactNode, useLayoutEffect, useMemo } from "react";
 import { useNavigate } from "react-router";
-import { Settings, Hash, FolderOpen, Info, Terminal, Lightbulb, Sparkles, ArrowLeft, Search, CornerDownLeft, RefreshCw, Check } from "lucide-react";
+import { Settings, Hash, FolderOpen, Info, Terminal, Lightbulb, Sparkles, ArrowLeft, Search, CornerDownLeft, RefreshCw, Check, Keyboard } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { useEscape } from "@/hooks/useEscape.ts";
 import { useUpdateStatus } from "@/hooks/useUpdateStatus.ts";
 import { searchSettings, SettingsEntry } from "@/data/settingsIndex.ts";
+import { matchesCombo } from "@/data/keybindings.ts";
+import { getBinding } from "@/hooks/useKeybindings.ts";
 import GeneralSettingsSection from "@/sections/generalSection.tsx";
 import FoldersSection from "@/sections/foldersSection.tsx";
 import QuickBangsSection from "@/sections/bangsSection.tsx";
 import AboutSection from "@/sections/aboutSection.tsx";
 import CommandsSection from "@/sections/commandsSection.tsx";
 import TipsSection from "@/sections/tipsSection.tsx";
+import KeysSection from "@/sections/keysSection.tsx";
 import AiSection from "@/sections/aiSection.tsx";
 
-type SectionId = "settings" | "folders" | "commands" | "bangs" | "ai" | "tips" | "about";
+type SectionId = "settings" | "keys" | "folders" | "commands" | "bangs" | "ai" | "tips" | "about";
 
 interface NavItem {
     id: SectionId;
@@ -25,6 +28,7 @@ interface NavItem {
 
 const NAV: NavItem[] = [
     { id: "settings", label: "General",          short: "General", icon: Settings },
+    { id: "keys",     label: "Shortcuts",        short: "Keys",    icon: Keyboard },
     { id: "folders",  label: "Search Index",     short: "Index",   icon: FolderOpen },
     { id: "commands", label: "Commands",         short: "Cmds",    icon: Terminal },
     { id: "bangs",    label: "Quick Bangs",      short: "Bangs",   icon: Hash },
@@ -189,7 +193,7 @@ export default function SettingsPage() {
         const onKey = (e: KeyboardEvent) => {
             if (pendingSection) return;
 
-            if (e.ctrlKey && e.key.toLowerCase() === "f") {
+            if (matchesCombo(e, getBinding("settings-search"))) {
                 e.preventDefault();
                 searchRef.current?.focus();
                 searchRef.current?.select();
@@ -365,6 +369,9 @@ export default function SettingsPage() {
                         </h1>
                         <AnimatedSection active={activeSection === "settings"}>
                             <GeneralSettingsSection setHasUnsaved={setHasUnsaved} />
+                        </AnimatedSection>
+                        <AnimatedSection active={activeSection === "keys"}>
+                            <KeysSection />
                         </AnimatedSection>
                         <AnimatedSection active={activeSection === "folders"}>
                             <FoldersSection />

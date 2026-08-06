@@ -1,5 +1,5 @@
 export type SettingsSectionId =
-    "settings" | "folders" | "commands" | "bangs" | "ai" | "tips" | "about";
+    "settings" | "keys" | "folders" | "commands" | "bangs" | "ai" | "tips" | "about";
 
 export type SettingsEntry = {
     section: SettingsSectionId;
@@ -32,11 +32,6 @@ export const SETTINGS_INDEX: SettingsEntry[] = [
         keywords: ["appearance", "dark mode", "light mode", "colour", "color", "system"],
     },
     {
-        section: "settings", title: "Activation Shortcut", anchor: "activation-shortcut",
-        hint: "The global combination that opens the search bar",
-        keywords: ["hotkey", "keybind", "keyboard", "open", "toggle", "ctrl space", "alt space"],
-    },
-    {
         section: "settings", title: "Open on Startup", anchor: "open-on-startup",
         hint: "Launch Volt when you sign in",
         keywords: ["autostart", "boot", "login", "start with windows"],
@@ -50,6 +45,23 @@ export const SETTINGS_INDEX: SettingsEntry[] = [
         section: "settings", title: "Factory Reset", anchor: "factory-reset",
         hint: "Reset Volt to its original state",
         keywords: ["wipe", "erase", "defaults", "start over"],
+    },
+
+    // ── Shortcuts ────────────────────────────────────────────────────────
+    {
+        section: "keys", title: "Open Volt", anchor: "open-volt",
+        hint: "The global combination that summons the launcher",
+        keywords: ["hotkey", "keybind", "activation", "global", "ctrl space", "alt space", "shortcut"],
+    },
+    {
+        section: "keys", title: "Change a shortcut",
+        hint: "Every key Volt responds to, and which ones you can remap",
+        keywords: ["keyboard", "keybinding", "rebind", "remap", "hotkeys", "shortcuts"],
+    },
+    {
+        section: "keys", title: "Switch to AI", anchor: "open-ai",
+        hint: "The key that carries your query into the chat",
+        keywords: ["tab", "chat", "ask ai"],
     },
 
     // ── Search index ─────────────────────────────────────────────────────

@@ -19,6 +19,8 @@ import { isEscapeCaptured } from "@/hooks/useEscape.ts";
 import { getChangelogForVersion, getLatestChangelog, ChangelogEntry } from "@/data/changelog.ts";
 import ErrorBoundary from "@/components/ErrorBoundary.tsx";
 import { SearchQueryT } from "@/interfaces/searchQuery.ts";
+import { matchesCombo } from "@/data/keybindings.ts";
+import { getBinding, loadKeybindings } from "@/hooks/useKeybindings.ts";
 
 
 export default function App() {
@@ -101,6 +103,10 @@ export default function App() {
     };
 
     useEffect(() => {
+        // Before any shortcut can fire, so a rebound key works on a cold start
+        // and not only after settings has been opened once.
+        loadKeybindings();
+
         const checkIntroModal = async ()=>{
             const check = await window.electronStore.get("showIntroModal")
             window.electron.log("intro "+check);
@@ -140,8 +146,8 @@ export default function App() {
                     navigate('/', { replace: true });
                 }
             }
-            // Tab switches into the AI view, carrying whatever has been typed.
-            if (e.key === "Tab" && !argCommandRef.current) {
+            // Switches into the AI view, carrying whatever has been typed.
+            if (matchesCombo(e, getBinding("open-ai")) && !argCommandRef.current) {
                 e.preventDefault();
                 const typed = inputRef.current?.value?.trim() ?? "";
                 if (locationRef.current === '/ai') {
@@ -155,12 +161,12 @@ export default function App() {
             // Ctrl+N opens the AI view. Once there, the view handles it itself
             // so the shortcut starts a fresh conversation rather than doing
             // nothing on a route it is already on.
-            if (e.ctrlKey && e.key.toLowerCase() === "n" && locationRef.current !== '/ai') {
+            if (matchesCombo(e, getBinding("ai-new-chat")) && locationRef.current !== '/ai') {
                 e.preventDefault();
                 setQuery("");
                 navigate('/ai');
             }
-            if (e.ctrlKey && e.key.toLowerCase() === "h") {
+            if (matchesCombo(e, getBinding("open-settings"))) {
                 e.preventDefault();
                 if (locationRef.current === '/settings') {
                     navigate('/');

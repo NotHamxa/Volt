@@ -845,15 +845,21 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
     };
 
     /**
-     * True between typing and the first results landing for that query, and only
-     * when there is nothing to show meanwhile. Navigating home → search mounts
-     * this component with an empty list, so without the guard the debounce plus
-     * the IPC round-trip left the web and AI fallbacks sitting alone.
+     * True only until the very first search of this mount comes back.
      *
-     * Refining an existing search keeps the previous results on screen instead,
-     * so this only ever applies to the first one.
+     * Navigating home → search mounts this component with an empty list, so
+     * without the guard the debounce plus the IPC round-trip left the web and
+     * AI fallbacks sitting alone for a moment, which reads as "no results"
+     * right before the real list lands.
+     *
+     * It used to also require `results.length === 0`, as a stand-in for "we
+     * haven't resolved anything yet". That holds right up until a query
+     * genuinely has no local matches — and from then on *every* keystroke
+     * satisfied it, blanking the panel for the length of a round-trip and
+     * flashing the web and AI rows back in. `resolvedFor` already records
+     * whether anything has resolved, so ask it directly.
      */
-    const settling = resolvedFor !== query.trim() && results.length === 0;
+    const settling = resolvedFor === null;
 
     const renderWebRow = (itemIndex: number) => {
         if (!webEntry) return null;

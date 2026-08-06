@@ -19,6 +19,7 @@ import { ModelPicker } from "@/ai/modelPicker.tsx";
 import { Markdown, StreamingMarkdown } from "@/ai/markdown.tsx";
 import { CopyButton } from "@/ai/copyButton.tsx";
 import logo from "@/assets/icon.png";
+import { providerLogo, providerLogoTint } from "@/ai/providerLogos.ts";
 
 /**
  * Which knobs apply to a given model. Providers whose controls are uniform
@@ -57,6 +58,13 @@ export default function AiPage() {
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const seededRef = useRef(false);
     const lastChatIdRef = useRef<string | null>(null);
+
+    // Whose answer this is. The Volt logo said nothing about which backend was
+    // running, and with several configured that is the one thing the mark
+    // should tell you. Falls back to Volt's own when a provider ships no
+    // artwork, so the slot is never empty.
+    const mark = providerLogo(providerId) ?? logo;
+    const markTint = providerLogoTint(providerId);
 
     const provider = useMemo(
         () => providers.find(p => p.id === providerId) ?? null,
@@ -347,7 +355,7 @@ export default function AiPage() {
             <div className={`relative flex-1 min-w-0 flex flex-col ${empty ? "justify-center" : ""}`}>
                 {empty ? (
                     <div className="flex flex-col items-center gap-2.5 pb-5">
-                        <img src={logo} alt="" className="w-9 h-9 object-contain opacity-70" />
+                        <img src={mark} alt="" className={`w-9 h-9 object-contain opacity-70 ${markTint}`} />
                         <p className="text-[12px] text-tone-350">Ask anything</p>
                         {provider && !provider.available && (
                             <p className="text-[10px] text-amber-300/60 text-center max-w-xs">
@@ -383,7 +391,7 @@ export default function AiPage() {
                                     // min-w-0 so a wide table scrolls inside its
                                     // own box instead of stretching the row.
                                     <div key={i} className="group/msg self-start flex gap-2.5 w-full min-w-0">
-                                        <img src={logo} alt="" className="w-4 h-4 mt-0.5 shrink-0 object-contain opacity-50" />
+                                        <img src={mark} alt="" className={`w-4 h-4 mt-0.5 shrink-0 object-contain opacity-50 ${markTint}`} />
                                         {live && !body ? (
                                             <span className="flex items-center gap-1.5 text-[11.5px] text-tone-350">
                                                 <Spinner className="size-3" /> Thinking…

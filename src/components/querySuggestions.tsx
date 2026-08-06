@@ -531,7 +531,8 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
             const localCount = result.results.length;
             // Read the live suggestion count from a ref rather than a dep, so
             // suggestions arriving don't re-trigger the search IPC.
-            const webCount = query.trim() ? 1 + suggestionCountRef.current : 0;
+            // Web row + AI row + however many suggestions are showing.
+            const webCount = query.trim() ? 2 + suggestionCountRef.current : 0;
             if (focusedIndex >= localCount + webCount) setFocusedIndex(0);
         };
 
@@ -599,7 +600,10 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
             const cleaned = raw
                 .map(s => s.replace(/<\/?b>/g, "").trim())
                 .filter(s => s && s.toLowerCase() !== term.toLowerCase());
-            setWebSuggestions([...new Set(cleaned)].slice(0, 8));
+            // Five, not eight: these are guesses at what you might have meant,
+            // and a column of them taller than the real results makes the
+            // panel look like the search failed.
+            setWebSuggestions([...new Set(cleaned)].slice(0, 5));
         }, 250);
         return () => { cancelled = true; clearTimeout(timer); };
     }, [webEntry]);
@@ -616,9 +620,20 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
         }));
     }, [webSuggestions, webEntry]);
 
+    /**
+     * The tail of the list: the two ways to leave Volt with this query, then
+     * Google's guesses at it.
+     *
+     * Ask AI used to sit last, below every suggestion, which stranded it a
+     * long way from the row it belongs beside — with eight suggestions it was
+     * pushed to the bottom edge of the panel. It is a sibling of the web row,
+     * not a footnote to the autocomplete, so it now sits directly under it.
+     */
+    const webBlockSize = (webEntry ? 1 : 0) + (aiEntry ? 1 : 0) + webBlockEntries.length;
+
     // A promoted web block sits above the local results, so every local index
     // shifts by the whole block's size.
-    const localOffset = promoteWeb ? 1 + webBlockEntries.length : 0;
+    const localOffset = promoteWeb ? webBlockSize : 0;
 
     useEffect(() => {
         suggestionCountRef.current = webBlockEntries.length;
@@ -627,9 +642,8 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
     const allResults = useMemo<SearchQueryT[]>(() => {
         const web = webEntry ? [webEntry.entry] : [];
         const ai = aiEntry ? [aiEntry] : [];
-        return promoteWeb
-            ? [...web, ...webBlockEntries, ...results, ...ai]
-            : [...results, ...web, ...webBlockEntries, ...ai];
+        const block = [...web, ...ai, ...webBlockEntries];
+        return promoteWeb ? [...block, ...results] : [...results, ...block];
     }, [results, webEntry, promoteWeb, webBlockEntries, aiEntry]);
 
     const handleContextMenuOpenChange = useCallback((open: boolean) => {
@@ -801,14 +815,17 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
         }
     }, [focusedIndex]);
 
-    /** The web row plus its autocomplete rows, rendered as one unit. */
+    /** The web and AI rows plus the autocomplete, rendered as one unit. */
     const renderWebBlock = (startIndex: number) => {
         if (!webEntry) return null;
+        const aiIndex = startIndex + 1;
+        const firstSuggestion = aiIndex + (aiEntry ? 1 : 0);
         return (
             <>
                 {renderWebRow(startIndex)}
+                {aiEntry && renderAiRow(aiIndex)}
                 {webBlockEntries.map((item, index) => {
-                    const itemIndex = startIndex + 1 + index;
+                    const itemIndex = firstSuggestion + index;
                     const focused = focusedIndex === itemIndex;
                     return (
                         <div key={`${item.type}-${item.name}`} ref={el => { itemRefs.current[itemIndex] = el; }}>
@@ -889,6 +906,36 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
         );
     };
 
+    /**
+     * Sits directly under the web row: the same "one Enter away" idea, aimed at
+     * the chat rather than the browser.
+     *
+     * The sparkle used to be amber, which was the only saturated colour in an
+     * otherwise monochrome list and read as a warning rather than a feature.
+     * The row already says "AI" on the right.
+     */
+    const renderAiRow = (itemIndex: number) => {
+        if (!aiEntry) return null;
+        const focused = focusedIndex === itemIndex;
+        return (
+            <div key="ai-row" ref={el => { itemRefs.current[itemIndex] = el; }}>
+                <button
+                    onClick={() => openAi(aiEntry.name)}
+                    tabIndex={0}
+                    className={`cursor-pointer flex items-center justify-between py-2 px-3 rounded-lg select-none transition-colors duration-150 gap-3 w-full hover:bg-fill-100 ${focused ? "bg-fill-100 outline outline-[1px] outline-offset-[-1px] outline-ink/[0.18]" : "bg-transparent"}`}
+                >
+                    <div className="flex items-center gap-2 min-w-0">
+                        <Sparkles className="w-5 h-5 shrink-0 text-tone-400" />
+                        <span className="text-[13px] text-tone-800 truncate">
+                            Ask AI about <span className="text-ink font-medium">"{aiEntry.name}"</span>
+                        </span>
+                    </div>
+                    <span className="ml-auto opacity-70 text-[12px] cursor-default text-tone-500 shrink-0">AI</span>
+                </button>
+            </div>
+        );
+    };
+
     return (
         <TooltipProvider>
         <ScrollArea ref={scrollAreaRef} className="w-full h-[420px] px-5">
@@ -945,32 +992,10 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                             );
                         })}
 
-                        {!promoteWeb && renderWebBlock(
-                            allResults.length - webBlockEntries.length - 1 - (aiEntry ? 1 : 0),
-                        )}
-
-                        {aiEntry && (() => {
-                            const itemIndex = allResults.length - 1;
-                            const focused = focusedIndex === itemIndex;
-                            return (
-                                <div ref={el => { itemRefs.current[itemIndex] = el; }}>
-                                    <button
-                                        onClick={() => openAi(aiEntry.name)}
-                                        tabIndex={0}
-                                        className={`cursor-pointer flex items-center justify-between py-2 px-3 rounded-lg select-none transition-colors duration-150 gap-3 w-full hover:bg-fill-100 ${focused ? "bg-fill-100 outline outline-[1px] outline-offset-[-1px] outline-ink/[0.18]" : "bg-transparent"}`}
-                                    >
-                                        <div className="flex items-center gap-2 min-w-0">
-                                            <Sparkles className="w-5 h-5 shrink-0 text-amber-300/70" />
-                                            <span className="text-[13px] text-tone-800 truncate">
-                                                Ask AI about{" "}
-                                                <span className="text-ink font-medium">"{aiEntry.name}"</span>
-                                            </span>
-                                        </div>
-                                        <span className="ml-auto opacity-70 text-[12px] cursor-default text-tone-500 shrink-0">AI</span>
-                                    </button>
-                                </div>
-                            );
-                        })()}
+                        {/* The block is one unit now — web row, AI row, then
+                            the autocomplete — so it starts right after the
+                            local results rather than being split around them. */}
+                        {!promoteWeb && renderWebBlock(results.length)}
                     </>
                 )
             )}

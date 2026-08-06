@@ -62,7 +62,7 @@ export default function SettingsPage() {
     // Sliding-highlight measurement
     const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
     const trackRef = useRef<HTMLDivElement>(null);
-    const [pill, setPill] = useState({ left: 0, width: 0 });
+    const [pill, setPill] = useState({ top: 0, height: 0 });
     // The highlight follows the pointer and falls back to the open section, so
     // one moving block does the work of both a hover state and a selection
     // marker. null means "nothing hovered".
@@ -79,7 +79,7 @@ export default function SettingsPage() {
         if (!btn || !track) return;
         const tRect = track.getBoundingClientRect();
         const bRect = btn.getBoundingClientRect();
-        setPill({ left: bRect.left - tRect.left, width: bRect.width });
+        setPill({ top: bRect.top - tRect.top, height: bRect.height });
     }, [activeSection, hovered]);
 
     const setHasUnsaved = (val: boolean) => { hasUnsavedRef.current = val; };
@@ -108,49 +108,52 @@ export default function SettingsPage() {
     // does App.tsx's Esc handler run (which navigates back to search).
     useEscape(cancelDiscard, !!pendingSection);
 
+    const current = NAV.find(n => n.id === activeSection);
+
     return (
         <div className="flex flex-col w-full h-full text-tone-800">
-            {/* ── Top header — back, title, version, hint ─────────────────── */}
-            <header className="flex items-center gap-3 px-4 h-[42px] border-b border-line-060 shrink-0">
+            {/* ── Top bar — just the way out. The section names moved to the
+                   rail, so this no longer has to label the page. ──────────── */}
+            <header className="flex items-center gap-3 px-3.5 h-11 shrink-0">
                 <button
                     onClick={goBack}
                     aria-label="Back to search"
-                    className="flex items-center gap-1.5 px-2 py-1 -ml-1 rounded-md text-tone-400 hover:text-tone-800 hover:bg-fill-050 transition-colors"
+                    className="flex items-center gap-1.5 px-2 py-1 -ml-1 rounded-md text-tone-400 hover:text-tone-800 hover:bg-fill-050 transition-colors cursor-pointer"
                 >
                     <ArrowLeft size={13} strokeWidth={2.2} />
                     <span className="text-[11px] font-medium">Back</span>
                 </button>
 
-                <div className="h-3.5 w-px bg-fill-070" />
-
-                <div className="flex items-baseline gap-2">
-                    <span className="text-[12px] font-semibold text-tone-700 tracking-[-0.01em]">Settings</span>
+                <div className="ml-auto flex items-center gap-2.5">
                     {appVersion && (
                         <span className="text-[10px] font-mono text-tone-250">v{appVersion}</span>
                     )}
-                </div>
-
-                <div className="ml-auto flex items-center gap-1.5">
-                    <span className="text-[10px] uppercase tracking-[0.18em] text-tone-250">Close</span>
-                    <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-fill-050 border border-line-080 text-tone-400 font-mono">Ctrl</span>
-                    <span className="text-tone-150 text-[10px]">+</span>
-                    <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-fill-050 border border-line-080 text-tone-400 font-mono">H</span>
+                    <div className="flex items-center gap-1">
+                        <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-fill-050 text-tone-400 font-mono">Ctrl</span>
+                        <span className="text-tone-200 text-[10px]">+</span>
+                        <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-fill-050 text-tone-400 font-mono">H</span>
+                    </div>
                 </div>
             </header>
 
-            {/* ── Tab nav: one highlight slides between tabs ──────────────── */}
-            <div className="px-4 pt-3 pb-2 shrink-0">
-                <div
+            {/* ── Rail + content ──────────────────────────────────────────
+                   A vertical rail rather than a tab row: the window is only
+                   550px tall, and a horizontal strip spent 44px of that while
+                   still forcing "Commands" down to "Cmds". Down the side it
+                   costs no height, the names fit, and another section can be
+                   added without the row getting tighter. ─────────────────── */}
+            <div className="flex-1 min-h-0 flex">
+                <nav
                     ref={trackRef}
                     onMouseLeave={() => setHovered(null)}
-                    className="relative flex items-center gap-0.5 py-1 w-full border-b border-line-050"
+                    className="relative w-[164px] shrink-0 flex flex-col gap-px px-2.5 pb-3 border-r border-line-050"
                 >
-                    {/* No track behind the tabs — the moving block is the only
-                        chrome, which keeps the row quiet until you reach for it. */}
+                    {/* One block follows the pointer and settles back on the
+                        open section, so the rail stays quiet until reached for. */}
                     <div
                         aria-hidden
-                        className="absolute top-1 bottom-1 rounded-lg bg-fill-060 transition-all duration-300 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)]"
-                        style={{ left: pill.left, width: pill.width }}
+                        className="absolute left-2.5 right-2.5 rounded-lg bg-fill-060 transition-all duration-300 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)]"
+                        style={{ top: pill.top, height: pill.height }}
                     />
                     {NAV.map((item, i) => {
                         const Icon = item.icon;
@@ -163,29 +166,33 @@ export default function SettingsPage() {
                                 onMouseEnter={() => setHovered(i)}
                                 onFocus={() => setHovered(i)}
                                 aria-current={active ? "page" : undefined}
-                                className={`relative z-10 flex items-center justify-center gap-1.5 flex-1 h-7 rounded-lg transition-colors duration-150 cursor-pointer ${
+                                className={`relative z-10 flex items-center gap-2.5 h-8 px-2.5 rounded-lg transition-colors duration-150 cursor-pointer ${
                                     active ? "text-tone-900" : "text-tone-400 hover:text-tone-800"
                                 }`}
                             >
-                                <Icon size={12} strokeWidth={active ? 2.4 : 1.8} />
-                                <span className={`text-[11px] ${active ? "font-medium" : "font-normal"}`}>
-                                    {item.short}
+                                {/* The highlight wanders off to whatever is
+                                    hovered, so the open section keeps a marker
+                                    of its own. */}
+                                <span
+                                    className={`absolute left-0 w-[2px] rounded-full bg-ink/75 transition-all duration-200 ${
+                                        active ? "h-4 opacity-100" : "h-0 opacity-0"
+                                    }`}
+                                />
+                                <Icon size={13} strokeWidth={active ? 2.2 : 1.7} className="shrink-0" />
+                                <span className={`text-[11.5px] truncate ${active ? "font-medium" : "font-normal"}`}>
+                                    {item.label}
                                 </span>
-                                {/* The highlight can wander off to whatever is
-                                    hovered, so the open section needs a marker
-                                    that stays put. */}
-                                {active && (
-                                    <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-[2px] w-5 rounded-full bg-ink/70" />
-                                )}
                             </button>
                         );
                     })}
-                </div>
-            </div>
+                </nav>
 
-            {/* ── Content ─────────────────────────────────────────────────── */}
-            <ScrollArea className="flex-1 min-h-0">
-                <div className="max-w-2xl mx-auto pt-6 pb-12 px-9">
+                {/* ── Content ─────────────────────────────────────────────── */}
+                <ScrollArea className="flex-1 min-h-0">
+                    <div className="px-7 pt-5 pb-12">
+                        <h1 className="text-[17px] font-semibold tracking-[-0.02em] text-tone-900 mb-4">
+                            {current?.label}
+                        </h1>
                         <AnimatedSection active={activeSection === "settings"}>
                             <GeneralSettingsSection setHasUnsaved={setHasUnsaved} />
                         </AnimatedSection>
@@ -209,6 +216,7 @@ export default function SettingsPage() {
                         </AnimatedSection>
                     </div>
                 </ScrollArea>
+            </div>
 
             {/* ── Discard-changes modal ───────────────────────────────────── */}
             {pendingSection && (

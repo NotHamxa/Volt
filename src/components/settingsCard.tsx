@@ -16,30 +16,35 @@ interface SettingCardProps {
     isDestructive?: boolean;
 }
 
+/**
+ * A settings row.
+ *
+ * The icon is a bare glyph rather than the boxed chip it used to be: a
+ * bordered tile on every row turned a list of six settings into a column of
+ * six competing badges. Destructive rows are neutral too — the tint moves to
+ * the icon and title, and the confirmation lives in the control itself, so
+ * the section reads as a list rather than a wall of warnings.
+ */
 export const SettingCard = ({ title, description, children, icon: Icon, isDestructive = false }: SettingCardProps) => (
-    <div
-        className={`px-4 py-3 rounded-lg transition-colors duration-150 bg-fill-025 ${
-            isDestructive
-                ? "border border-red-500/[0.12] hover:border-red-500/[0.18]"
-                : "border border-line-050 hover:border-line-090"
-        }`}
-    >
+    <div className="group px-4 py-3.5 rounded-xl bg-fill-025 border border-line-050 hover:border-line-090 transition-colors duration-150">
         <div className="flex items-center justify-between gap-5">
-            <div className="flex gap-3 items-center min-w-0">
+            <div className="flex gap-3 items-start min-w-0">
                 {Icon && (
-                    <div className={`p-1.5 rounded-md shrink-0 inline-flex ${
-                        isDestructive
-                            ? 'bg-red-500/[0.08] text-red-400/70'
-                            : 'bg-fill-040 border border-line-070 text-tone-450'
-                    }`}>
-                        <Icon size={13} strokeWidth={1.8} />
-                    </div>
+                    <Icon
+                        size={15}
+                        strokeWidth={1.7}
+                        className={`shrink-0 mt-px transition-colors duration-150 ${
+                            isDestructive
+                                ? "text-red-400/70"
+                                : "text-tone-300 group-hover:text-tone-500"
+                        }`}
+                    />
                 )}
                 <div className="min-w-0">
-                    <h3 className={`text-[12.5px] font-medium tracking-tight ${isDestructive ? 'text-red-400/80' : 'text-tone-800'}`}>
+                    <h3 className={`text-[12.5px] font-medium tracking-tight ${isDestructive ? "text-red-400/85" : "text-tone-850"}`}>
                         {title}
                     </h3>
-                    <p className="text-[11px] text-tone-350 max-w-110 leading-relaxed mt-0.5">
+                    <p className="text-[11px] text-tone-400 max-w-110 leading-relaxed mt-0.5">
                         {description}
                     </p>
                 </div>

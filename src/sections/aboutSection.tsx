@@ -5,30 +5,20 @@ import { Spinner } from "@/components/ui/spinner.tsx";
 import { GitHub } from "@/components/icons/github.tsx";
 import { LinkedIn } from "@/components/icons/linkedin.tsx";
 import { Gmail } from "@/components/icons/gmail.tsx";
+import { useUpdateStatus } from "@/hooks/useUpdateStatus.ts";
 export default function AboutSection() {
     const [appVersion, setAppVersion] = useState("");
-    const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "downloading" | "ready" | "uptodate">("idle");
-    const [downloadPercent, setDownloadPercent] = useState(0);
+    // Shared with the version chip in the settings header, so the two can't
+    // disagree — and so the update IPC is subscribed to once, not per mount.
+    const { state: updateStatus, percent: downloadPercent, check, install } = useUpdateStatus();
 
     useEffect(() => {
         window.electron.getAppVersion().then(setAppVersion);
-
-        window.electron.onUpdateProgress((data) => {
-            setUpdateStatus("downloading");
-            setDownloadPercent(Math.round(data.percent));
-        });
-        window.electron.onUpdateDownloaded(() => {
-            setUpdateStatus("ready");
-        });
-        window.electron.onUpdateNotAvailable(() => {
-            setUpdateStatus("uptodate");
-            setTimeout(() => setUpdateStatus("idle"), 3000);
-        });
     }, []);
 
-    const handleCheckUpdate = async () => {
-        setUpdateStatus("checking");
-        await window.electron.checkForUpdates();
+    const handleCheckUpdate = () => {
+        if (updateStatus === "ready") install();
+        else check();
     };
 
     const socialLinks = [

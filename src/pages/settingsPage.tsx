@@ -1,8 +1,11 @@
-import { useState, useRef, useEffect, ReactNode, useLayoutEffect } from "react";
+import { useState, useRef, useEffect, ReactNode, useLayoutEffect, useMemo } from "react";
 import { useNavigate } from "react-router";
-import { Settings, Hash, FolderOpen, Info, Terminal, Lightbulb, Sparkles, ArrowLeft } from "lucide-react";
+import { Settings, Hash, FolderOpen, Info, Terminal, Lightbulb, Sparkles, ArrowLeft, Search, CornerDownLeft, RefreshCw, Check } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
+import { Spinner } from "@/components/ui/spinner.tsx";
 import { useEscape } from "@/hooks/useEscape.ts";
+import { useUpdateStatus } from "@/hooks/useUpdateStatus.ts";
+import { searchSettings, SettingsEntry } from "@/data/settingsIndex.ts";
 import GeneralSettingsSection from "@/sections/generalSection.tsx";
 import FoldersSection from "@/sections/foldersSection.tsx";
 import QuickBangsSection from "@/sections/bangsSection.tsx";
@@ -52,6 +55,45 @@ function AnimatedSection({ active, children }: { active: boolean; children: Reac
     );
 }
 
+/**
+ * The version, which is also how you update.
+ *
+ * It used to be a dead label sitting a few pixels from a Close hint, while the
+ * only way to check for an update was to open About and find a button. The
+ * number is the natural place to click for that, so it does the job itself and
+ * changes shape as the update progresses.
+ */
+function UpdateChip({ version }: { version: string }) {
+    const { state, percent, check, install } = useUpdateStatus();
+    if (!version && state === "idle") return null;
+
+    const base = "flex items-center gap-1.5 h-6 px-2 rounded-md text-[10px] font-mono transition-colors duration-150";
+
+    if (state === "ready") {
+        return (
+            <button onClick={install} title="Restart to finish updating"
+                className={`${base} font-medium text-amber-400 bg-amber-400/10 hover:bg-amber-400/20 cursor-pointer`}>
+                <RefreshCw size={10} /> Restart to update
+            </button>
+        );
+    }
+    if (state === "downloading") {
+        return <span className={`${base} text-tone-450 bg-fill-040`}><RefreshCw size={10} className="animate-spin" /> {percent}%</span>;
+    }
+    if (state === "checking") {
+        return <span className={`${base} text-tone-400 bg-fill-040`}><Spinner /> Checking</span>;
+    }
+    if (state === "uptodate") {
+        return <span className={`${base} text-tone-450`}><Check size={10} className="text-green-400" /> Up to date</span>;
+    }
+    return (
+        <button onClick={check} title="Check for updates"
+            className={`${base} text-tone-250 hover:text-tone-600 hover:bg-fill-040 cursor-pointer`}>
+            v{version}
+        </button>
+    );
+}
+
 export default function SettingsPage() {
     const [activeSection, setActiveSection] = useState<SectionId>("settings");
     const [pendingSection, setPendingSection] = useState<SectionId | null>(null);
@@ -80,7 +122,9 @@ export default function SettingsPage() {
         const tRect = track.getBoundingClientRect();
         const bRect = btn.getBoundingClientRect();
         setPill({ top: bRect.top - tRect.top, height: bRect.height });
-    }, [activeSection, hovered]);
+        // `searching` swaps the rail out for results and back, so the buttons
+        // this measures are unmounted in between.
+    }, [activeSection, hovered, searching]);
 
     const setHasUnsaved = (val: boolean) => { hasUnsavedRef.current = val; };
 
@@ -104,9 +148,91 @@ export default function SettingsPage() {
     const cancelDiscard = () => setPendingSection(null);
     const goBack = () => navigate('/');
 
+    // ── Search ───────────────────────────────────────────────────────────
+    const [query, setQuery] = useState("");
+    const [resultIdx, setResultIdx] = useState(0);
+    const searchRef = useRef<HTMLInputElement>(null);
+    const results = useMemo(() => searchSettings(query), [query]);
+    const searching = query.trim().length > 0;
+
+    /**
+     * Opens the section a result belongs to and flashes the row, when the
+     * section marks one. Without the flash you land on a page of six settings
+     * with no idea which one you asked for.
+     */
+    const openResult = (entry: SettingsEntry) => {
+        handleSectionChange(entry.section);
+        setQuery("");
+        if (!entry.anchor) return;
+        // Two frames: one for the section to mount, one for it to lay out.
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            const el = document.querySelector<HTMLElement>(`[data-setting="${entry.anchor}"]`);
+            if (!el) return;
+            el.scrollIntoView({ block: "center", behavior: "smooth" });
+            el.classList.add("setting-flash");
+            setTimeout(() => el.classList.remove("setting-flash"), 1400);
+        }));
+    };
+
     // Esc closes the discard-changes modal first; only when no modal is open
     // does App.tsx's Esc handler run (which navigates back to search).
-    useEscape(cancelDiscard, !!pendingSection);
+    // A live search counts as something to back out of too, so Esc clears it
+    // rather than dropping straight out of settings.
+    useEscape(() => {
+        if (pendingSection) { cancelDiscard(); return; }
+        setQuery("");
+        searchRef.current?.blur();
+    }, !!pendingSection || searching);
+
+    // ── Keyboard ─────────────────────────────────────────────────────────
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            if (pendingSection) return;
+
+            if (e.ctrlKey && e.key.toLowerCase() === "f") {
+                e.preventDefault();
+                searchRef.current?.focus();
+                searchRef.current?.select();
+                return;
+            }
+
+            // Ctrl+1..7 jumps straight to a section, matching how the rest of
+            // the app is driven. Ctrl, not bare digits — a settings pane has
+            // text fields in it.
+            if (e.ctrlKey && /^[1-9]$/.test(e.key)) {
+                const item = NAV[Number(e.key) - 1];
+                if (item) { e.preventDefault(); handleSectionChange(item.id); }
+                return;
+            }
+
+            const inSearch = document.activeElement === searchRef.current;
+
+            if (searching && inSearch) {
+                if (e.key === "ArrowDown") { e.preventDefault(); setResultIdx(i => Math.min(i + 1, results.length - 1)); }
+                if (e.key === "ArrowUp") { e.preventDefault(); setResultIdx(i => Math.max(i - 1, 0)); }
+                if (e.key === "Enter" && results[resultIdx]) { e.preventDefault(); openResult(results[resultIdx]); }
+                return;
+            }
+
+            // Arrows walk the rail, but only when the focus isn't in a field
+            // — otherwise Up/Down would fight the caret in a text input.
+            const active = document.activeElement;
+            const typing = active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement;
+            if (typing) return;
+            if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                const i = NAV.findIndex(n => n.id === activeSection);
+                const next = e.key === "ArrowDown"
+                    ? Math.min(i + 1, NAV.length - 1)
+                    : Math.max(i - 1, 0);
+                if (next !== i) { e.preventDefault(); handleSectionChange(NAV[next].id); }
+            }
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    });
+
+    // A fresh query starts at the top of its own results.
+    useEffect(() => { setResultIdx(0); }, [query]);
 
     const current = NAV.find(n => n.id === activeSection);
 
@@ -125,9 +251,7 @@ export default function SettingsPage() {
                 </button>
 
                 <div className="ml-auto flex items-center gap-2.5">
-                    {appVersion && (
-                        <span className="text-[10px] font-mono text-tone-250">v{appVersion}</span>
-                    )}
+                    <UpdateChip version={appVersion} />
                     <div className="flex items-center gap-1">
                         <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-fill-050 text-tone-400 font-mono">Ctrl</span>
                         <span className="text-tone-200 text-[10px]">+</span>
@@ -148,6 +272,50 @@ export default function SettingsPage() {
                     onMouseLeave={() => setHovered(null)}
                     className="relative w-[164px] shrink-0 flex flex-col gap-px px-2.5 pb-3 border-r border-line-050"
                 >
+                    <div className="relative mb-2">
+                        <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-tone-250 pointer-events-none" />
+                        <input
+                            ref={searchRef}
+                            value={query}
+                            onChange={e => setQuery(e.target.value)}
+                            placeholder="Search settings"
+                            aria-label="Search settings"
+                            className="w-full h-7 pl-6.5 pr-2 rounded-lg bg-fill-040 text-[11px] text-tone-800 placeholder:text-tone-250 outline-none focus:bg-fill-060 transition-colors"
+                        />
+                    </div>
+
+                    {/* The rail becomes the result list while searching: the
+                        sections are what results resolve to, so showing both at
+                        once would just be the same list twice. */}
+                    {searching ? (
+                        results.length === 0 ? (
+                            <p className="px-2.5 pt-1 text-[11px] text-tone-300 leading-relaxed">
+                                Nothing matches “{query.trim()}”.
+                            </p>
+                        ) : (
+                            <div className="flex flex-col gap-px">
+                                {results.map((entry, i) => (
+                                    <button
+                                        key={`${entry.section}-${entry.title}`}
+                                        onClick={() => openResult(entry)}
+                                        onMouseEnter={() => setResultIdx(i)}
+                                        className={`flex flex-col items-start gap-0.5 px-2.5 py-1.5 rounded-lg text-left transition-colors duration-100 cursor-pointer ${
+                                            i === resultIdx ? "bg-fill-060" : "hover:bg-fill-040"
+                                        }`}
+                                    >
+                                        <span className="flex items-center gap-1.5 w-full">
+                                            <span className="text-[11.5px] font-medium text-tone-850 truncate">{entry.title}</span>
+                                            {i === resultIdx && <CornerDownLeft size={10} className="ml-auto shrink-0 text-tone-300" />}
+                                        </span>
+                                        <span className="text-[10px] text-tone-350 uppercase tracking-[0.12em]">
+                                            {NAV.find(n => n.id === entry.section)?.label}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                        )
+                    ) : (
+                    <>
                     {/* One block follows the pointer and settles back on the
                         open section, so the rail stays quiet until reached for. */}
                     <div
@@ -185,6 +353,8 @@ export default function SettingsPage() {
                             </button>
                         );
                     })}
+                    </>
+                    )}
                 </nav>
 
                 {/* ── Content ─────────────────────────────────────────────── */}

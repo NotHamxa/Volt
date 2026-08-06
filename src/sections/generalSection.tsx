@@ -120,15 +120,20 @@ export default function GeneralSettingsSection({ setHasUnsaved }: GeneralSetting
             <SectionLead>Configure how you interact with the application.</SectionLead>
 
             <div className="space-y-2">
+                <GroupLabel>Appearance</GroupLabel>
                 <SettingCard
+                    anchor="appearance"
                     icon={Palette}
-                    title="Appearance"
+                    title="Theme"
                     description="Match your system, or pin Volt to light or dark."
                 >
                     <ThemePicker />
                 </SettingCard>
 
+                <div className="pt-5" />
+                <GroupLabel>Behaviour</GroupLabel>
                 <SettingCard
+                    anchor="activation-shortcut"
                     icon={Keyboard}
                     title="Activation Shortcut"
                     description="The global keyboard combination used to toggle the search bar."
@@ -167,6 +172,7 @@ export default function GeneralSettingsSection({ setHasUnsaved }: GeneralSetting
                 </SettingCard>
 
                 <SettingCard
+                    anchor="open-on-startup"
                     icon={Power}
                     title="Open on Startup"
                     description="Automatically launch Volt when you sign in to your computer."
@@ -186,6 +192,7 @@ export default function GeneralSettingsSection({ setHasUnsaved }: GeneralSetting
                     </div>
                     <div className="space-y-2">
                         <SettingCard
+                            anchor="clear-history"
                             isDestructive
                             icon={History}
                             title="Clear History"
@@ -195,6 +202,7 @@ export default function GeneralSettingsSection({ setHasUnsaved }: GeneralSetting
                         </SettingCard>
 
                         <SettingCard
+                            anchor="factory-reset"
                             isDestructive
                             icon={AlertTriangle}
                             title="Factory Reset"

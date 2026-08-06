@@ -376,6 +376,16 @@
   }
 }
 
+/* Settings search jumps to a row in a section of six near-identical rows.
+   A brief ring is what tells you which one you asked for. */
+@keyframes settingFlash {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  12%, 55% { box-shadow: 0 0 0 2px color-mix(in oklab, var(--ink) 22%, transparent); }
+}
+.setting-flash {
+  animation: settingFlash 1.4s ease-out;
+}
+
 /* Native overflow that can't host a Radix ScrollArea — the prompt textarea —
    still needs to look like one. Mirrors ScrollBar/ScrollAreaThumb: a 10px
    gutter with a rounded thumb inset by a transparent border. */

@@ -14,6 +14,8 @@ interface SettingCardProps {
     children: ReactNode;
     icon?: LucideIcon;
     isDestructive?: boolean;
+    /** Target for settings search to scroll to and flash. See settingsIndex. */
+    anchor?: string;
 }
 
 /**
@@ -25,8 +27,11 @@ interface SettingCardProps {
  * the icon and title, and the confirmation lives in the control itself, so
  * the section reads as a list rather than a wall of warnings.
  */
-export const SettingCard = ({ title, description, children, icon: Icon, isDestructive = false }: SettingCardProps) => (
-    <div className="group px-4 py-3.5 rounded-xl bg-fill-025 border border-line-050 hover:border-line-090 transition-colors duration-150">
+export const SettingCard = ({ title, description, children, icon: Icon, isDestructive = false, anchor }: SettingCardProps) => (
+    <div
+        data-setting={anchor}
+        className="group px-4 py-3.5 rounded-xl bg-fill-025 border border-line-050 hover:border-line-090 transition-colors duration-150"
+    >
         <div className="flex items-center justify-between gap-5">
             <div className="flex gap-3 items-start min-w-0">
                 {Icon && (

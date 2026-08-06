@@ -341,9 +341,14 @@ const QueryComponent = memo(({
                 which left rows at uneven heights and centred the text. */}
             <div className="flex items-center gap-2 min-w-0 flex-1">
                 <span className="shrink-0 flex items-center">{icon}</span>
-                <Label className="block truncate min-w-0">{name}</Label>
+                {/* leading-normal overrides Label's leading-none: a line box the
+                    exact height of the font, plus truncate's overflow-hidden,
+                    clipped every descender — the y in "PyCharm" lost its tail.
+                    The 24px icon still sets the row height, so this costs
+                    nothing in layout. */}
+                <Label className="block truncate min-w-0 leading-normal">{name}</Label>
             </div>
-            <Label className="shrink-0 ml-auto max-w-[38%] block truncate opacity-70 text-[12px] cursor-default">
+            <Label className="shrink-0 ml-auto max-w-[38%] block truncate opacity-70 text-[12px] leading-normal cursor-default">
                 {labelText}
             </Label>
         </button>

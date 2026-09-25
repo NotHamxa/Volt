@@ -179,7 +179,7 @@ export default function AllApps({setStage, apps,pinnedApps,pinApp,unPinApp}:IAll
                 </Button>
             </div>
             <div className="flex flex-1 min-h-0">
-                <ScrollArea className="w-full h-[400px] px-4" ref={scrollRef}>
+                <ScrollArea className="w-full px-4" ref={scrollRef}>
                     {grouped.map(([letter, group]) => (
                         <div key={letter} className="mb-4" data-letter={letter}>
                             <div className="font-semibold text-tone-200 text-[11px] tracking-[0.08em] uppercase mb-1.5 pl-2">

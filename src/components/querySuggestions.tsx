@@ -961,7 +961,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
 
     return (
         <TooltipProvider>
-        <ScrollArea ref={scrollAreaRef} className="w-full h-[420px] px-5">
+        <ScrollArea ref={scrollAreaRef} className="w-full flex-1 min-h-0 px-5">
             {isCmdCommand ? (
                 <div>
                     <div className="text-center text-[11px] font-semibold tracking-[0.1em] uppercase text-tone-250 mb-2">CMD Command</div>

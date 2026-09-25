@@ -61,6 +61,16 @@ const excludedFolders = [
     ".docker", ".vagrant", ".terraform"
 ];
 
+// Same rules the initial scan applies, shared with the live folder watcher.
+export function isIndexableFile(fileName) {
+    const ext = path.extname(fileName).replace(".", "");
+    return ext !== "" && !excludedExtensions.includes(ext);
+}
+
+export function isExcludedPath(relPath) {
+    return relPath.split(/[\\/]/).some(segment => excludedFolders.includes(segment));
+}
+
 export async function cacheFolder(dirPath,cache,newFolder=true) {
     const filesArray = [];
     const extL = {}
@@ -80,8 +90,8 @@ export async function cacheFolder(dirPath,cache,newFolder=true) {
                 });
                 await readDirRecursive(fullPath);
             } else if (entry.isFile()) {
+                if (!isIndexableFile(entry.name)) continue;
                 const ext = path.extname(entry.name).replace(".","");
-                if (ext === "" || excludedExtensions.includes(ext)) continue;
                 if (Object.keys(extL).includes(ext)) extL[ext] += 1;
                 else extL[ext] = 1;
                 filesArray.push({

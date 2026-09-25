@@ -4,7 +4,8 @@ const {autoUpdater} = pkg;
 import Store from "electron-store";
 import path from "path";
 import {fileURLToPath} from "url";
-import {deleteFolder} from "./universal/folderCache.js";
+import {deleteFolder, isIndexableFile} from "./universal/folderCache.js";
+import {FolderWatcher} from "./universal/folderWatcher.js";
 import chokidar from "chokidar";
 import {initStoreState, loadFolderCache, loadCommandsData} from "./universal/startup.js";
 import {sendInstallTelemetryIfNeeded} from "./universal/telemetry.js";
@@ -54,10 +55,7 @@ const appStates = {
     dialogOpen:false,
 }
 
-const folderWatcher = chokidar.watch([],{
-    persistent: true,
-    ignoreInitial: true
-})
+const folderWatcher = new FolderWatcher();
 const getBaseFolder = (path) => {
     let folder = null;
     let charLen = 0;
@@ -67,41 +65,39 @@ const getBaseFolder = (path) => {
             folder = dir;
         }
     }
-    console.log(folder);
     return folder;
 }
 folderWatcher.on("add", filePath => {
-    console.log("Adding...",filePath);
+    if (!isIndexableFile(filePath)) return;
     const folder = getBaseFolder(filePath);
-    if (folder && cache.cachedFoldersData[folder]) {
-        cache.cachedFoldersData[folder].push({
+    const entries = folder && cache.cachedFoldersData[folder];
+    // Saves often fire as a rename of an existing file, so skip known paths.
+    if (entries && !entries.some(file => file.path === filePath)) {
+        entries.push({
             name: path.basename(filePath),
             source: "",
             appId: "",
             path: filePath,
             type: "file",
-            normalisedName:normaliseString(filePath)
+            normalisedName:normaliseString(path.basename(filePath))
         });
         // cachedFoldersData is derived state — rebuilt from disk on every
         // launch by loadFolderCache. Only the folder list is persisted.
     }
 })
-folderWatcher.on("unlink", filePath => {
-    const folder = getBaseFolder(filePath);
+// The path could have been a file or a directory, so drop it and anything under it.
+folderWatcher.on("remove", async (removedPath) => {
+    if (cache.cachedFolders.includes(removedPath)) {
+        folderWatcher.unwatch(removedPath);
+        await deleteFolder(removedPath,cache);
+        return;
+    }
+    const folder = getBaseFolder(removedPath);
     if (folder && cache.cachedFoldersData[folder]) {
-        cache.cachedFoldersData[folder] = cache.cachedFoldersData[folder].filter(file=>file.path!==filePath)
-    }
-})
-folderWatcher.on("unlinkDir", async (dirPath) => {
-    if (cache.cachedFolders.includes(dirPath)) {
-        await deleteFolder(dirPath,cache);
-    }
-    else{
-        const folder = getBaseFolder(dirPath);
-        if (folder && cache.cachedFoldersData[folder]) {
-            // Drop the entries that lived under the removed directory, keep the rest.
-            cache.cachedFoldersData[folder] = cache.cachedFoldersData[folder].filter(file=>!file.path.startsWith(dirPath));
-        }
+        const dirPrefix = removedPath + path.sep;
+        cache.cachedFoldersData[folder] = cache.cachedFoldersData[folder].filter(
+            file => file.path !== removedPath && !file.path.startsWith(dirPrefix)
+        );
     }
 })
 const showMainWindow = () => {

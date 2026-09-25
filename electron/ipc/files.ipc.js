@@ -68,6 +68,7 @@ export function registerFilesIpc({
     });
 
     ipcMain.handle("delete-folder", (_, folderPath) => {
+        folderWatcher.unwatch(folderPath);
         return deleteFolder(folderPath, cache);
     });
 

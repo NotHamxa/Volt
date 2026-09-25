@@ -60,21 +60,32 @@ function migrateFromStack(now) {
     return usage;
 }
 
+// Search reads usage on every keystroke, and each store.get() re-reads and
+// parses the whole config file from disk. Every write goes through this
+// module, so the in-memory copy stays authoritative.
+let cached = null;
+
+function save(usage) {
+    cached = usage;
+    store().set(USAGE_KEY, JSON.stringify(usage));
+}
+
 export function loadUsage(now = Date.now()) {
+    if (cached) return cached;
     const existing = parse(store().get(USAGE_KEY));
-    if (existing) return existing;
+    if (existing) return (cached = existing);
     const migrated = migrateFromStack(now);
-    store().set(USAGE_KEY, JSON.stringify(migrated));
+    save(migrated);
     return migrated;
 }
 
 export function recordLaunch(item, now = Date.now()) {
     if (!item?.name) return;
-    const usage = loadUsage(now);
+    const usage = { ...loadUsage(now) };
     const key = usageKey(item);
     const previous = usage[key] ?? usage[legacyKeyFor(item)] ?? { count: 0, last: 0 };
     usage[key] = { count: (previous.count ?? 0) + 1, last: now };
-    store().set(USAGE_KEY, JSON.stringify(usage));
+    save(usage);
 }
 
 /**
@@ -102,6 +113,6 @@ export function pruneUsage(appCache) {
     for (const [key, value] of Object.entries(usage)) {
         if (live.has(key)) kept[key] = value;
     }
-    store().set(USAGE_KEY, JSON.stringify(kept));
+    save(kept);
     return kept;
 }

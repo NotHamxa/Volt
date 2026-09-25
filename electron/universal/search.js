@@ -46,7 +46,8 @@ const TYPE_CAP = 8;           // stops one category flooding the list
  */
 function index(item) {
     if (item._normalized === undefined) {
-        item._normalized = normaliseString(item.name);
+        // Folder-scan entries already carry the same normalisation.
+        item._normalized = item.normalisedName ?? normaliseString(item.name);
         item._tokens = tokenise(item.name);
         item._acronym = item._tokens.map(t => t[0]).join("");
     }
@@ -160,11 +161,52 @@ export function searchFilesAndFolders(query, cachedFolderData) {
 
 const clean = ({ _normalized, _tokens, _acronym, ...rest }) => rest;
 
-function collect(out, items, nq, bucket) {
+// Same ordering as String#localeCompare, without its per-call collator lookup.
+const compareNames = new Intl.Collator().compare;
+
+// Arrival order breaks the last tie, matching a stable sort over all matches.
+const rank = (a, b) =>
+    b.score - a.score ||
+    a.item._normalized.length - b.item._normalized.length ||
+    compareNames(String(a.item.name), String(b.item.name)) ||
+    a.seq - b.seq;
+
+/**
+ * Keeps only each bucket's best TYPE_CAP entries while scoring. Nothing below
+ * that could ever be shown, so a one-letter query over a large folder index no
+ * longer materialises and sorts every match.
+ */
+class TopPerBucket {
+    buckets = {};
+    seq = 0;
+
+    offer(item, bucket, base, usage, now) {
+        const f = bucket === "apps" ? frecency(usage, item, now) : 0;
+        const typeWeight = TYPE_WEIGHT[item.type] ?? 0.85;
+        // The bonus saturates against an absolute scale rather than the
+        // strongest candidate — otherwise the most-used item collects the full
+        // boost even when its own score has decayed away to nothing.
+        const boost = 1 + FRECENCY_BOOST * (f / (f + FRECENCY_SATURATION));
+        const entry = { item, bucket, score: base * typeWeight * boost, seq: this.seq++ };
+
+        const top = (this.buckets[bucket] ??= []);
+        if (top.length === TYPE_CAP && rank(entry, top[TYPE_CAP - 1]) >= 0) return;
+        let at = top.length;
+        while (at > 0 && rank(entry, top[at - 1]) < 0) at--;
+        top.splice(at, 0, entry);
+        if (top.length > TYPE_CAP) top.pop();
+    }
+
+    // One list in score order — the strongest match first, whatever its type.
+    results() {
+        return Object.values(this.buckets).flat().sort(rank).slice(0, GLOBAL_LIMIT).map(e => clean(e.item));
+    }
+}
+
+function collect(top, items, nq, bucket, usage, now) {
     for (const item of items ?? []) {
         const base = scoreItem(item, nq);
-        if (base <= 0) continue;
-        out.push({ item, bucket, base });
+        if (base > 0) top.offer(item, bucket, base, usage, now);
     }
 }
 
@@ -174,60 +216,35 @@ function collect(out, items, nq, bucket) {
  * longer discarded just because other categories happen to have matches.
  */
 export function processSearchQuery(appCache, commandsCache, cachedFolderData, usage, query, filters, now = Date.now()) {
-    const empty = { results: [] };
     const q = normaliseString(query).trim();
-    if (!q) return empty;
+    if (!q) return { results: [] };
 
     // A command may be followed by positional arguments, so it is matched on
     // the first word only — otherwise typing arguments loses the command.
     const rawTokens = String(query).trim().split(/\s+/);
     const qCmd = rawTokens.length > 1 ? normaliseString(rawTokens[0]).trim() : q;
 
-    const scored = [];
-    if (filters[0]) collect(scored, appCache, q, "apps");
-    if (filters[3]) collect(scored, settingsIndex, q, "settings");
-    if (filters[4] && qCmd) collect(scored, commandsCache, qCmd, "commands");
+    const top = new TopPerBucket();
+    if (filters[0]) collect(top, appCache, q, "apps", usage, now);
+    if (filters[3]) collect(top, settingsIndex, q, "settings", usage, now);
+    if (filters[4] && qCmd) collect(top, commandsCache, qCmd, "commands", usage, now);
 
     if (filters[1] || filters[2]) {
-        const filesAndFolders = searchFilesAndFolders(query, cachedFolderData);
-        for (const item of filesAndFolders) {
-            const isFolder = item.type === "folder";
-            if (isFolder && !filters[2]) continue;
-            if (!isFolder && !filters[1]) continue;
-            const base = scoreItem(item, q);
-            if (base > 0) scored.push({ item, bucket: isFolder ? "folders" : "files", base });
+        for (const list of [SUGGESTED_FOLDERS, ...Object.values(cachedFolderData ?? {})]) {
+            collectFiles(top, list, q, filters, usage, now);
         }
     }
 
-    if (!scored.length) return empty;
+    return { results: top.results() };
+}
 
-    // The bonus saturates against an absolute scale rather than the strongest
-    // candidate — otherwise the most-used item collects the full boost even
-    // when its own score has decayed away to nothing.
-    for (const entry of scored) {
-        const f = entry.bucket === "apps" ? frecency(usage, entry.item, now) : 0;
-        const typeWeight = TYPE_WEIGHT[entry.item.type] ?? 0.85;
-        const boost = 1 + FRECENCY_BOOST * (f / (f + FRECENCY_SATURATION));
-        entry.score = entry.base * typeWeight * boost;
+// The hot loop: runs over the whole folder index on every keystroke.
+function collectFiles(top, items, nq, filters, usage, now) {
+    for (const item of items ?? []) {
+        // Score first: most items don't match, so only matches pay for the type check.
+        const base = scoreItem(item, nq);
+        if (base <= 0) continue;
+        const isFolder = item.type === "folder";
+        if (filters[isFolder ? 2 : 1]) top.offer(item, isFolder ? "folders" : "files", base, usage, now);
     }
-
-    scored.sort((a, b) =>
-        b.score - a.score ||
-        a.item._normalized.length - b.item._normalized.length ||
-        String(a.item.name).localeCompare(String(b.item.name))
-    );
-
-    // One list in score order — the strongest match first, whatever its type.
-    // Per-type caps stop a single category filling the whole thing.
-    const results = [];
-    const perType = {};
-    for (const entry of scored) {
-        if (results.length >= GLOBAL_LIMIT) break;
-        const used = perType[entry.bucket] ?? 0;
-        if (used >= TYPE_CAP) continue;
-        perType[entry.bucket] = used + 1;
-        results.push(clean(entry.item));
-    }
-
-    return { results };
 }

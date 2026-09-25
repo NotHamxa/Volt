@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld("electron", {
     showFolderDialog:()=>ipcRenderer.invoke('show-folder-dialog'),
     deleteFolder:(path)=>ipcRenderer.invoke('delete-folder',path),
     searchQuery:(query,filters)=>ipcRenderer.invoke('search-query',query,filters),
+    recordChoice:(query,item)=>ipcRenderer.send('record-choice',query,item),
     hideWindow:()=>ipcRenderer.send("hide-window"),
     getAppVersion:()=>ipcRenderer.invoke("get-app-version"),
     onUpdateProgress:(cb)=>ipcRenderer.on("update-progress",(_,data)=>cb(data)),

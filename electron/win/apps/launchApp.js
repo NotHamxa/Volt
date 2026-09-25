@@ -1,5 +1,5 @@
 import {exec} from "child_process";
-import {recordLaunch} from "../../universal/usage.js";
+import {recordUse} from "../../universal/usage.js";
 
 export async function launchApp(app,admin) {
     if (!app) return false;
@@ -19,7 +19,7 @@ export async function launchApp(app,admin) {
             return false;
         }
 
-        recordLaunch(app);
+        recordUse(app);
         return true;
     } catch (err) {
         return false;

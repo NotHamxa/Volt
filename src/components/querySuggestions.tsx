@@ -91,6 +91,7 @@ type QueryComponentProps = {
     onContextMenuOpenChange?: (open: boolean) => void;
     onRequestRunCommand?: (item: SearchQueryT) => void;
     onExecuteCommand?: (item: SearchQueryT) => Promise<void>;
+    onChosen?: (item: SearchQueryT) => void;
 };
 
 const getFileIcon = (path: string) => {
@@ -190,6 +191,7 @@ const QueryComponent = memo(({
                                  onContextMenuOpenChange,
                                  onRequestRunCommand,
                                  onExecuteCommand,
+                                 onChosen,
                              }: QueryComponentProps) => {
     const { name, type, path } = item;
 
@@ -235,11 +237,13 @@ const QueryComponent = memo(({
         } else if (type === "commandConfirm" || type === "commandConfirmOpen") {
             setShowConfirmation(true);
         } else if (type === "app") {
+            onChosen?.(item);
             await window.apps.openApp(item);
         } else if (path) {
+            onChosen?.(item);
             window.file.openPath(path);
         }
-    }, [type, item, path, isCommandType, hasArgs, onRequestRunCommand, onExecuteCommand]);
+    }, [type, item, path, isCommandType, hasArgs, onRequestRunCommand, onExecuteCommand, onChosen]);
 
     const handleConfirm = useCallback(async () => {
         await onExecuteCommand?.(item);
@@ -670,10 +674,21 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
     // Single entry point for running a command. Guards against a second Enter
     // landing while the first is still in flight, and clears the query on
     // success so the same command can't be fired again from a stale list.
+    // Teaches ranking what this query meant: the item opened for it gets
+    // boosted the next time the same thing (or less of it) is typed. Reads the
+    // query through a ref so the callback, and the memoised rows it's passed
+    // to, stay stable across keystrokes.
+    const queryRef = useRef(query);
+    useEffect(() => { queryRef.current = query; }, [query]);
+    const recordChoice = useCallback((item: SearchQueryT) => {
+        window.electron.recordChoice(queryRef.current.trim(), item);
+    }, []);
+
     const runningRef = useRef(false);
     const runCommand = useCallback((item: SearchQueryT, argValues?: Record<string, string>) => {
         if (runningRef.current) return;
         runningRef.current = true;
+        recordChoice(item);
 
         // Dismiss first. Waiting for the command to finish held the launcher
         // open for as long as the work took, which for anything slow read as a
@@ -693,7 +708,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                 window.electron.notify(`${item.name} failed`, err?.message ?? "The command did not run.");
             })
             .finally(() => { runningRef.current = false; });
-    }, [clearQuery]);
+    }, [clearQuery, recordChoice]);
 
     const runCommandRequest = useCallback((item: SearchQueryT) => {
         if (!item.args || item.args.length === 0) {
@@ -755,12 +770,14 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
             } else if (item.type === "webSuggestion") {
                 openBlockEntry(item);
             } else if (item.type === "app") {
+                recordChoice(item);
                 await window.apps.openApp(item);
             } else if (item.path) {
+                recordChoice(item);
                 window.file.openPath(item.path);
             }
         }
-    }, [isContextMenuOpen, focusedIndex, allResults, isCmdCommand, cmdCommand, runCommandRequest, webEntry, openBlockEntry, runCommand, clearQuery]);
+    }, [isContextMenuOpen, focusedIndex, allResults, isCmdCommand, cmdCommand, runCommandRequest, webEntry, openBlockEntry, runCommand, clearQuery, recordChoice]);
 
     useEffect(() => {
         window.addEventListener("keydown", handleKeyDown);
@@ -993,6 +1010,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                                         onContextMenuOpenChange={handleContextMenuOpenChange}
                                         onRequestRunCommand={runCommandRequest}
                                         onExecuteCommand={runCommand}
+                                        onChosen={recordChoice}
                                     />
                                 </div>
                             );

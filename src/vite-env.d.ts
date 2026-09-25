@@ -179,6 +179,8 @@ declare global {
             deleteFolder:(path:string)=>Promise<boolean>;
 
             searchQuery:(query:string, filters:boolean[]) => Promise<ProcessedSearchResult>;
+            /** Tells ranking which result the user opened for this query. */
+            recordChoice:(query:string, item:SearchQueryT) => void;
             hideWindow:()=>void;
             getAppVersion:()=>Promise<string>;
             getOpenOnStartup:()=>Promise<boolean>;

@@ -1,7 +1,7 @@
 import { app, ipcMain, shell } from "electron";
 import { getGoogleSuggestions } from "../universal/autoSuggestion.js";
-import { processSearchQuery } from "../universal/search.js";
-import { loadUsage } from "../universal/usage.js";
+import { processSearchQuery, normaliseString } from "../universal/search.js";
+import { loadUsage, recordChoice, recordUse } from "../universal/usage.js";
 import { showNotification } from "../universal/notification.js";
 import { checkForUpdates } from "../universal/updater.js";
 import { executeUserCommand } from "../platform.js";
@@ -48,6 +48,13 @@ export function registerElectronIpc({ hideMainWindow, cache, store }) {
             query,
             searchFilters,
         );
+    });
+
+    // A search result was opened. Teaches ranking which item this query meant;
+    // apps count their use at launch (from anywhere), everything else here.
+    ipcMain.on("record-choice", (_, query, item) => {
+        recordChoice(normaliseString(query), item);
+        if (item?.type !== "app") recordUse(item);
     });
 
     ipcMain.handle("get-google-suggestions", (_, query) => {

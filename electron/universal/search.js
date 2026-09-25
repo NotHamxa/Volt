@@ -1,7 +1,7 @@
 import path from "path";
 import os from "os";
 import settings from "../data/settings.json" with { type: 'json' };
-import { frecency } from "./usage.js";
+import { usageSignals, usageKey } from "./usage.js";
 
 const SEPARATORS = /[\s\-_.()[\]{}'"!?,:;/\\|]+/;
 
@@ -35,8 +35,12 @@ const TYPE_WEIGHT = {
     file: 0.86,
 };
 
-const FRECENCY_BOOST = 0.6;        // ceiling on the usage bonus (+60%)
-const FRECENCY_SATURATION = 3;     // ~3 recent launches earns half of it
+const FRECENCY_BOOST = 0.6;        // ceiling on the general-use bonus (+60%)
+const FRECENCY_SATURATION = 3;     // ~3 recent uses earns half of it
+const CHOICE_BOOST = 1;            // ceiling on the picked-for-this-query bonus (+100%)
+
+const usageBoost = (frecency, share) =>
+    1 + FRECENCY_BOOST * (frecency / (frecency + FRECENCY_SATURATION)) + CHOICE_BOOST * share;
 const GLOBAL_LIMIT = 20;      // total rows handed to the renderer
 const TYPE_CAP = 8;           // stops one category flooding the list
 
@@ -50,6 +54,10 @@ function index(item) {
         item._normalized = item.normalisedName ?? normaliseString(item.name);
         item._tokens = tokenise(item.name);
         item._acronym = item._tokens.map(t => t[0]).join("");
+        // Filled lazily for the few items that reach ranking, but declared
+        // here so every item keeps one object shape — adding it later to only
+        // some of them slows property access across the whole index.
+        item._usageKey = null;
     }
     return item;
 }
@@ -159,7 +167,7 @@ export function searchFilesAndFolders(query, cachedFolderData) {
 
 // ─── ranked search ───────────────────────────────────────────────────────────
 
-const clean = ({ _normalized, _tokens, _acronym, ...rest }) => rest;
+const clean = ({ _normalized, _tokens, _acronym, _usageKey, ...rest }) => rest;
 
 // Same ordering as String#localeCompare, without its per-call collator lookup.
 const compareNames = new Intl.Collator().compare;
@@ -180,17 +188,27 @@ class TopPerBucket {
     buckets = {};
     seq = 0;
 
-    offer(item, bucket, base, usage, now) {
-        const f = bucket === "apps" ? frecency(usage, item, now) : 0;
-        const typeWeight = TYPE_WEIGHT[item.type] ?? 0.85;
-        // The bonus saturates against an absolute scale rather than the
-        // strongest candidate — otherwise the most-used item collects the full
-        // boost even when its own score has decayed away to nothing.
-        const boost = 1 + FRECENCY_BOOST * (f / (f + FRECENCY_SATURATION));
-        const entry = { item, bucket, score: base * typeWeight * boost, seq: this.seq++ };
+    constructor(signals) {
+        this.signals = signals;
+        this.maxBoost = usageBoost(signals.maxFrecency, signals.maxShare);
+    }
 
+    offer(item, bucket, base) {
+        const typeWeight = TYPE_WEIGHT[item.type] ?? 0.85;
         const top = (this.buckets[bucket] ??= []);
-        if (top.length === TYPE_CAP && rank(entry, top[TYPE_CAP - 1]) >= 0) return;
+        const full = top.length === TYPE_CAP;
+        // Most matches can't reach the top even with the strongest usage on
+        // record, so skip the lookup for them.
+        if (full && base * typeWeight * this.maxBoost < top[TYPE_CAP - 1].score) return;
+
+        const { frecency, share } = this.signals(item, (item._usageKey ??= usageKey(item)));
+        // Both bonuses saturate against an absolute scale rather than the
+        // strongest candidate — otherwise the most-used item collects the full
+        // boost even when its own score has decayed away to nothing. The share
+        // is what the user picked for this very query, so it counts for more.
+        const entry = { item, bucket, score: base * typeWeight * usageBoost(frecency, share), seq: this.seq++ };
+
+        if (full && rank(entry, top[TYPE_CAP - 1]) >= 0) return;
         let at = top.length;
         while (at > 0 && rank(entry, top[at - 1]) < 0) at--;
         top.splice(at, 0, entry);
@@ -203,10 +221,10 @@ class TopPerBucket {
     }
 }
 
-function collect(top, items, nq, bucket, usage, now) {
+function collect(top, items, nq, bucket) {
     for (const item of items ?? []) {
         const base = scoreItem(item, nq);
-        if (base > 0) top.offer(item, bucket, base, usage, now);
+        if (base > 0) top.offer(item, bucket, base);
     }
 }
 
@@ -224,14 +242,14 @@ export function processSearchQuery(appCache, commandsCache, cachedFolderData, us
     const rawTokens = String(query).trim().split(/\s+/);
     const qCmd = rawTokens.length > 1 ? normaliseString(rawTokens[0]).trim() : q;
 
-    const top = new TopPerBucket();
-    if (filters[0]) collect(top, appCache, q, "apps", usage, now);
-    if (filters[3]) collect(top, settingsIndex, q, "settings", usage, now);
-    if (filters[4] && qCmd) collect(top, commandsCache, qCmd, "commands", usage, now);
+    const top = new TopPerBucket(usageSignals(usage, q, now));
+    if (filters[0]) collect(top, appCache, q, "apps");
+    if (filters[3]) collect(top, settingsIndex, q, "settings");
+    if (filters[4] && qCmd) collect(top, commandsCache, qCmd, "commands");
 
     if (filters[1] || filters[2]) {
         for (const list of [SUGGESTED_FOLDERS, ...Object.values(cachedFolderData ?? {})]) {
-            collectFiles(top, list, q, filters, usage, now);
+            collectFiles(top, list, q, filters);
         }
     }
 
@@ -239,12 +257,12 @@ export function processSearchQuery(appCache, commandsCache, cachedFolderData, us
 }
 
 // The hot loop: runs over the whole folder index on every keystroke.
-function collectFiles(top, items, nq, filters, usage, now) {
+function collectFiles(top, items, nq, filters) {
     for (const item of items ?? []) {
         // Score first: most items don't match, so only matches pay for the type check.
         const base = scoreItem(item, nq);
         if (base <= 0) continue;
         const isFolder = item.type === "folder";
-        if (filters[isFolder ? 2 : 1]) top.offer(item, isFolder ? "folders" : "files", base, usage, now);
+        if (filters[isFolder ? 2 : 1]) top.offer(item, isFolder ? "folders" : "files", base);
     }
 }

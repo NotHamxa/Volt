@@ -85,7 +85,12 @@ export default function App() {
     });
 
     useEffect(() => {
-        const path = locationRef.current;
+        // Read from the URL, not the router's state. The router applies
+        // navigations inside a transition, so "navigate to /ai, then clear the
+        // query" (Ask AI, the open-ai shortcut) renders the cleared query while
+        // the router still reports the old page — and this would then send it
+        // home, cancelling the jump. The hash itself is updated immediately.
+        const path = new URL(window.location.hash.slice(1) || '/', 'volt://app').pathname;
         if (path === '/settings' || path === '/ai') return;
 
         if (path === '/all') {

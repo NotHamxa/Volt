@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Eye, EyeOff, KeyRound, ShieldAlert, Trash2, RefreshCw, FolderOpen } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/select.tsx";
 import { SectionLead, GroupLabel } from "@/components/settingsLayout.tsx";
 import { providerLogo, providerLogoTint } from "@/ai/providerLogos.ts";
+import { ModelPicker } from "@/ai/modelPicker.tsx";
 
 /**
  * Setup for the AI view: which backends are usable, keys for the ones that need
@@ -26,7 +27,7 @@ export default function AiSection() {
     const [loading, setLoading] = useState(true);
     const [keys, setKeys] = useState<Record<string, boolean>>({});
     const [canEncrypt, setCanEncrypt] = useState(true);
-    const [prefs, setPrefsState] = useState<AiPrefs>({ providerId: null, model: null, settings: {}, workspace: null });
+    const [prefs, setPrefsState] = useState<AiPrefs>({ providerId: null, model: null, settings: {}, workspace: null, customModels: {} });
     const [workspace, setWorkspace] = useState<{ path: string; isDefault: boolean; defaultPath: string } | null>(null);
 
     const fetchAll = useCallback(async () => {
@@ -84,6 +85,19 @@ export default function AiSection() {
     const savePrefs = async (patch: Partial<AiPrefs>) => {
         setPrefsState(await window.ai.setPrefs(patch));
     };
+
+    // Catalogues are read only for providers actually browsed in the picker —
+    // each one costs a CLI spawn.
+    const loadingModels = useRef(new Set<string>());
+    const ensureModels = useCallback(async (id: string) => {
+        if (!id || loadingModels.current.has(id)) return;
+        if (providers.find(p => p.id === id)?.models.length) return;
+        loadingModels.current.add(id);
+        const models = await window.ai.providerModels(id);
+        setProviders(list => list.map(p => (p.id === id ? { ...p, models } : p)));
+    }, [providers]);
+
+    const customModels = prefs.customModels ?? {};
 
     if (loading) return <AiSectionSkeleton />;
 
@@ -151,28 +165,25 @@ export default function AiSection() {
                     What a new conversation starts with. You can still change any of it per chat.
                 </p>
 
-                <Row label="Provider" hint="Used when the AI view opens">
-                    <SettingSelect
-                        value={defaultProvider?.id ?? ""}
-                        onChange={async (id) => {
-                            // The new provider's catalogue may not be loaded yet.
-                            const models = await window.ai.providerModels(id);
-                            setProviders(list => list.map(p => (p.id === id ? { ...p, models } : p)));
-                            savePrefs({ providerId: id, model: models[0]?.id ?? null });
-                        }}
-                        options={providers.map(p => ({
-                            id: p.id,
-                            label: p.available ? p.label : `${p.label} (unavailable)`,
-                        }))}
-                    />
-                </Row>
-
-                {defaultProvider && defaultProvider.models.length > 0 && (
-                    <Row label="Model" hint={defaultProvider.label}>
-                        <SettingSelect
-                            value={prefs.model ?? defaultProvider.models[0].id}
-                            onChange={(model) => savePrefs({ model })}
-                            options={defaultProvider.models.map(m => ({ id: m.id, label: m.label }))}
+                {/* The same picker as the chat composer: provider and model in
+                    one control, so a provider's catalogue is browsed before
+                    committing to it, and any unlisted model id can be typed. */}
+                {defaultProvider && (
+                    <Row label="Default model" hint="Used when the AI view opens">
+                        <ModelPicker
+                            variant="field"
+                            providers={providers}
+                            providerId={defaultProvider.id}
+                            model={defaultModelId}
+                            customModels={customModels}
+                            onBrowse={ensureModels}
+                            onSelect={(providerId, model) => savePrefs({ providerId, model })}
+                            onRemember={(id, modelId) => savePrefs({
+                                customModels: { [id]: [...new Set([...(customModels[id] ?? []), modelId])] },
+                            })}
+                            onForget={(id, modelId) => savePrefs({
+                                customModels: { [id]: (customModels[id] ?? []).filter(m => m !== modelId) },
+                            })}
                         />
                     </Row>
                 )}

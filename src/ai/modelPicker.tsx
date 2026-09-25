@@ -25,7 +25,7 @@ function monogram(label: string) {
 }
 
 export function ModelPicker({
-    providers, providerId, model, customModels, onSelect, onBrowse, onRemember, onForget,
+    providers, providerId, model, customModels, onSelect, onBrowse, onRemember, onForget, variant = "inline",
 }: {
     providers: AiProviderInfo[];
     providerId: string;
@@ -37,7 +37,14 @@ export function ModelPicker({
     onBrowse: (providerId: string) => void;
     onRemember: (providerId: string, modelId: string) => void;
     onForget: (providerId: string, modelId: string) => void;
+    /**
+     * "inline" is the composer's bare text button, opening upwards from the
+     * prompt bar. "field" is a boxed control matching the selects in
+     * Settings, opening downwards.
+     */
+    variant?: "inline" | "field";
 }) {
+    const field = variant === "field";
     const [open, setOpen] = useState(false);
     const [browsing, setBrowsing] = useState(providerId);
     const [search, setSearch] = useState("");
@@ -111,23 +118,30 @@ export function ModelPicker({
             <PopoverTrigger asChild>
                 <button
                     aria-label="Choose a model"
-                    className="flex items-center gap-1 h-6 max-w-[190px] px-1.5 rounded-md text-[10.5px] font-medium text-tone-450 hover:bg-fill-070 hover:text-tone-800 aria-expanded:bg-fill-070 aria-expanded:text-tone-800 transition-colors cursor-pointer"
+                    className={field
+                        ? "flex items-center gap-1.5 h-7 w-52 px-2.5 rounded-md border border-line-080 bg-fill-030 text-[11.5px] text-tone-750 hover:bg-fill-060 aria-expanded:bg-fill-060 transition-colors cursor-pointer"
+                        : "flex items-center gap-1 h-6 max-w-[190px] px-1.5 rounded-md text-[10.5px] font-medium text-tone-450 hover:bg-fill-070 hover:text-tone-800 aria-expanded:bg-fill-070 aria-expanded:text-tone-800 transition-colors cursor-pointer"}
                 >
                     {currentLogo && (
                         <img src={currentLogo} alt="" className={`w-3.5 h-3.5 shrink-0 object-contain ${current ? providerLogoTint(current.id) : ""}`} />
                     )}
-                    <span className="truncate">{currentLabel}</span>
-                    <ChevronRight size={11} className="shrink-0 rotate-90 text-tone-300" />
+                    <span className={`truncate ${field ? "flex-1 text-left" : ""}`}>{currentLabel}</span>
+                    {field && current && (
+                        <span className="shrink-0 max-w-[40%] truncate text-[10.5px] text-tone-250">{current.label}</span>
+                    )}
+                    <ChevronRight size={field ? 12 : 11} className="shrink-0 rotate-90 text-tone-300" />
                 </button>
             </PopoverTrigger>
 
             <PopoverContent
-                side="top"
-                align="start"
+                side={field ? "bottom" : "top"}
+                align={field ? "end" : "start"}
                 sideOffset={8}
                 className="w-[400px] p-0 overflow-hidden rounded-xl border-line-090 bg-surface-menu/[0.98] backdrop-blur-xl shadow-[0_12px_36px_var(--shadow-2)]"
             >
-                <div className="flex h-[300px]">
+                {/* Capped to the room Radix reports, so it never runs past the
+                    window edge — in Settings the row can sit low in the page. */}
+                <div className="flex h-[min(300px,calc(var(--radix-popover-content-available-height)-8px))]">
                     {/* Provider rail. Switching here re-filters the list rather
                         than committing, so you can look before choosing. */}
                     <div className="w-11 shrink-0 flex flex-col items-center gap-1 py-2 border-r border-line-060">

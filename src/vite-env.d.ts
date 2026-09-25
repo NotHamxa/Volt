@@ -229,6 +229,8 @@ declare global {
             getPreview:(item: SearchQueryT) => Promise<ItemPreview>;
             /** Windows file-type icons as data URLs, keyed by each item's path. */
             getFileIcons:(items: SearchQueryT[]) => Promise<Record<string, string | null>>;
+            /** PDF bytes for rendering a preview; null for non-PDFs or files over 50 MB. */
+            readPdf:(path: string) => Promise<Uint8Array | null>;
         }
     }
 }

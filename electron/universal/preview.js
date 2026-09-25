@@ -82,6 +82,26 @@ function appPreview(item) {
     return preview;
 }
 
+// Bigger PDFs keep the file-type icon: parsing them for one page isn't worth it.
+const MAX_PDF_PREVIEW_BYTES = 50 * 1024 * 1024;
+
+/**
+ * The raw bytes of a PDF, for the preview pane to render its first page with
+ * pdf.js. Windows only thumbnails PDFs when a reader registers a handler for
+ * it, which most machines don't have. Only .pdf files are served.
+ */
+export async function readPdf(filePath) {
+    const fullPath = path.resolve(String(filePath ?? ""));
+    if (path.extname(fullPath).toLowerCase() !== ".pdf") return null;
+    try {
+        const stat = await fsp.stat(fullPath);
+        if (!stat.isFile() || stat.size > MAX_PDF_PREVIEW_BYTES) return null;
+        return new Uint8Array(await fsp.readFile(fullPath));
+    } catch {
+        return null;
+    }
+}
+
 /**
  * Details for the preview pane. Apps, files and folders are looked up on
  * disk; everything else (commands, settings, web rows) is described by the

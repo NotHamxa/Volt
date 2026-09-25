@@ -45,6 +45,7 @@ contextBridge.exposeInMainWorld("file",{
     cacheFolder:(path)=>ipcRenderer.invoke('cache-folder', path),
     getPreview:(item)=>ipcRenderer.invoke('get-preview', item),
     getFileIcons:(items)=>ipcRenderer.invoke('get-file-icons', items),
+    readPdf:(path)=>ipcRenderer.invoke('read-pdf', path),
 })
 
 contextBridge.exposeInMainWorld("apps",{

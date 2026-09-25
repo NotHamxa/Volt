@@ -4,6 +4,11 @@ import { COMMAND_TYPES, previewActions, type PreviewActionId } from "@/component
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { SearchQueryT } from "@/interfaces/searchQuery.ts";
 import type { ItemPreview } from "@/interfaces/preview.ts";
+import { renderPdfFirstPage } from "@/utils/pdfPreview.ts";
+
+// The hero area a PDF page is fitted into — taller than for other files,
+// since a page is portrait and unreadable squeezed into a short box.
+const PDF_BOX = { width: 330, height: 236 };
 
 /** Result types whose details live on disk and are fetched from the main process. */
 const LOOKED_UP = new Set(["app", "file", "folder"]);
@@ -112,9 +117,25 @@ export default function PreviewPane({ item, logo, fileIcon, activeAction, onActi
         return () => { cancelled = true; clearTimeout(timer); };
     }, [item, key, lookedUp]);
 
+    const preview = cache.get(key) ?? (fetched?.key === key ? fetched.preview : null);
+
+    // PDFs have no shell thumbnail on most machines, so their first page is
+    // drawn here instead. undefined while rendering, null if it can't be.
+    const isPdf = item?.type === "file" && preview?.extension === "pdf" && !preview.thumbnail;
+    const pdfVersion = preview?.modified ?? 0;
+    const [pdfPage, setPdfPage] = useState<{ key: string; url: string | null } | null>(null);
+    useEffect(() => {
+        if (!isPdf || !item?.path) return;
+        let cancelled = false;
+        renderPdfFirstPage(item.path, PDF_BOX, pdfVersion).then(url => {
+            if (!cancelled) setPdfPage({ key, url });
+        });
+        return () => { cancelled = true; };
+    }, [isPdf, item?.path, key, pdfVersion]);
+    const pdfUrl = isPdf ? (pdfPage?.key === key ? pdfPage.url : undefined) : null;
+
     if (!item) return <aside className="w-[44%] shrink-0 border-l border-line-070" />;
 
-    const preview = cache.get(key) ?? (fetched?.key === key ? fetched.preview : null);
     const loading = lookedUp && !preview;
     const { type, name, path } = item;
     const isCommand = COMMAND_TYPES.has(type);
@@ -131,10 +152,10 @@ export default function PreviewPane({ item, logo, fileIcon, activeAction, onActi
 
     // A real thumbnail when Windows can draw one (images, video…), otherwise
     // the large icon of whatever opens this type — Word's, the PDF reader's.
-    const artwork = (type === "file" ? preview?.thumbnail : null) ?? null;
+    const artwork = (type === "file" ? preview?.thumbnail ?? pdfUrl : null) ?? null;
     const bigIcon = preview?.icon ?? (type === "app" ? logo : fileIcon) ?? null;
     const visual = artwork
-        ? <img src={artwork} alt="" className="max-w-full max-h-full object-contain rounded-md" />
+        ? <img src={artwork} alt="" className={`max-w-full max-h-full object-contain ${pdfUrl ? "rounded-sm shadow-[0_2px_10px_var(--shadow-1)]" : "rounded-md"}`} />
         : bigIcon
             ? <img src={bigIcon} alt="" className="w-24 h-24 object-contain" />
             : <Icon size={48} strokeWidth={1.25} className="text-tone-300" />;
@@ -145,8 +166,12 @@ export default function PreviewPane({ item, logo, fileIcon, activeAction, onActi
         <aside className="w-[44%] shrink-0 border-l border-line-070 flex flex-col min-h-0">
             <ScrollArea className="flex-1 min-h-0">
                 <div className="p-4 flex flex-col gap-4">
-                    <div className="h-[170px] rounded-xl border border-line-070 bg-fill-030 flex items-center justify-center p-3 overflow-hidden">
-                        {loading ? <div className="w-10 h-10 rounded-lg bg-fill-100 animate-pulse" /> : visual}
+                    <div className={`${isPdf ? "h-[260px]" : "h-[170px]"} rounded-xl border border-line-070 bg-fill-030 flex items-center justify-center p-3 overflow-hidden`}>
+                        {loading
+                            ? <div className="w-10 h-10 rounded-lg bg-fill-100 animate-pulse" />
+                            : pdfUrl === undefined
+                                ? <div className="opacity-60 animate-pulse">{visual}</div>
+                                : visual}
                     </div>
 
                     <div className="min-w-0">

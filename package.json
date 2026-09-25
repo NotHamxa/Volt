@@ -106,7 +106,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "cross-env": "^10.1.0",
     "depcheck": "^1.4.7",
-    "electron": "^39.8.10",
+    "electron": "^44.4.5",
     "electron-builder": "^26.15.3",
     "electronmon": "^2.0.4",
     "eslint": "^10.3.0",

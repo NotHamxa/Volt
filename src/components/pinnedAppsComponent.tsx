@@ -42,7 +42,7 @@ export default function PinnedApps({setStage, unPinApp, pinnedApps,setPinnedApps
     useEffect(() => {
         const loadLinks = async ()=>{
             const data = await window.electronStore.get("linkShortcuts");
-            const shortcuts = JSON.parse(data) ?? [];
+            const shortcuts = data ? JSON.parse(data) : [];
             setLinkShortcuts(shortcuts as LinkShortcutType[]);
         }
         loadLinks()

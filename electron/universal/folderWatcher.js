@@ -1,57 +1,58 @@
-import fs from "fs";
 import path from "path";
 import { EventEmitter } from "events";
-import { isExcludedPath } from "./folderCache.js";
+import parcelWatcher from "@parcel/watcher";
+import { isExcludedPath, excludedFolders } from "./folderCache.js";
 
-// Watches indexed folders with one native recursive handle per root instead of
-// chokidar's handle-per-file. A folder with tens of thousands of files would
-// otherwise open that many watchers on the main thread and freeze the app.
-//
-// Emits:
-//   "add"    (filePath) — a file appeared
-//   "remove" (fullPath) — a file or directory is gone (we can't tell which
-//                          after the fact, so listeners treat it as a prefix)
+// Native recursive watch on its own thread: one subscription per root, no
+// per-file handles, and no events dropped when a burst (an extracted archive,
+// a git clone) overflows the OS change buffer — fs.watch loses most of those.
+// Resolves to the subscription, or null if the folder can't be watched.
+export function watchTree(root, onEvents, ignore = []) {
+    return parcelWatcher
+        .subscribe(root, (err, events) => {
+            if (err) console.warn("Watcher error:", root, err.message ?? err);
+            else onEvents(events);
+        // Named explicitly: left to auto-detect, parcel first probes for
+        // watchman by spawning a shell, blocking the main thread ~0.5s.
+        }, { ignore, backend: "windows" })
+        .catch(err => {
+            console.warn("Can't watch folder:", root, err.message ?? err);
+            return null;
+        });
+}
+
+// Keeps parcel from even scanning excluded trees (node_modules etc.) on subscribe.
+const IGNORE_GLOBS = excludedFolders.flatMap(f => [`**/${f}`, `**/${f}/**`]);
+
+// Watches indexed folders. Emits per batch:
+//   "add"    (root, paths) — files or folders that appeared
+//   "remove" (root, paths) — files or folders that are gone; a folder's
+//                            contents aren't listed individually
 export class FolderWatcher extends EventEmitter {
-    #watchers = new Map();
+    #subscriptions = new Map();
 
     add(roots) {
         for (const root of [].concat(roots)) {
-            if (this.#watchers.has(root)) continue;
-            let watcher;
-            try {
-                watcher = fs.watch(root, { recursive: true, persistent: true });
-            } catch (err) {
-                console.warn("Can't watch folder:", root, err.message);
-                continue;
-            }
-            watcher.on("change", (_, filename) => {
-                if (filename) this.#handle(root, filename.toString());
-            });
-            watcher.on("error", err => {
-                // Typically the root itself was deleted or became unreachable.
-                console.warn("Folder watcher error:", root, err.message);
-                this.unwatch(root);
-                if (!fs.existsSync(root)) this.emit("remove", root);
-            });
-            this.#watchers.set(root, watcher);
+            if (this.#subscriptions.has(root)) continue;
+            this.#subscriptions.set(root, watchTree(root, events => this.#handle(root, events), IGNORE_GLOBS));
         }
     }
 
-    unwatch(root) {
-        this.#watchers.get(root)?.close();
-        this.#watchers.delete(root);
+    async unwatch(root) {
+        const subscription = this.#subscriptions.get(root);
+        this.#subscriptions.delete(root);
+        await (await subscription)?.unsubscribe().catch(() => {});
     }
 
-    #handle(root, relPath) {
-        if (isExcludedPath(relPath)) return;
-        const fullPath = path.join(root, relPath);
-        let stat;
-        try {
-            stat = fs.statSync(fullPath);
-        } catch {
-            this.emit("remove", fullPath);
-            return;
+    #handle(root, events) {
+        const added = [];
+        const removed = [];
+        for (const { type, path: fullPath } of events) {
+            if (isExcludedPath(path.relative(root, fullPath))) continue;
+            if (type === "create") added.push(fullPath);
+            else if (type === "delete") removed.push(fullPath);
         }
-        if (stat.isFile()) this.emit("add", fullPath);
+        if (removed.length) this.emit("remove", root, removed);
+        if (added.length) this.emit("add", root, added);
     }
 }

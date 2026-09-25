@@ -22,6 +22,7 @@
     "electronLanguages": [
       "en-US"
     ],
+    "npmRebuild": false,
     "files": [
       "dist/**/*",
       "electron/**/*",
@@ -58,7 +59,7 @@
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.220",
-    "chokidar": "^5.0.0",
+    "@parcel/watcher": "^2.6.0",
     "electron-store": "^11.0.2",
     "electron-updater": "^6.8.9",
     "extract-file-icon": "^0.3.2",

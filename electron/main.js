@@ -4,15 +4,13 @@ const {autoUpdater} = pkg;
 import Store from "electron-store";
 import path from "path";
 import {fileURLToPath} from "url";
-import {deleteFolder, isIndexableFile} from "./universal/folderCache.js";
-import {FolderWatcher} from "./universal/folderWatcher.js";
-import chokidar from "chokidar";
+import {deleteFolder, indexPath} from "./universal/folderCache.js";
+import {FolderWatcher, watchTree} from "./universal/folderWatcher.js";
 import {initStoreState, loadFolderCache, loadCommandsData} from "./universal/startup.js";
 import {sendInstallTelemetryIfNeeded} from "./universal/telemetry.js";
 import { registerIpc } from "./ipc/index.js";
 import {setupAutoUpdater} from "./universal/updater.js";
 import {createNotificationWindow} from "./universal/notification.js";
-import {normaliseString} from "./universal/search.js";
 import {
     initWindowFocusTracker,
     setOwnWindowHandle,
@@ -55,50 +53,39 @@ const appStates = {
     dialogOpen:false,
 }
 
+// cachedFoldersData is derived state — rebuilt from disk on every launch by
+// loadFolderCache — so the watcher only patches it in memory.
 const folderWatcher = new FolderWatcher();
-const getBaseFolder = (path) => {
-    let folder = null;
-    let charLen = 0;
-    for (const dir of cache.cachedFolders) {
-        if (path.startsWith(dir) && charLen <= dir.length) {
-            charLen = dir.length;
-            folder = dir;
-        }
-    }
-    return folder;
-}
-folderWatcher.on("add", filePath => {
-    if (!isIndexableFile(filePath)) return;
-    const folder = getBaseFolder(filePath);
-    const entries = folder && cache.cachedFoldersData[folder];
-    // Saves often fire as a rename of an existing file, so skip known paths.
-    if (entries && !entries.some(file => file.path === filePath)) {
-        entries.push({
-            name: path.basename(filePath),
-            source: "",
-            appId: "",
-            path: filePath,
-            type: "file",
-            normalisedName:normaliseString(path.basename(filePath))
-        });
-        // cachedFoldersData is derived state — rebuilt from disk on every
-        // launch by loadFolderCache. Only the folder list is persisted.
+folderWatcher.on("add", async (root, addedPaths) => {
+    const found = [];
+    for (const addedPath of addedPaths) found.push(...await indexPath(addedPath));
+    const entries = cache.cachedFoldersData[root];
+    if (!entries) return;
+    // Saves often arrive as a re-create of an existing file, so skip known paths.
+    const known = new Set(entries.map(entry => entry.path));
+    for (const entry of found) {
+        if (known.has(entry.path)) continue;
+        known.add(entry.path);
+        entries.push(entry);
     }
 })
-// The path could have been a file or a directory, so drop it and anything under it.
-folderWatcher.on("remove", async (removedPath) => {
-    if (cache.cachedFolders.includes(removedPath)) {
-        folderWatcher.unwatch(removedPath);
-        await deleteFolder(removedPath,cache);
+folderWatcher.on("remove", async (root, removedPaths) => {
+    if (removedPaths.includes(root)) {
+        folderWatcher.unwatch(root);
+        await deleteFolder(root,cache);
         return;
     }
-    const folder = getBaseFolder(removedPath);
-    if (folder && cache.cachedFoldersData[folder]) {
-        const dirPrefix = removedPath + path.sep;
-        cache.cachedFoldersData[folder] = cache.cachedFoldersData[folder].filter(
-            file => file.path !== removedPath && !file.path.startsWith(dirPrefix)
-        );
-    }
+    const entries = cache.cachedFoldersData[root];
+    if (!entries) return;
+    // A removed folder takes everything under it, so check each entry's ancestors.
+    const gone = new Set(removedPaths);
+    const isGone = entryPath => {
+        for (let p = entryPath; p.length > root.length; p = path.dirname(p)) {
+            if (gone.has(p)) return true;
+        }
+        return false;
+    };
+    cache.cachedFoldersData[root] = entries.filter(entry => !isGone(entry.path));
 })
 const showMainWindow = () => {
     if (!mainWindow) return;
@@ -336,22 +323,19 @@ app.whenReady().then(async () => {
         );
     })();
 
-    const appsWatcher = chokidar.watch(appWatchPaths,{
-        persistent: true,
-        ignoreInitial: true
-    });
-    appsWatcher.on("add",async _=>{
-        console.log("Adding...");
-        await loadAppData(mainWindow.webContents,cache);
-
-    })
-    appsWatcher.on("unlink",async _=>{
-        console.log("Unlinking...");
-        setTimeout(async ()=>await loadAppData(mainWindow.webContents,cache), 5000);
-    })
-    appsWatcher.on("unlinkDir",async _=>{
-        await loadAppData(mainWindow.webContents,cache);
-    })
+    // Installers touch several shortcuts at once, so let a burst settle into a
+    // single rescan. Removals keep their longer grace period.
+    let appReloadTimer = null;
+    const reloadAppsSoon = (delayMs) => {
+        clearTimeout(appReloadTimer);
+        appReloadTimer = setTimeout(() => loadAppData(mainWindow.webContents, cache), delayMs);
+    };
+    for (const dir of appWatchPaths) {
+        watchTree(dir, events => {
+            if (events.some(e => e.type === "delete")) reloadAppsSoon(5000);
+            else if (events.some(e => e.type === "create")) reloadAppsSoon(1000);
+        });
+    }
 
     app.on("activate", () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();

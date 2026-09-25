@@ -1,5 +1,5 @@
 import path from "path";
-import { readdir } from "fs/promises";
+import fsp, { readdir } from "fs/promises";
 import Store from "electron-store";
 import { normaliseString } from "./search.js";
 
@@ -41,7 +41,7 @@ const excludedExtensions = [
     "pyc", "pyo", "pyd", "egg", "whl", "manifest", "spec",
 
 ];
-const excludedFolders = [
+export const excludedFolders = [
     // IDEs
     ".idea", ".vscode", ".vs", ".eclipse", ".netbeans", ".atom",
     // Python
@@ -61,51 +61,52 @@ const excludedFolders = [
     ".docker", ".vagrant", ".terraform"
 ];
 
-// Same rules the initial scan applies, shared with the live folder watcher.
-export function isIndexableFile(fileName) {
+function isIndexableFile(fileName) {
     const ext = path.extname(fileName).replace(".", "");
     return ext !== "" && !excludedExtensions.includes(ext);
 }
 
+// Lets the folder watcher drop events under excluded folders before stat'ing them.
 export function isExcludedPath(relPath) {
     return relPath.split(/[\\/]/).some(segment => excludedFolders.includes(segment));
 }
 
-export async function cacheFolder(dirPath,cache,newFolder=true) {
-    const filesArray = [];
-    const extL = {}
-    async function readDirRecursive(currentPath) {
-        const entries = await readdir(currentPath, { withFileTypes: true });
-        for (const entry of entries) {
-            const fullPath = path.join(currentPath, entry.name);
-            if (entry.isDirectory()) {
-                if (excludedFolders.includes(entry.name)) continue;
-                filesArray.push({
-                    name: entry.name,
-                    normalisedName: normaliseString(entry.name),
-                    source: "",
-                    appId: "",
-                    path: fullPath,
-                    type: "folder"
-                });
-                await readDirRecursive(fullPath);
-            } else if (entry.isFile()) {
-                if (!isIndexableFile(entry.name)) continue;
-                const ext = path.extname(entry.name).replace(".","");
-                if (Object.keys(extL).includes(ext)) extL[ext] += 1;
-                else extL[ext] = 1;
-                filesArray.push({
-                    name: entry.name,
-                    normalisedName: normaliseString(entry.name),
-                    source: "",
-                    appId: "",
-                    path: fullPath,
-                    type: "file"
-                });
-            }
+function entryFor(fullPath, type) {
+    const name = path.basename(fullPath);
+    return { name, normalisedName: normaliseString(name), source: "", appId: "", path: fullPath, type };
+}
+
+async function readDirRecursive(currentPath, out) {
+    const entries = await readdir(currentPath, { withFileTypes: true });
+    for (const entry of entries) {
+        const fullPath = path.join(currentPath, entry.name);
+        if (entry.isDirectory()) {
+            if (excludedFolders.includes(entry.name)) continue;
+            out.push(entryFor(fullPath, "folder"));
+            await readDirRecursive(fullPath, out);
+        } else if (entry.isFile()) {
+            if (!isIndexableFile(entry.name)) continue;
+            out.push(entryFor(fullPath, "file"));
         }
     }
-    await readDirRecursive(dirPath);
+}
+
+// Index entries for a path that just appeared under a watched folder. A folder
+// is walked in full — a folder moved or extracted in only reports itself, not
+// its contents.
+export async function indexPath(fullPath) {
+    let stat;
+    try { stat = await fsp.stat(fullPath); } catch { return []; }
+    if (stat.isFile()) return isIndexableFile(fullPath) ? [entryFor(fullPath, "file")] : [];
+    if (!stat.isDirectory() || excludedFolders.includes(path.basename(fullPath))) return [];
+    const out = [entryFor(fullPath, "folder")];
+    try { await readDirRecursive(fullPath, out); } catch { /* vanished or unreadable mid-walk */ }
+    return out;
+}
+
+export async function cacheFolder(dirPath,cache,newFolder=true) {
+    const filesArray = [];
+    await readDirRecursive(dirPath, filesArray);
     cache.cachedFoldersData[dirPath] = filesArray;
     if (newFolder) {
         cache.cachedFolders.push(dirPath);

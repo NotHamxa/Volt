@@ -63,6 +63,11 @@ export const SETTINGS_INDEX: SettingsEntry[] = [
         hint: "The key that carries your query into the chat",
         keywords: ["tab", "chat", "ask ai"],
     },
+    {
+        section: "keys", title: "Preview pane", anchor: "toggle-preview",
+        hint: "The key that shows details and thumbnails beside the results",
+        keywords: ["alt p", "preview", "thumbnail", "details", "info"],
+    },
 
     // ── Search index ─────────────────────────────────────────────────────
     {

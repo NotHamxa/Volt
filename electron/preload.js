@@ -43,6 +43,8 @@ contextBridge.exposeInMainWorld("file",{
     openFileWith:(path)=>ipcRenderer.send('open-file-with', path),
     copyFileToClipboard:(path)=>ipcRenderer.send('copy-file-clipboard', path),
     cacheFolder:(path)=>ipcRenderer.invoke('cache-folder', path),
+    getPreview:(item)=>ipcRenderer.invoke('get-preview', item),
+    getFileIcons:(items)=>ipcRenderer.invoke('get-file-icons', items),
 })
 
 contextBridge.exposeInMainWorld("apps",{

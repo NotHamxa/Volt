@@ -69,6 +69,11 @@ import { Button } from "@/components/ui/button.tsx";
 import { Google } from "@/components/icons/google.tsx";
 import { useEscapeBarrier } from "@/hooks/useEscape.ts";
 import { tokenize } from "@/utils/tokenize.ts";
+import { matchesCombo } from "@/data/keybindings.ts";
+import { getBinding } from "@/hooks/useKeybindings.ts";
+import PreviewPane from "@/components/previewPane.tsx";
+import { previewActions, type PreviewActionId } from "@/components/previewActions.ts";
+import { useFileIcons } from "@/hooks/useFileIcons.ts";
 import { useOutletContext, useNavigate } from "react-router";
 import type { MainLayoutContext } from "@/pages/mainPage.tsx";
 
@@ -86,6 +91,8 @@ type QueryComponentProps = {
     unPinApp?: (app: SearchQueryT) => void;
     isAppPinned?: boolean;
     logo?: string;
+    /** Windows file-type icon for files and folders. */
+    fileIcon?: string;
     triggerAction?: boolean;
     triggerContextMenu?: boolean;
     onContextMenuOpenChange?: (open: boolean) => void;
@@ -184,6 +191,7 @@ const QueryComponent = memo(({
                                  highlighted = false,
                                  isAppPinned = false,
                                  logo,
+                                 fileIcon,
                                  pinApp = () => { },
                                  unPinApp = () => { },
                                  triggerAction = false,
@@ -307,10 +315,11 @@ const QueryComponent = memo(({
             );
         }
         if (type === "folder") {
-            return item.source ? getSpecialFolderIcon(item.name) : <Folder size={24} />;
+            if (item.source) return getSpecialFolderIcon(item.name);
+            return fileIcon ? <img className="w-6 h-6 object-contain" src={fileIcon} alt="" /> : <Folder size={24} />;
         }
         if (type === "file" && path) {
-            return getFileIcon(path);
+            return fileIcon ? <img className="w-6 h-6 object-contain" src={fileIcon} alt="" /> : getFileIcon(path);
         }
         if (type === "setting") {
             return <Bolt size={24} />;
@@ -319,7 +328,7 @@ const QueryComponent = memo(({
             return <CodeXml size={24} />;
         }
         return null;
-    }, [type, logo, path, item.source, item.name]);
+    }, [type, logo, fileIcon, path, item.source, item.name]);
 
     const labelText = useMemo(() => {
         if (type === "file" && path) return getParentFolders(path);
@@ -464,6 +473,7 @@ const QueryComponent = memo(({
         isSameApp(prevProps.item, nextProps.item) &&
         prevProps.isAppPinned === nextProps.isAppPinned &&
         prevProps.logo === nextProps.logo &&
+        prevProps.fileIcon === nextProps.fileIcon &&
         prevProps.triggerAction === nextProps.triggerAction &&
         prevProps.triggerContextMenu === nextProps.triggerContextMenu
     );
@@ -650,6 +660,8 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
         return promoteWeb ? [...block, ...results] : [...results, ...block];
     }, [results, webEntry, promoteWeb, webBlockEntries, aiEntry]);
 
+    const iconFor = useFileIcons(results);
+
     const handleContextMenuOpenChange = useCallback((open: boolean) => {
         setIsContextMenuOpen(open);
         if (!open) {
@@ -733,8 +745,98 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
         enterArgMode(item, initial);
     }, [query, enterArgMode, runCommand]);
 
+    /** Runs a result the way Enter does. Shared with the preview pane's Open button. */
+    const activate = useCallback(async (item: SearchQueryT, index: number) => {
+        const isCommand = item.type === "command" || item.type === "commandOpen" || item.type === "commandConfirm" || item.type === "commandConfirmOpen";
+        if (isCommand && item.args && item.args.length > 0) {
+            runCommandRequest(item);
+        } else if (item.type === "command" || item.type === "commandOpen") {
+            await runCommand(item);
+        } else if (item.type === "commandConfirm" || item.type === "commandConfirmOpen") {
+            setTriggeredIndex(index);
+            setTimeout(() => setTriggeredIndex(-1), 100);
+        } else if (item.type === "webSearch" && webEntry) {
+            await openSearch(toHistoryEntry(webEntry.resolved));
+        } else if (item.type === "askAi") {
+            openAi(item.name);
+        } else if (item.type === "webSuggestion") {
+            openBlockEntry(item);
+        } else if (item.type === "app") {
+            recordChoice(item);
+            await window.apps.openApp(item);
+        } else if (item.path) {
+            recordChoice(item);
+            window.file.openPath(item.path);
+        }
+    }, [runCommandRequest, runCommand, webEntry, openAi, openBlockEntry, recordChoice]);
+
+    const [showPreview, setShowPreview] = useState(false);
+    useEffect(() => {
+        window.electronStore.get("previewPane").then(saved => setShowPreview(saved === true || saved === "true"));
+    }, []);
+    const togglePreview = useCallback(() => {
+        setShowPreview(open => {
+            window.electronStore.set("previewPane", !open);
+            return !open;
+        });
+    }, []);
+
+    // Keyboard focus in the preview pane belongs to one highlighted row of one
+    // query, so moving the list or typing hands it back to the list by itself.
+    const focusKey = `${query}|${focusedIndex}`;
+    const [previewFocus, setPreviewFocus] = useState<{ key: string; action: number } | null>(null);
+    const previewFocused = showPreview && previewFocus?.key === focusKey;
+
+    const runPreviewAction = useCallback((id: PreviewActionId, item: SearchQueryT) => {
+        const path = item.path ?? "";
+        switch (id) {
+            case "open": activate(item, allResults.indexOf(item)); break;
+            case "admin": recordChoice(item); window.apps.openApp(item, true); break;
+            case "openWith": window.file.openFileWith(path); break;
+            case "location": window.file.openInExplorer(path); break;
+            case "copyPath": navigator.clipboard.writeText(path); break;
+            case "copyFile": window.file.copyFileToClipboard(path); break;
+        }
+    }, [activate, allResults, recordChoice]);
+
     const handleKeyDown = useCallback(async (e: KeyboardEvent) => {
         if (isContextMenuOpen) return;
+        if (matchesCombo(e, getBinding("toggle-preview"))) {
+            e.preventDefault();
+            togglePreview();
+            return;
+        }
+
+        const highlightedItem = allResults[focusedIndex];
+        if (showPreview && !isCmdCommand && highlightedItem) {
+            const actions = previewActions(highlightedItem);
+            if (previewFocused) {
+                // Up/Down walk the pane's actions; Left goes back to the list.
+                if (e.key === "ArrowLeft") {
+                    e.preventDefault();
+                    setPreviewFocus(null);
+                } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                    e.preventDefault();
+                    const step = e.key === "ArrowDown" ? 1 : -1;
+                    setPreviewFocus({ key: focusKey, action: Math.min(Math.max(previewFocus!.action + step, 0), actions.length - 1) });
+                } else if (e.key === "Enter") {
+                    e.preventDefault();
+                    const action = actions[previewFocus!.action];
+                    if (action) runPreviewAction(action.id, highlightedItem);
+                }
+                if (["ArrowLeft", "ArrowUp", "ArrowDown", "Enter"].includes(e.key)) return;
+            } else if (e.key === "ArrowRight" && !e.defaultPrevented && actions.length) {
+                // Only from the end of the search text, so Right still moves
+                // the caret while editing. An accepted completion arrives
+                // here already default-prevented.
+                const input = e.target instanceof HTMLInputElement ? e.target : null;
+                if (!input || (input.selectionStart === input.value.length && input.selectionEnd === input.value.length)) {
+                    e.preventDefault();
+                    setPreviewFocus({ key: focusKey, action: 0 });
+                    return;
+                }
+            }
+        }
         if (e.key === "Enter" && blockNextEnterRef.current) {
             blockNextEnterRef.current = false;
             return;
@@ -753,31 +855,15 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
             clearQuery();
         } else if (e.key === "Enter" && allResults[focusedIndex]) {
             const item = allResults[focusedIndex];
-            const hasArgs = !!item.args && item.args.length > 0;
-            if (hasArgs && (item.type === "command" || item.type === "commandOpen" || item.type === "commandConfirm" || item.type === "commandConfirmOpen")) {
+            // Commands that take arguments or ask for confirmation open their
+            // own UI; the Enter must not also reach it.
+            if (item.type.startsWith("command") && ((item.args?.length ?? 0) > 0 || item.type.startsWith("commandConfirm"))) {
                 e.preventDefault();
-                runCommandRequest(item);
-            } else if (item.type === "command" || item.type === "commandOpen") {
-                await runCommand(item);
-            } else if (item.type === "commandConfirm" || item.type === "commandConfirmOpen") {
-                e.preventDefault();
-                setTriggeredIndex(focusedIndex);
-                setTimeout(() => setTriggeredIndex(-1), 100);
-            } else if (item.type === "webSearch" && webEntry) {
-                await openSearch(toHistoryEntry(webEntry.resolved));
-            } else if (item.type === "askAi") {
-                openAi(item.name);
-            } else if (item.type === "webSuggestion") {
-                openBlockEntry(item);
-            } else if (item.type === "app") {
-                recordChoice(item);
-                await window.apps.openApp(item);
-            } else if (item.path) {
-                recordChoice(item);
-                window.file.openPath(item.path);
             }
+            await activate(item, focusedIndex);
         }
-    }, [isContextMenuOpen, focusedIndex, allResults, isCmdCommand, cmdCommand, runCommandRequest, webEntry, openBlockEntry, runCommand, clearQuery, recordChoice]);
+    }, [isContextMenuOpen, togglePreview, focusedIndex, allResults, isCmdCommand, cmdCommand, clearQuery, activate,
+        showPreview, previewFocused, previewFocus, focusKey, runPreviewAction]);
 
     useEffect(() => {
         window.addEventListener("keydown", handleKeyDown);
@@ -959,9 +1045,12 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
         );
     };
 
+    const previewItem = showPreview && !isCmdCommand && !settling ? allResults[focusedIndex] ?? null : null;
+
     return (
         <TooltipProvider>
-        <ScrollArea ref={scrollAreaRef} className="w-full flex-1 min-h-0 px-5">
+        <div className="flex flex-1 min-h-0 w-full">
+        <ScrollArea ref={scrollAreaRef} className={`flex-1 min-w-0 ${showPreview ? "pl-5 pr-3" : "px-5"}`}>
             {isCmdCommand ? (
                 <div>
                     <div className="text-center text-[11px] font-semibold tracking-[0.1em] uppercase text-tone-250 mb-2">CMD Command</div>
@@ -1005,6 +1094,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                                         unPinApp={unPinApp}
                                         isAppPinned={isApp ? isAppPinned(item) : false}
                                         logo={isApp ? logoMap.get(getLogoKey(item)) : undefined}
+                                        fileIcon={iconFor(item)}
                                         triggerAction={triggeredIndex === itemIndex}
                                         triggerContextMenu={triggeredContextMenuIndex === itemIndex}
                                         onContextMenuOpenChange={handleContextMenuOpenChange}
@@ -1024,6 +1114,16 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                 )
             )}
         </ScrollArea>
+        {showPreview && (
+            <PreviewPane
+                item={previewItem}
+                logo={previewItem?.type === "app" ? logoMap.get(getLogoKey(previewItem)) : undefined}
+                fileIcon={previewItem ? iconFor(previewItem) : undefined}
+                activeAction={previewFocused ? previewFocus!.action : -1}
+                onAction={runPreviewAction}
+            />
+        )}
+        </div>
         </TooltipProvider>
     );
 }

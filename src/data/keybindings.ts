@@ -53,6 +53,10 @@ export const BINDINGS: Binding[] = [
         id: "results-complete", group: "Results", editable: false, default: "Right",
         label: "Accept suggestion", description: "Takes the greyed-out completion in the search box.",
     },
+    {
+        id: "toggle-preview", group: "Results", editable: true, default: "Alt+P",
+        label: "Preview pane", description: "Shows details, and a thumbnail for files, beside the results.",
+    },
 
     {
         id: "ai-new-chat", group: "AI", editable: true, default: "Ctrl+N",

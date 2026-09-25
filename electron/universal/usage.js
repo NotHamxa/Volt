@@ -164,6 +164,13 @@ export function usageSignals(usage, normalisedQuery, now = Date.now()) {
     return signals;
 }
 
+/** When `item` was last opened, or null if Volt has never seen it used. */
+export function lastUsed(item, now = Date.now()) {
+    const { items } = loadUsage(now);
+    const entry = items[usageKey(item)] ?? (item?.type === "app" ? items[legacyKeyFor(item)] : undefined);
+    return entry?.t ?? null;
+}
+
 /** Drops app history for apps that are no longer installed; other types keep theirs. */
 export function pruneUsage(appCache, now = Date.now()) {
     const usage = loadUsage(now);

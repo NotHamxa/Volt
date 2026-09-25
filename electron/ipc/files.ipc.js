@@ -2,6 +2,8 @@ import { ipcMain, shell, dialog } from "electron";
 import {searchFilesAndFolders} from "../universal/search.js";
 import {cacheFolder, deleteFolder} from "../universal/folderCache.js";
 import {openFileWith, copyFileToClipboard} from "../platform.js";
+import {getPreview} from "../universal/preview.js";
+import {fileIcons} from "../universal/fileIcons.js";
 
 export function registerFilesIpc({
                                      mainWindow,
@@ -23,6 +25,9 @@ export function registerFilesIpc({
         }
         return counts;
     });
+
+    ipcMain.handle("get-preview", (_, item) => getPreview(item));
+    ipcMain.handle("get-file-icons", (_, items) => fileIcons(items));
 
     ipcMain.on("open-path", async (_, filePath) => {
         await shell.openPath(filePath);

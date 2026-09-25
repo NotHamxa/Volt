@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 import {SearchQueryT} from "@/interfaces/searchQuery.ts";
+import type {ItemPreview} from "@/interfaces/preview.ts";
 
 export {};
 
@@ -225,6 +226,9 @@ declare global {
             openFileWith:(path: string) => void;
             copyFileToClipboard:(path: string) => void;
             cacheFolder:(path: string) => Promise<boolean>;
+            getPreview:(item: SearchQueryT) => Promise<ItemPreview>;
+            /** Windows file-type icons as data URLs, keyed by each item's path. */
+            getFileIcons:(items: SearchQueryT[]) => Promise<Record<string, string | null>>;
         }
     }
 }

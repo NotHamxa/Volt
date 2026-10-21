@@ -2,101 +2,138 @@ import path from "path";
 import fs from "fs";
 import os from "os";
 import { spawn } from "child_process";
-import { registerProvider } from "./provider.js";
+import { registerProvider, withResumeFallback } from "./provider.js";
 import { codexAuthMode } from "./cliAuth.js";
 import { workspaceDir } from "./workspace.js";
-import { describeCodexItem } from "./trace.js";
+import { describeCodexItem, clipOutput } from "./trace.js";
+import { resolveCli, killTree, track } from "./cliProcess.js";
 
 /**
- * Codex through the user's installed CLI, driven by `codex exec --json`.
+ * Codex through the user's installed CLI, driven over `codex app-server`.
  *
  * Spawned directly rather than through @openai/codex-sdk: that package depends
  * on @openai/codex, which ships its own copy of the binary — the same
  * duplicate-a-large-binary problem the Claude adapter avoids. Auth comes from
  * the user's existing `codex login`.
  *
- * `thread.started` carries the id that `codex exec resume <id>` needs, which is
- * what makes follow-up turns continue a conversation rather than restart it.
+ * The app-server rather than `codex exec --json`, because exec can't ask:
+ * a command that needed approval was simply refused, so the only choices
+ * were a sandbox that blocked the work or one that allowed everything. Over
+ * the app-server's JSON-RPC, Codex asks and the person at the keyboard
+ * answers — the same approval prompts Claude uses. It also streams the answer
+ * and its reasoning summaries as they're written, where exec delivered each
+ * message whole.
+ *
+ * One app-server per turn: the thread lives on disk, and `thread/resume`
+ * picks it back up, so nothing has to be kept running between questions.
  */
 
 const BIN_NAME = process.platform === "win32" ? "codex.exe" : "codex";
 
+// Known install folders, checked before PATH and the npm shim folder.
 function candidatePaths() {
     const home = os.homedir();
     return [
         path.join(home, "AppData", "Local", "Programs", "OpenAI", "Codex", "bin", BIN_NAME),
         path.join(home, ".local", "bin", BIN_NAME),
-        path.join(home, "AppData", "Roaming", "npm", BIN_NAME),
         "/usr/local/bin/codex",
         "/opt/homebrew/bin/codex",
     ];
 }
 
-let cachedPath;
-
+/** `{ path, command, args, env }` for the installed CLI, or null. */
 export function findCodexBinary() {
-    if (cachedPath !== undefined) return cachedPath;
-    for (const candidate of candidatePaths()) {
-        try {
-            if (fs.existsSync(candidate)) {
-                cachedPath = candidate;
-                return cachedPath;
-            }
-        } catch { /* keep looking */ }
-    }
-    cachedPath = null;
-    return cachedPath;
+    return resolveCli("codex", candidatePaths());
 }
 
-const SANDBOX_CONTROL = {
-    id: "sandbox",
-    label: "Sandbox",
+function spawnCodex(cli, args, options) {
+    return track(spawn(cli.command, [...cli.args, ...args], {
+        ...options,
+        env: { ...process.env, ...cli.env },
+        windowsHide: true,
+    }));
+}
+
+/**
+ * How much Codex may do without asking. Each is a pairing of the sandbox the
+ * commands run in and when Codex has to stop and ask — the same four modes,
+ * in the same words, as Claude's picker, so switching provider doesn't mean
+ * learning a second vocabulary. Picking one makes it the default for new
+ * conversations too.
+ */
+const MODE_CONTROL = {
+    id: "mode",
+    label: "Mode",
     type: "select",
+    sticky: true,
     options: [
-        { id: "read-only", label: "Read only" },
-        { id: "workspace-write", label: "Workspace write" },
+        { id: "ask", label: "Ask first", detail: "Reads freely; asks before changing files or running anything else" },
+        { id: "edits", label: "Auto-edit", detail: "Edits inside the workspace go ahead; asks to go further" },
+        { id: "auto", label: "Auto", detail: "A reviewer model approves routine requests; asks about the rest" },
+        { id: "full", label: "Full access", detail: "No sandbox — any file, any command, the network", danger: true },
     ],
-    default: "read-only",
+    default: "ask",
 };
+const MODES = new Set(MODE_CONTROL.options.map(o => o.id));
+
+/** Mode → the sandbox and approval policy the app-server is given. */
+const MODE_POLICY = {
+    ask: { sandbox: "read-only", approvalPolicy: "untrusted", approvalsReviewer: "user" },
+    edits: { sandbox: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "user" },
+    auto: { sandbox: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "auto_review" },
+    full: { sandbox: "danger-full-access", approvalPolicy: "never", approvalsReviewer: "user" },
+};
+
+/** Chats from before modes picked a sandbox instead; each maps to its nearest mode. */
+const LEGACY_SANDBOX = { "read-only": "ask", "workspace-write": "edits", "danger-full-access": "full" };
+
+function resolveMode(settings) {
+    if (MODES.has(settings?.mode)) return settings.mode;
+    return LEGACY_SANDBOX[settings?.sandbox] ?? "ask";
+}
 
 // Only reached when the app-server can't be asked. The sentinel is a real
 // string rather than "" because Radix's Select rejects empty values.
 const DEFAULT_MODEL = "default";
 const FALLBACK_MODELS = [
-    { id: DEFAULT_MODEL, label: "CLI default", controls: [SANDBOX_CONTROL] },
+    { id: DEFAULT_MODEL, label: "CLI default", controls: [MODE_CONTROL] },
 ];
 
 const titleCase = (value) => value.charAt(0).toUpperCase() + value.slice(1);
 
+const CLIENT_INFO = { name: "volt", title: "Volt", version: "1.0.0" };
+
+// --- JSON-RPC ----------------------------------------------------------------
+
 /**
- * The real catalogue, from the CLI's app-server rather than a list typed out
- * here. `codex exec` has no models command, but `codex app-server` speaks
- * newline-delimited JSON-RPC and answers `model/list` with each model's
- * supported reasoning efforts — which genuinely differ between them.
- *
- * Cached for the process lifetime: this costs a spawn and a handshake.
+ * Newline-delimited JSON-RPC over a child's stdio, both ways: calls go out
+ * and get answered, and the server sends notifications and requests of its
+ * own — an approval is a request *from* Codex, answered with `respond`.
  */
-let modelCache = null;
-
-async function fetchModels() {
-    if (modelCache) return modelCache;
-
-    const bin = findCodexBinary();
-    if (!bin) return FALLBACK_MODELS;
-
-    const child = spawn(bin, ["app-server"], { stdio: ["pipe", "pipe", "ignore"], windowsHide: true });
+function rpcClient(child, { onNotification, onRequest, trace } = {}) {
     const pending = new Map();
     let nextId = 1;
-
-    const call = (method, params) => new Promise((resolve, reject) => {
-        const id = nextId++;
-        pending.set(id, { resolve, reject });
-        child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id, method, params })}\n`);
-    });
-
     let buffer = "";
+    let closed = null;
+
+    const send = (message) => {
+        if (closed) return;
+        try {
+            child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", ...message })}\n`);
+        } catch { /* the close handler reports it */ }
+    };
+
+    const fail = (err) => {
+        closed ??= err;
+        for (const { reject } of pending.values()) reject(err);
+        pending.clear();
+    };
+
+    // Decoded by the stream, not per chunk: a chunk can end halfway through a
+    // multi-byte character, and decoding it alone mangles that character.
+    child.stdout.setEncoding("utf8");
     child.stdout.on("data", (data) => {
-        buffer += data.toString("utf8");
+        buffer += data;
         let index;
         while ((index = buffer.indexOf("\n")) !== -1) {
             const line = buffer.slice(0, index).trim();
@@ -106,37 +143,84 @@ async function fetchModels() {
             try {
                 message = JSON.parse(line);
             } catch {
-                continue; // notifications and log lines share the pipe
+                continue; // log noise sharing the pipe
             }
-            const waiter = pending.get(message.id);
-            if (!waiter) continue;
-            pending.delete(message.id);
-            if (message.error) waiter.reject(new Error(message.error.message ?? "app-server error"));
-            else waiter.resolve(message.result);
+            if (message.method && message.id !== undefined) {
+                trace?.({ request: message });
+                onRequest?.(message);
+            } else if (message.method) {
+                // Deltas are too many to be worth keeping; the completed
+                // items carry the same text.
+                if (!/\/(delta|outputDelta|summaryTextDelta|textDelta)$/.test(message.method)) trace?.(message);
+                onNotification?.(message);
+            } else {
+                const waiter = pending.get(message.id);
+                if (!waiter) continue;
+                pending.delete(message.id);
+                if (message.error) waiter.reject(Object.assign(new Error(message.error.message ?? "app-server error"), { rpc: message.error }));
+                else waiter.resolve(message.result);
+            }
         }
     });
-    child.on("error", (err) => {
-        for (const { reject } of pending.values()) reject(err);
-        pending.clear();
-    });
+    child.on("error", fail);
+    child.on("close", (code) => fail(new Error(`Codex app-server exited${code ? ` with code ${code}` : ""}`)));
+    // A write after the server died would otherwise throw unhandled.
+    child.stdin.on("error", () => {});
 
-    const timeout = setTimeout(() => {
-        for (const { reject } of pending.values()) reject(new Error("timed out"));
-        pending.clear();
-        try { child.kill(); } catch { /* already gone */ }
-    }, 15000);
+    return {
+        call: (method, params) => new Promise((resolve, reject) => {
+            if (closed) { reject(closed); return; }
+            const id = nextId++;
+            pending.set(id, { resolve, reject });
+            send({ id, method, params });
+        }),
+        notify: (method, params) => send(params === undefined ? { method } : { method, params }),
+        respond: (id, result) => send({ id, result }),
+        respondError: (id, message) => send({ id, error: { code: -32601, message } }),
+        get closed() { return closed; },
+    };
+}
+
+/** The handshake every app-server connection starts with. */
+async function initialize(rpc) {
+    await rpc.call("initialize", {
+        clientInfo: CLIENT_INFO,
+        // Approval routing (`approvalsReviewer`) is behind the experimental flag.
+        capabilities: { experimentalApi: true, optOutNotificationMethods: ["turn/diff/updated"] },
+    });
+    rpc.notify("initialized");
+}
+
+// --- models -------------------------------------------------------------------
+
+/**
+ * The real catalogue, from the CLI's app-server rather than a list typed out
+ * here: `model/list` answers with each model's supported reasoning efforts —
+ * which genuinely differ between them.
+ *
+ * Cached for the process lifetime: this costs a spawn and a handshake.
+ */
+let modelCache = null;
+
+async function fetchModels() {
+    if (modelCache) return modelCache;
+
+    const cli = findCodexBinary();
+    if (!cli) return FALLBACK_MODELS;
+
+    const child = spawnCodex(cli, ["app-server"], { stdio: ["pipe", "pipe", "ignore"] });
+    const rpc = rpcClient(child);
+    const timeout = setTimeout(() => killTree(child), 15000);
     timeout.unref?.();
 
     try {
-        await call("initialize", {
-            clientInfo: { name: "volt", title: "Volt", version: "1.0.0" },
-        });
+        await initialize(rpc);
 
         const models = [];
         let cursor = null;
         // Paginated, so keep asking until the server stops handing back a cursor.
         do {
-            const page = await call("model/list", cursor ? { cursor } : {});
+            const page = await rpc.call("model/list", cursor ? { cursor } : {});
             models.push(...(page?.data ?? []));
             cursor = page?.nextCursor ?? null;
         } while (cursor && models.length < 200);
@@ -147,13 +231,13 @@ async function fetchModels() {
         modelCache = visible.map(m => ({
             id: m.id,
             label: m.displayName ?? m.id,
-            controls: [...effortControl(m), SANDBOX_CONTROL],
+            controls: [...effortControl(m), MODE_CONTROL],
         }));
         return modelCache;
     } finally {
         clearTimeout(timeout);
         try { child.stdin.end(); } catch { /* already closed */ }
-        try { child.kill(); } catch { /* already gone */ }
+        killTree(child);
     }
 }
 
@@ -174,49 +258,18 @@ function effortControl(model) {
     }];
 }
 
-/**
- * Turns a child process's stdout into lines. Chunks split mid-line, so the
- * tail is held back until its newline arrives.
- */
-async function* jsonLines(child, signal) {
-    let buffer = "";
-    const queue = [];
-    let notify;
-    let finished = false;
-    let failure = null;
+// Used when the catalogue hasn't been read; otherwise the model's own list.
+const KNOWN_EFFORTS = new Set(["none", "minimal", "low", "medium", "high", "xhigh", "ultra"]);
 
-    child.stdout.on("data", (data) => {
-        buffer += data.toString("utf8");
-        let index;
-        while ((index = buffer.indexOf("\n")) !== -1) {
-            const line = buffer.slice(0, index).trim();
-            buffer = buffer.slice(index + 1);
-            if (line) queue.push(line);
-        }
-        notify?.();
-    });
-    child.on("error", (err) => { failure = err; finished = true; notify?.(); });
-    child.on("close", () => {
-        const tail = buffer.trim();
-        if (tail) queue.push(tail);
-        finished = true;
-        notify?.();
-    });
-
-    const onAbort = () => { try { child.kill(); } catch { /* already gone */ } };
-    signal?.addEventListener("abort", onAbort, { once: true });
-
-    try {
-        while (true) {
-            while (queue.length) yield queue.shift();
-            if (finished) break;
-            await new Promise(resolve => { notify = resolve; });
-            notify = null;
-        }
-        if (failure) throw failure;
-    } finally {
-        signal?.removeEventListener("abort", onAbort);
-    }
+/** Settings arrive from the renderer; only levels the model actually offers get through. */
+function allowedEffort(model, effort) {
+    if (typeof effort !== "string") return null;
+    const levels = modelCache
+        ?.find(m => m.id === model)
+        ?.controls.find(c => c.id === "effort")
+        ?.options.map(o => o.id);
+    const allowed = levels?.length ? levels.includes(effort) : KNOWN_EFFORTS.has(effort);
+    return allowed && /^[a-z]+$/.test(effort) ? effort : null;
 }
 
 export const codexProvider = registerProvider({
@@ -226,8 +279,8 @@ export const codexProvider = registerProvider({
     needsKey: false,
 
     async isAvailable() {
-        const bin = findCodexBinary();
-        if (bin) return { available: true, detail: bin };
+        const cli = findCodexBinary();
+        if (cli) return { available: true, detail: cli.path };
         return { available: false, detail: "Codex CLI not found. Install it, then re-check." };
     },
 
@@ -244,113 +297,373 @@ export const codexProvider = registerProvider({
         return codexAuthMode();
     },
 
-    // Models carry their own reasoning levels; the sandbox is the only knob
+    // Models carry their own reasoning levels; the mode is the only knob
     // that applies uniformly.
     controls() {
-        return [SANDBOX_CONTROL];
+        return [MODE_CONTROL];
     },
 
-    async *send({ prompt, sessionId, model, settings, signal }) {
-        const bin = findCodexBinary();
-        if (!bin) {
+    async *send({ prompt, sessionId, history, model, settings, signal, toolless, requestPermission, trace }) {
+        const cli = findCodexBinary();
+        if (!cli) {
             yield { type: "error", message: "Codex CLI not found." };
+            yield { type: "done" };
             return;
         }
 
-        const root = workspaceDir();
-        // --cd sets Codex's own workspace root; the spawn cwd keeps anything
-        // it shells out to in the same place.
-        const args = ["exec", "--json", "--skip-git-repo-check", "--color", "never", "--cd", root];
-        if (model && model !== DEFAULT_MODEL) args.push("--model", model);
-        // Reasoning effort has no flag of its own; it's a config override.
-        if (settings?.effort) args.push("-c", `model_reasoning_effort="${settings.effort}"`);
-        args.push("--sandbox", settings?.sandbox ?? "read-only");
-        // A resumed thread takes the prompt after the session id.
-        if (sessionId) args.push("resume", sessionId, prompt);
-        else args.push(prompt);
-
-        const child = spawn(bin, args, {
-            cwd: root,
-            // Without this the CLI waits on stdin for extra input and never
-            // starts the turn.
-            stdio: ["ignore", "pipe", "pipe"],
-            windowsHide: true,
-        });
-
-        let stderr = "";
-        child.stderr.on("data", (data) => { stderr += data.toString("utf8"); });
-
-        let resolvedSession = sessionId ?? null;
-        let sawText = false;
-        try {
-            for await (const line of jsonLines(child, signal)) {
-                let event;
-                try {
-                    event = JSON.parse(line);
-                } catch {
-                    continue; // banner or progress noise, not an event
-                }
-
-                if (event.type === "thread.started" && event.thread_id) {
-                    resolvedSession = event.thread_id;
-                    continue;
-                }
-
-                // Newer builds may stream deltas; take them when offered and
-                // fall back to the completed message when they're absent.
-                if (event.type === "item.delta" && event.delta?.text) {
-                    // Reasoning streams down the same channel as the answer and
-                    // is only distinguishable by the item it belongs to. When
-                    // that isn't stated, treating it as the answer is the safer
-                    // guess — the alternative loses the reply entirely.
-                    if (event.item?.type === "reasoning") {
-                        yield { type: "reasoning", text: event.delta.text };
-                        continue;
-                    }
-                    sawText = true;
-                    yield { type: "text", text: event.delta.text };
-                    continue;
-                }
-
-                if (event.type === "item.completed" && event.item?.type === "agent_message") {
-                    if (!sawText && event.item.text) {
-                        yield { type: "text", text: event.item.text };
-                    }
-                    sawText = false;
-                    continue;
-                }
-
-                // Everything else the CLI reports is work in progress. Started
-                // rather than completed, so the line appears while the step is
-                // running rather than after it is already over.
-                if (event.type === "item.started" && event.item && event.item.type !== "agent_message") {
-                    if (event.item.type === "reasoning") continue;
-                    yield { type: "activity", ...describeCodexItem(event.item) };
-                    continue;
-                }
-
-                if (event.type === "item.completed" && event.item?.type === "reasoning" && event.item.text) {
-                    yield { type: "reasoning", text: event.item.text };
-                    continue;
-                }
-
-                if (event.type === "turn.failed" || event.type === "error") {
-                    const message = event.error?.message ?? event.message ?? "The turn failed.";
-                    yield { type: "error", message };
-                }
-            }
-        } catch (err) {
-            if (!signal?.aborted) {
-                yield { type: "error", message: err?.message ?? "Could not run the Codex CLI." };
-                return;
-            }
-        }
-
-        // A non-zero exit with nothing on stdout means the failure is in stderr.
-        if (!signal?.aborted && child.exitCode && child.exitCode !== 0 && stderr.trim()) {
-            yield { type: "error", message: stderr.trim().slice(0, 300) };
-        }
-
-        yield { type: "done", sessionId: resolvedSession ?? undefined };
+        const run = (turn) => runTurn({ cli, ...turn, model, settings, signal, toolless, requestPermission, trace });
+        // A one-shot completion has no thread to resume or transcript to replay.
+        if (toolless) yield* run({ sessionId: null, prompt });
+        else yield* withResumeFallback({ sessionId, prompt, history, run });
     },
 });
+
+/**
+ * Whether the user's own Codex config already picks a Windows sandbox, in
+ * which case theirs stands. Read fresh each turn: it's one small file, and a
+ * change made in a terminal should apply without restarting Volt.
+ */
+function configSetsWindowsSandbox() {
+    const home = process.env.CODEX_HOME || path.join(os.homedir(), ".codex");
+    try {
+        const text = fs.readFileSync(path.join(home, "config.toml"), "utf8");
+        // The [windows] table, up to the next table header.
+        const table = /^\s*\[windows\]\s*$([\s\S]*?)(?=^\s*\[|(?![\s\S]))/m.exec(text)?.[1] ?? "";
+        return /^\s*sandbox\s*=/m.test(table) || /^\s*windows\.sandbox\s*=/m.test(text);
+    } catch {
+        return false;
+    }
+}
+
+/** A plain async queue: events pushed from callbacks, pulled by the generator. */
+function eventQueue() {
+    const items = [];
+    let wake = null;
+    return {
+        push(item) { items.push(item); wake?.(); },
+        async *drain(isDone) {
+            while (true) {
+                while (items.length) yield items.shift();
+                if (isDone()) return;
+                await new Promise(resolve => { wake = resolve; });
+                wake = null;
+            }
+        },
+    };
+}
+
+/** Rate-limit windows by length, in the names the stats line already knows. */
+const WINDOW_BY_MINUTES = { 300: "five_hour", 10080: "seven_day" };
+
+/** How full the tighter of the plan's windows is, if the snapshot says. */
+function limitFrom(snapshot) {
+    const windows = [snapshot?.primary, snapshot?.secondary].filter(w => typeof w?.usedPercent === "number");
+    if (!windows.length) return null;
+    const tightest = windows.reduce((a, b) => (b.usedPercent > a.usedPercent ? b : a));
+    return {
+        window: WINDOW_BY_MINUTES[tightest.windowDurationMins] ?? `${tightest.windowDurationMins ?? "?"}-minute`,
+        utilization: tightest.usedPercent / 100,
+    };
+}
+
+/** What an approval prompt shows for each kind of request. */
+function approvalPrompt(method, params, items) {
+    if (method === "item/commandExecution/requestApproval") {
+        const command = describeCodexItem({ type: "commandExecution", command: params.command }).detail ?? params.command;
+        return {
+            toolName: "Codex command",
+            title: params.reason ? `Codex wants to run a command: ${params.reason}` : "Codex wants to run a command",
+            detail: command || params.reason || undefined,
+        };
+    }
+    if (method === "item/fileChange/requestApproval") {
+        const changes = items.get(params.itemId)?.changes ?? [];
+        const files = changes.map(c => `${c.kind?.type ?? c.kind ?? "edit"} ${c.path}`).join("\n");
+        return {
+            toolName: "Codex file change",
+            title: params.reason ? `Codex wants to change files: ${params.reason}` : "Codex wants to change files",
+            detail: [files, params.grantRoot ? `Write access under ${params.grantRoot}` : ""].filter(Boolean).join("\n") || undefined,
+        };
+    }
+    // item/permissions/requestApproval: wider access for the rest of the turn.
+    return {
+        toolName: "Codex permissions",
+        title: params.reason ? `Codex is asking for more access: ${params.reason}` : "Codex is asking for more access",
+        detail: JSON.stringify(params.permissions ?? {}, null, 2),
+    };
+}
+
+/** One turn: start (or resume) the thread, send the prompt, relay until it completes. */
+async function* runTurn({ cli, prompt, sessionId, model, settings, signal, toolless, requestPermission, trace }) {
+    const root = workspaceDir();
+    const mode = toolless ? null : resolveMode(settings);
+    // Drafting only wants text back: no writes, no commands, nothing kept.
+    const policy = toolless
+        ? { sandbox: "read-only", approvalPolicy: "never", approvalsReviewer: "user" }
+        : MODE_POLICY[mode];
+
+    // Without a Windows sandbox chosen, Codex refuses every command outright —
+    // read-only or not — and says so only on stderr. The unelevated one needs
+    // no admin prompt and enforces the same policy.
+    const args = ["app-server"];
+    if (process.platform === "win32" && !configSetsWindowsSandbox()) {
+        args.push("-c", 'windows.sandbox="unelevated"');
+    }
+    const child = spawnCodex(cli, args, { cwd: root, stdio: ["pipe", "pipe", "pipe"] });
+
+    let stderr = "";
+    child.stderr.setEncoding("utf8");
+    child.stderr.on("data", (data) => {
+        // Only the tail matters, and a chatty CLI shouldn't grow this forever.
+        stderr = (stderr + data).slice(-4000);
+        trace?.({ stderr: data });
+    });
+
+    const queue = eventQueue();
+    let finished = false;
+    let threadId = null;
+    let turnId = null;
+    // Items by id: a file change's approval names the item, not its files.
+    const items = new Map();
+    // Items whose text arrived as deltas, so the completed copy isn't added twice.
+    const streamed = new Set();
+    let lastTextItem = null;
+    // Set by turn/completed; the server closing before then is a crash.
+    let turnDone = false;
+    let usage = { inputTokens: 0, outputTokens: 0 };
+    let retryStep = null;
+
+    const emitText = (itemId, text) => {
+        if (!text) return;
+        // Each message is a paragraph of its own; run together, "I'll check."
+        // and the answer became one sentence.
+        const fresh = lastTextItem !== null && lastTextItem !== itemId;
+        lastTextItem = itemId;
+        queue.push({ type: "text", text: fresh ? `\n\n${text}` : text });
+    };
+
+    const onNotification = ({ method, params = {} }) => {
+        // Another thread's events (a subagent's) don't belong in this answer.
+        if (params.threadId && threadId && params.threadId !== threadId) return;
+        // Anything after a retry means it went through.
+        if (retryStep && method !== "error") {
+            queue.push({ type: "step", step: { id: retryStep, status: "done" } });
+            retryStep = null;
+        }
+        switch (method) {
+            case "item/agentMessage/delta":
+                streamed.add(params.itemId);
+                emitText(params.itemId, params.delta);
+                return;
+            case "item/reasoning/summaryPartAdded":
+                // Summary parts are paragraphs; the first needs no break.
+                if (params.summaryIndex > 0) queue.push({ type: "reasoning", text: "\n\n" });
+                return;
+            case "item/reasoning/summaryTextDelta":
+            case "item/reasoning/textDelta":
+                streamed.add(params.itemId);
+                if (params.delta) queue.push({ type: "reasoning", text: params.delta });
+                return;
+            case "turn/plan/updated":
+                if (Array.isArray(params.plan)) {
+                    queue.push({
+                        type: "plan",
+                        items: params.plan.map(p => ({
+                            text: String(p.step ?? ""),
+                            status: p.status === "inProgress" ? "in_progress" : p.status === "completed" ? "completed" : "pending",
+                        })),
+                    });
+                }
+                return;
+            case "thread/tokenUsage/updated": {
+                const last = params.tokenUsage?.last;
+                // Resuming replays the previous turn's figures; only this
+                // turn's requests count toward this answer.
+                if (!last || !turnId || params.turnId !== turnId) return;
+                usage = {
+                    inputTokens: usage.inputTokens + (last.inputTokens ?? 0),
+                    outputTokens: usage.outputTokens + (last.outputTokens ?? 0),
+                };
+                queue.push({ type: "stats", stats: usage });
+                return;
+            }
+            case "account/rateLimits/updated": {
+                const limit = limitFrom(params.rateLimits);
+                if (limit) queue.push({ type: "stats", stats: { limit } });
+                return;
+            }
+            case "model/rerouted":
+                if (params.toModel) queue.push({ type: "stats", stats: { model: params.toModel } });
+                return;
+            case "error": {
+                const message = params.error?.message ?? "Codex reported an error.";
+                if (params.willRetry) {
+                    // Retried by Codex itself; shown so the wait says what it is.
+                    const id = `retry-${Date.now()}`;
+                    if (retryStep) queue.push({ type: "step", step: { id: retryStep, status: "failed" } });
+                    retryStep = id;
+                    queue.push({ type: "step", step: { id, kind: "tool", label: "Retrying", detail: message.split("\n")[0].slice(0, 90), status: "running" } });
+                } else {
+                    queue.push({ type: "error", message });
+                }
+                return;
+            }
+            case "item/started":
+            case "item/completed": {
+                const item = params.item;
+                if (!item?.id) return;
+                items.set(item.id, item);
+                const completed = method === "item/completed";
+                if (item.type === "agentMessage") {
+                    if (completed && !streamed.has(item.id)) emitText(item.id, item.text?.trim());
+                    return;
+                }
+                if (item.type === "reasoning") {
+                    if (completed && !streamed.has(item.id)) {
+                        const text = [...(item.summary ?? []), ...(item.summary?.length ? [] : item.content ?? [])].join("\n\n");
+                        if (text.trim()) queue.push({ type: "reasoning", text });
+                    }
+                    return;
+                }
+                // The user's own message, and the plan text plan mode writes,
+                // aren't work.
+                if (item.type === "userMessage" || item.type === "plan" || item.type === "hookPrompt") return;
+                const failed = item.status === "failed" || item.status === "declined"
+                    || (typeof item.exitCode === "number" && item.exitCode !== 0)
+                    || Boolean(item.error);
+                const output = item.aggregatedOutput
+                    ?? item.error?.message
+                    ?? item.result?.content?.find?.(c => c?.type === "text")?.text;
+                queue.push({
+                    type: "step",
+                    step: {
+                        id: item.id,
+                        ...describeCodexItem(item),
+                        status: completed ? (failed ? "failed" : "done") : "running",
+                        ...(completed && typeof output === "string" ? { output: clipOutput(output) } : {}),
+                        ...(completed && item.status === "declined" && !output ? { output: "Declined." } : {}),
+                        ...(completed && typeof item.exitCode === "number" && item.exitCode !== 0 ? { exitCode: item.exitCode } : {}),
+                    },
+                });
+                return;
+            }
+            case "turn/completed": {
+                const turn = params.turn;
+                if (turnId && turn?.id && turn.id !== turnId) return;
+                if (turn?.status === "failed" && turn.error?.message) {
+                    queue.push({ type: "error", message: turn.error.message });
+                }
+                turnDone = true;
+                finished = true;
+                queue.push(null);
+                return;
+            }
+            default:
+        }
+    };
+
+    /**
+     * Codex asking. Approvals go to the person at the keyboard; questions
+     * and MCP forms have no surface here yet, and are declined rather than
+     * left hanging.
+     */
+    const onRequest = async ({ id, method, params = {} }) => {
+        if (method === "item/commandExecution/requestApproval"
+            || method === "item/fileChange/requestApproval"
+            || method === "item/permissions/requestApproval") {
+            let answer = "deny";
+            if (requestPermission) {
+                try {
+                    answer = await requestPermission({ ...approvalPrompt(method, params, items), signal });
+                } catch { /* a refusal */ }
+            }
+            const allowed = answer === "allow" || answer === "allow-chat";
+            if (method === "item/permissions/requestApproval") {
+                rpc.respond(id, allowed
+                    ? { permissions: params.permissions ?? {}, scope: answer === "allow-chat" ? "session" : "turn" }
+                    : { permissions: {}, scope: "turn" });
+            } else {
+                rpc.respond(id, { decision: answer === "allow-chat" ? "acceptForSession" : allowed ? "accept" : "decline" });
+            }
+            return;
+        }
+        if (method === "item/tool/requestUserInput") {
+            rpc.respond(id, { answers: {} });
+            return;
+        }
+        if (method === "mcpServer/elicitation/request") {
+            rpc.respond(id, { action: "decline", content: null, _meta: null });
+            return;
+        }
+        rpc.respondError(id, `${method} is not supported by Volt`);
+    };
+
+    const rpc = rpcClient(child, { onNotification, onRequest, trace });
+    child.on("close", () => {
+        finished = true;
+        queue.push(null);
+    });
+
+    // Stopping: ask the turn to end, which lets Codex settle its items, and
+    // take the whole tree down if it doesn't — commands it started would
+    // outlive a plain kill.
+    const onAbort = () => {
+        if (threadId && turnId) rpc.call("turn/interrupt", { threadId, turnId }).catch(() => {});
+        setTimeout(() => killTree(child), 1500).unref?.();
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+
+    const resumable = typeof sessionId === "string" && /^[\w][\w.-]*$/.test(sessionId);
+    const modelId = model && model !== DEFAULT_MODEL ? model : undefined;
+
+    try {
+        await initialize(rpc);
+
+        const threadParams = {
+            cwd: root,
+            ...(modelId ? { model: modelId } : {}),
+            approvalPolicy: policy.approvalPolicy,
+            approvalsReviewer: policy.approvalsReviewer,
+            sandbox: policy.sandbox,
+        };
+        const opened = resumable
+            ? await rpc.call("thread/resume", { threadId: sessionId, excludeTurns: true, ...threadParams })
+            : await rpc.call("thread/start", { ...threadParams, ...(toolless ? { ephemeral: true } : {}) });
+        threadId = opened?.thread?.id ?? sessionId;
+        if (opened?.model) yield { type: "stats", stats: { model: opened.model } };
+
+        const effort = allowedEffort(model, settings?.effort);
+        const started = await rpc.call("turn/start", {
+            threadId,
+            input: [{ type: "text", text: prompt, text_elements: [] }],
+            cwd: root,
+            ...(modelId ? { model: modelId } : {}),
+            ...(effort ? { effort } : {}),
+            // Some models default to no summary at all; reasoning is what
+            // makes a long silence readable.
+            summary: "detailed",
+            approvalPolicy: policy.approvalPolicy,
+            approvalsReviewer: policy.approvalsReviewer,
+        });
+        turnId = started?.turn?.id ?? null;
+        if (signal?.aborted) onAbort();
+
+        for await (const event of queue.drain(() => finished)) {
+            if (event) yield event;
+        }
+        if (!turnDone && !signal?.aborted) throw rpc.closed ?? new Error("Codex stopped before the turn finished.");
+    } catch (err) {
+        if (!signal?.aborted) {
+            // "exited with code 1" says nothing; the reason is on stderr.
+            const text = err?.message ?? "Could not run the Codex CLI.";
+            const tail = stderr.trim().slice(-400);
+            yield { type: "error", message: tail && !text.includes(tail) ? `${text}\n${tail}` : text };
+        }
+    } finally {
+        signal?.removeEventListener("abort", onAbort);
+        try { child.stdin.end(); } catch { /* already closed */ }
+        killTree(child);
+    }
+
+    yield { type: "done", sessionId: toolless ? undefined : (threadId ?? undefined) };
+}

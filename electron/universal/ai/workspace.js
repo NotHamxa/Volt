@@ -8,9 +8,9 @@ import { getPrefs } from "./prefs.js";
  *
  * Without this they inherit process.cwd(): the repo during development, and
  * whatever directory the executable happened to be launched from once packaged
- * — neither of which the user chose. Claude runs with permissions bypassed and
- * Codex can be switched to workspace-write, so an unintended root is a real
- * hazard, not just untidy.
+ * — neither of which the user chose. Claude reads freely inside this folder
+ * (and can be set to run tools unasked), and Codex can be switched to
+ * workspace-write, so an unintended root is a real hazard, not just untidy.
  *
  * The default is a dedicated folder under userData, so file work starts
  * somewhere inert. Point it at a project deliberately if you want that.

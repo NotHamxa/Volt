@@ -1,26 +1,31 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import {
-    Square, PanelLeft, Plus, Trash2, ArrowUp, ArrowDown, MessageCircle, RotateCcw, Pencil, Check,
+    Square, PanelLeft, Pin, PinOff, Plus, Trash2, ArrowUp, ArrowDown, MessageCircle, RotateCcw, Pencil, Check, ShieldAlert,
+    ScrollText,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import {
     InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea,
 } from "@/components/ui/input-group.tsx";
+import * as SelectPrimitive from "@radix-ui/react-select";
 import {
-    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    Select, SelectContent, SelectTrigger, SelectValue,
 } from "@/components/ui/select.tsx";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip.tsx";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { Kbd } from "@/components/ui/kbd.tsx";
-import { useChat } from "@/ai/useChat.ts";
+import { useChat, stepsOf, thoughtsOf } from "@/ai/useChat.ts";
 import { useSmoothText } from "@/ai/useSmoothText.ts";
 import { ModelPicker } from "@/ai/modelPicker.tsx";
 import { Markdown, StreamingMarkdown } from "@/ai/markdown.tsx";
 import { CopyButton } from "@/ai/copyButton.tsx";
 import logo from "@/assets/icon.png";
 import { providerLogo, providerLogoTint } from "@/ai/providerLogos.ts";
-import { ActivityTrail } from "@/ai/activityTrail.tsx";
+import { TurnTrace, TurnStats } from "@/ai/turnTrace.tsx";
+import { buildTimeline } from "@/ai/timeline.ts";
+import { matchesCombo } from "@/data/keybindings.ts";
+import { getBinding } from "@/hooks/useKeybindings.ts";
 
 /**
  * Which knobs apply to a given model. Providers whose controls are uniform
@@ -29,7 +34,10 @@ import { ActivityTrail } from "@/ai/activityTrail.tsx";
  */
 function controlsFor(provider: AiProviderInfo | null | undefined, modelId: string): AiControl[] {
     if (!provider) return [];
-    return provider.models.find(m => m.id === modelId)?.controls ?? provider.controls;
+    // No model picked means the CLI's default, which Claude lists as
+    // "default" — without this the mode picker vanished until one was chosen.
+    const entry = provider.models.find(m => m.id === (modelId || "default"));
+    return entry?.controls ?? provider.controls;
 }
 
 /**
@@ -43,8 +51,8 @@ export default function AiPage() {
     const [prompt, setPrompt] = useState("");
     const {
         chat, streaming, stopping, partial, error,
-        reasoning, activities,
-        send, rerun, cancel, openChat, newChat,
+        thoughts, steps, plan, stats, permissions,
+        send, rerun, cancel, openChat, newChat, respondPermission,
     } = useChat();
     const [searchParams, setSearchParams] = useSearchParams();
 
@@ -52,6 +60,8 @@ export default function AiPage() {
     const [providerId, setProviderId] = useState("");
     const [model, setModel] = useState("");
     const [settings, setSettings] = useState<Record<string, string>>({});
+    // Whether clicking away leaves the window up while this view is open.
+    const [keepOpen, setKeepOpen] = useState(true);
     const [chats, setChats] = useState<AiChatSummary[]>([]);
     const [customModels, setCustomModels] = useState<Record<string, string[]>>({});
     const [running, setRunning] = useState<string[]>([]);
@@ -60,6 +70,10 @@ export default function AiPage() {
     const [following, setFollowing] = useState(true);
 
     const scrollRef = useRef<HTMLDivElement>(null);
+    // The composer grows — a long prompt, an approval docked on top — and
+    // the transcript has to clear whatever height it has right now.
+    const composerRef = useRef<HTMLDivElement>(null);
+    const [composerHeight, setComposerHeight] = useState(112);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const seededRef = useRef(false);
     const lastChatIdRef = useRef<string | null>(null);
@@ -79,6 +93,10 @@ export default function AiPage() {
     // A model can narrow its provider's knobs — Claude's Haiku takes no effort
     // level at all — so the model's own list wins when it declares one.
     const controls = useMemo(() => controlsFor(provider, model), [provider, model]);
+
+    // What a turn "cost" is only real money on an API key; on a plan it's a
+    // notional figure that would read as a bill.
+    const showCost = provider?.billing?.mode === "api-key";
 
     // Providers deliver in slabs, not tokens; this paces the reveal so the
     // answer reads as it is written.
@@ -152,6 +170,8 @@ export default function AiPage() {
                 window.ai.getPrefs(),
             ]);
             setProviders(list);
+            setKeepOpen(prefs.keepOpen);
+            window.ai.setKeepOpen(prefs.keepOpen);
 
             // Settings pick the starting point; fall back to whatever is usable
             // if the saved provider has since disappeared.
@@ -182,6 +202,14 @@ export default function AiPage() {
         return () => { cancelled = true; };
     }, [chat?.updatedAt]);
 
+    useLayoutEffect(() => {
+        const el = composerRef.current;
+        if (!el) return;
+        const observer = new ResizeObserver(() => setComposerHeight(el.offsetHeight));
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, []);
+
     // Hold the launcher open while this view is mounted — clicking away mid
     // answer must not dismiss the window and lose the stream.
     useEffect(() => {
@@ -189,11 +217,22 @@ export default function AiPage() {
         return () => window.ai.setMode(false);
     }, []);
 
-    // Ctrl+N starts a fresh conversation. A running turn is left alone: it is
-    // owned by the main process and still writes its answer to its own chat.
+    // That hold is what the pin shows, and turns off. Without it, a window
+    // that suddenly stopped hiding on blur looked like a bug.
+    const toggleKeepOpen = useCallback(() => {
+        const next = !keepOpen;
+        setKeepOpen(next);
+        window.ai.setKeepOpen(next);
+        window.ai.setPrefs({ keepOpen: next });
+    }, [keepOpen]);
+
+    // The new-chat shortcut (Ctrl+N unless rebound) starts a fresh
+    // conversation. Read per keypress, so a rebinding applies at once. A
+    // running turn is left alone: it is owned by the main process and still
+    // writes its answer to its own chat.
     useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => {
-            if (!e.ctrlKey || e.key.toLowerCase() !== "n") return;
+            if (!matchesCombo(e, getBinding("ai-new-chat"))) return;
             e.preventDefault();
             newChat();
             setFollowing(true);
@@ -230,6 +269,26 @@ export default function AiPage() {
         const activeId = chat?.id;
         if (activeId) window.ai.updateChatConfig(activeId, patch);
     }, [chat?.id]);
+
+    /** Saves one control as the provider's default, leaving its others alone. */
+    const rememberDefault = useCallback(async (provider: string, controlId: string, value: string) => {
+        const prefs = await window.ai.getPrefs();
+        await window.ai.setPrefs({ settings: { [provider]: { ...prefs.settings[provider], [controlId]: value } } });
+    }, []);
+
+    /**
+     * A new conversation starts in the remembered access mode, not in
+     * whichever one the chat open before it happened to use.
+     */
+    const startFromDefaults = useCallback(async () => {
+        const sticky = controls.filter(c => c.sticky);
+        if (!sticky.length) return;
+        const saved = (await window.ai.getPrefs()).settings[providerId] ?? {};
+        setSettings(current => ({
+            ...current,
+            ...Object.fromEntries(sticky.map(c => [c.id, saved[c.id] ?? c.default])),
+        }));
+    }, [controls, providerId]);
 
     // Opening a stored chat restores the provider, model and controls it was
     // last used with. Guarded against a provider that has since gone away.
@@ -327,7 +386,9 @@ export default function AiPage() {
         return () => cancelAnimationFrame(frame);
         // updatedAt covers a message's content changing without the count
         // changing — committing a streamed answer over its placeholder.
-    }, [chat?.id, chat?.messages.length, chat?.updatedAt, revealed, following, scrollToBottom]);
+        // An approval prompt, or a step drawn below the text, must scroll
+        // into view like new text.
+    }, [chat?.id, chat?.messages.length, chat?.updatedAt, revealed, steps, thoughts, permissions.length, composerHeight, following, scrollToBottom]);
 
 
     return (
@@ -337,7 +398,7 @@ export default function AiPage() {
                 activeId={chat?.id ?? null}
                 running={running}
                 onOpen={(id) => { openStoredChat(id); inputRef.current?.focus(); }}
-                onNew={() => { newChat(); setFollowing(true); inputRef.current?.focus(); }}
+                onNew={() => { newChat(); startFromDefaults(); setFollowing(true); inputRef.current?.focus(); }}
                 onDelete={async (id) => {
                     await window.ai.deleteChat(id);
                     if (chat?.id === id) newChat();
@@ -361,9 +422,9 @@ export default function AiPage() {
                 {empty ? (
                     <div className="flex flex-col items-center gap-2.5 pb-5">
                         <img src={mark} alt="" className={`w-9 h-9 object-contain opacity-70 ${markTint}`} />
-                        <p className="text-[12px] text-tone-350">Ask anything</p>
+                        <p className="text-12 text-tone-350">Ask anything</p>
                         {provider && !provider.available && (
-                            <p className="text-[10px] text-amber-300/60 text-center max-w-xs">
+                            <p className="text-10 text-amber-300/60 text-center max-w-xs">
                                 {provider.detail}
                             </p>
                         )}
@@ -373,7 +434,7 @@ export default function AiPage() {
                         {/* Bottom padding clears the floating prompt box, so the
                             last message can still be read — and earlier ones
                             slide under the glass rather than stopping at it. */}
-                        <div className="flex flex-col gap-3.5 pt-4 pb-28">
+                        <div className="flex flex-col gap-3.5 pt-4" style={{ paddingBottom: composerHeight + 16 }}>
                             {messages.map((m, i) => {
                                 const isLast = i === messages.length - 1;
                                 const live = isLast && m.role === "assistant" && streaming;
@@ -384,7 +445,7 @@ export default function AiPage() {
                                             <div className="opacity-0 group-hover/msg:opacity-100 focus-within:opacity-100 transition-opacity mt-1">
                                                 <CopyButton getText={() => m.content} label="Copy message" />
                                             </div>
-                                            <div className="rounded-2xl rounded-br-md bg-fill-070 border border-line-060 px-3.5 py-2 text-[12.5px] leading-relaxed text-tone-850 whitespace-pre-wrap break-words">
+                                            <div className="rounded-2xl rounded-br-md bg-fill-070 border border-line-060 px-3.5 py-2 text-12.5 leading-relaxed text-tone-850 whitespace-pre-wrap break-words">
                                                 {m.content}
                                             </div>
                                         </div>
@@ -395,41 +456,87 @@ export default function AiPage() {
                                 // Live values while the turn runs; afterwards the
                                 // copy saved with the message, so every answer
                                 // keeps its own trail across reopens.
-                                const trailReasoning = live ? reasoning : (m.reasoning ?? "");
-                                const trailActivities = live ? activities : (m.activities ?? []);
-                                const showTrail = trailReasoning.trim().length > 0 || trailActivities.length > 0;
+                                const trailThoughts = live ? thoughts : thoughtsOf(m);
+                                const trailSteps = live ? steps : stepsOf(m);
+                                const trailPlan = live ? plan : m.plan;
+                                const turnStats = live ? stats : m.stats;
+                                // Text and the work between its pieces, in the
+                                // order they happened.
+                                const { parts, children } = buildTimeline(body, trailSteps, trailThoughts);
+                                // The plan is the turn's, not one stretch's: it
+                                // rides on the latest stretch of work, or gets
+                                // one of its own when there was no other.
+                                let planAt = parts.map(p => p.type).lastIndexOf("trace");
+                                if (planAt === -1 && (trailPlan?.length ?? 0) > 0) {
+                                    parts.unshift({ type: "trace", key: "plan", items: [] });
+                                    planAt = 0;
+                                }
+                                const firstTrace = parts.findIndex(p => p.type === "trace");
+                                const showTrail = parts.some(p => p.type === "trace");
                                 return (
                                     // min-w-0 so a wide table scrolls inside its
                                     // own box instead of stretching the row.
                                     <div key={i} className="group/msg self-start flex gap-2.5 w-full min-w-0">
                                         <img src={mark} alt="" className={`w-4 h-4 mt-0.5 shrink-0 object-contain opacity-50 ${markTint}`} />
                                         {live && !body && !showTrail ? (
-                                            <span className="flex items-center gap-1.5 text-[11.5px] text-tone-350">
+                                            <span className="flex items-center gap-1.5 text-11.5 text-tone-350">
                                                 <Spinner className="size-3" /> Thinking…
                                             </span>
                                         ) : (
                                             <div className="min-w-0 flex-1">
-                                                {showTrail && (
-                                                    <ActivityTrail
-                                                        reasoning={trailReasoning}
-                                                        activities={trailActivities}
-                                                        running={live && streaming}
-                                                    />
-                                                )}
-                                                {/* While streaming, only the block
-                                                    being written is re-parsed. */}
-                                                {live
-                                                    ? <StreamingMarkdown>{body}</StreamingMarkdown>
-                                                    : <Markdown>{body}</Markdown>}
+                                                {parts.map((part, p) => {
+                                                    const isTail = p === parts.length - 1;
+                                                    if (part.type === "trace") {
+                                                        return (
+                                                            <TurnTrace
+                                                                key={part.key}
+                                                                items={part.items}
+                                                                childSteps={children}
+                                                                hiddenSteps={!live && p === firstTrace ? m.hiddenSteps : 0}
+                                                                plan={p === planAt ? trailPlan : null}
+                                                                // Only the stretch the turn is in now;
+                                                                // once text follows it, it is done.
+                                                                running={live && isTail}
+                                                            />
+                                                        );
+                                                    }
+                                                    // While streaming, only the block being
+                                                    // written is re-parsed; earlier pieces
+                                                    // are finished and memoised.
+                                                    return live && isTail
+                                                        ? <StreamingMarkdown key={part.key}>{part.text}</StreamingMarkdown>
+                                                        : <Markdown key={part.key}>{part.text}</Markdown>;
+                                                })}
                                                 {live && (
-                                                    <span className="inline-block w-[7px] h-[13px] -mt-0.5 rounded-[1px] bg-ink/40 animate-pulse" />
+                                                    <span className="inline-block w-1.75 h-3.25 -mt-0.5 rounded-[1px] bg-ink/40 animate-pulse" />
                                                 )}
-                                                {/* Actions stay hidden until the
-                                                    message is hovered, so a quiet
-                                                    transcript stays quiet. */}
-                                                {!live && body && (
-                                                    <div className="flex items-center gap-0.5 mt-1 -ml-1 opacity-0 group-hover/msg:opacity-100 focus-within:opacity-100 transition-opacity">
-                                                        <CopyButton getText={() => body} label="Copy message" />
+                                                {/* Saved with the answer, so a failed
+                                                    turn reopens as one rather than
+                                                    as a blank reply. */}
+                                                {!live && m.error && (
+                                                    <p className="mt-1 text-10.5 text-red-300/80 whitespace-pre-wrap break-words">{m.error}</p>
+                                                )}
+                                                {/* The figures stay in view; the
+                                                    actions wait for a hover, so a
+                                                    quiet transcript stays quiet. */}
+                                                {!live && (body || m.error || turnStats) && (
+                                                    <div className="flex items-center gap-2 mt-1 min-w-0">
+                                                    {turnStats && <TurnStats stats={turnStats} showCost={showCost} />}
+                                                    <div className="flex items-center gap-0.5 -ml-1 opacity-0 group-hover/msg:opacity-100 focus-within:opacity-100 transition-opacity">
+                                                        {body && <CopyButton getText={() => body} label="Copy message" />}
+                                                        {m.traceId && (
+                                                            <button
+                                                                onClick={async () => {
+                                                                    const opened = await window.ai.openTrace(m.traceId!);
+                                                                    if (!opened) window.electron.notify("Trace unavailable", "Only the most recent 40 turns keep a raw log.");
+                                                                }}
+                                                                aria-label="Open raw trace"
+                                                                title="Open raw trace — every event the CLI sent"
+                                                                className="flex items-center justify-center w-6 h-6 rounded-md text-tone-350 hover:text-tone-800 transition-colors cursor-pointer"
+                                                            >
+                                                                <ScrollText size={11} />
+                                                            </button>
+                                                        )}
                                                         {isLast && !streaming && (
                                                             <button
                                                                 onClick={() => {
@@ -444,6 +551,7 @@ export default function AiPage() {
                                                             </button>
                                                         )}
                                                     </div>
+                                                    </div>
                                                 )}
                                             </div>
                                         )}
@@ -454,7 +562,7 @@ export default function AiPage() {
 
                         {error && (
                             <div className="mb-3 px-2.5 py-1.5 rounded-lg bg-red-400/[0.08] border border-red-400/20">
-                                <p className="text-[10.5px] text-red-300/80">{error}</p>
+                                <p className="text-10.5 text-red-300/80">{error}</p>
                             </div>
                         )}
                     </ScrollArea>
@@ -467,7 +575,8 @@ export default function AiPage() {
                 {!empty && !following && (
                     <button
                         onClick={jumpToLatest}
-                        className="absolute left-1/2 -translate-x-1/2 bottom-[104px] z-40 flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-line-100 bg-surface-float/[0.92] backdrop-blur-md shadow-[0_4px_14px_var(--shadow-1)] text-[10.5px] text-tone-650 hover:text-tone-900 hover:border-ink/[0.18] transition-colors cursor-pointer animate-in fade-in slide-in-from-bottom-1 duration-150"
+                        style={{ bottom: composerHeight + 8 }}
+                        className="absolute left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-line-100 bg-surface-float/[0.92] backdrop-blur-md shadow-[0_4px_14px_var(--shadow-1)] text-10.5 text-tone-650 hover:text-tone-900 hover:border-ink/[0.18] transition-colors cursor-pointer animate-in fade-in slide-in-from-bottom-1 duration-150"
                     >
                         <ArrowDown size={11} />
                         {streaming ? "Jump to latest" : "Jump to bottom"}
@@ -476,10 +585,17 @@ export default function AiPage() {
 
                 {/* Floats over the transcript once a conversation starts, so the
                     frosted panel has something moving behind it to blur. */}
-                <div className={empty ? "shrink-0 px-4 pr-5" : "absolute inset-x-0 bottom-3 z-30 px-4 pr-5"}>
+                <div ref={composerRef} className={empty ? "shrink-0 px-4 pr-5" : "absolute inset-x-0 bottom-3 z-30 px-4 pr-5"}>
+                    {/* Claude asking before it runs a command, writes a file
+                        or fetches a URL. Nothing proceeds until answered. */}
+                    {streaming && (
+                        <div className={empty ? "mx-auto max-w-140" : ""}>
+                            <PermissionTray requests={permissions} onDecide={respondPermission} />
+                        </div>
+                    )}
                     <TooltipProvider delayDuration={300}>
                         <InputGroup
-                            className={`mx-auto w-full rounded-2xl border-line-090 bg-surface-float/[0.6] backdrop-blur-2xl backdrop-saturate-150 shadow-[0_6px_26px_var(--shadow-1)] transition-colors focus-within:border-ink/[0.18] has-[[data-slot=input-group-control]:focus-visible]:ring-0 ${empty ? "max-w-[560px]" : ""}`}
+                            className={`mx-auto w-full rounded-2xl border-line-090 bg-surface-float/[0.6] backdrop-blur-2xl backdrop-saturate-150 shadow-[0_6px_26px_var(--shadow-1)] transition-colors focus-within:border-ink/[0.18] has-[[data-slot=input-group-control]:focus-visible]:ring-0 ${empty ? "max-w-140" : ""}`}
                         >
                             <InputGroupTextarea
                                 ref={inputRef}
@@ -497,7 +613,7 @@ export default function AiPage() {
                                 placeholder="Ask anything…"
                                 // field-sizing grows the box with the text instead
                                 // of scrolling inside a fixed two rows.
-                                className="field-sizing-content scrollbar-thin-shadcn min-h-[46px] max-h-32 px-3.5 pt-3 pb-1 text-[12.5px] leading-relaxed text-tone-850 placeholder:text-tone-250"
+                                className="field-sizing-content scrollbar-thin-shadcn min-h-11.5 max-h-32 px-3.5 pt-3 pb-1 text-12.5 leading-relaxed text-tone-850 placeholder:text-tone-250"
                             />
 
                             <InputGroupAddon align="block-end" className="gap-1 border-t border-line-050 px-2.5">
@@ -512,6 +628,10 @@ export default function AiPage() {
                                     customModels={customModels}
                                     onRemember={rememberModel}
                                     onForget={forgetModel}
+                                    // Switching mid-answer left the finishing turn
+                                    // writing one provider's thread id onto the
+                                    // other's chat. Changeable again once it ends.
+                                    disabled={streaming}
                                     onSelect={(nextProvider, nextModel) => {
                                         const p = providers.find(x => x.id === nextProvider);
                                         applyConfig({
@@ -531,8 +651,14 @@ export default function AiPage() {
                                     <ControlSelect
                                         key={control.id}
                                         value={settings[control.id] ?? control.default}
-                                        onChange={(v) => applyConfig({ settings: { ...settings, [control.id]: v } })}
-                                        options={control.options.map(o => ({ id: o.id, label: o.label }))}
+                                        onChange={(v) => {
+                                            applyConfig({ settings: { ...settings, [control.id]: v } });
+                                            // The access mode is a standing choice, not
+                                            // just this thread's: the next conversation
+                                            // starts in it too.
+                                            if (control.sticky) rememberDefault(providerId, control.id, v);
+                                        }}
+                                        options={control.options}
                                     />
                                 ))}
 
@@ -574,7 +700,7 @@ export default function AiPage() {
                                     </TooltipTrigger>
                                     <TooltipContent
                                         side="top"
-                                        className="flex items-center gap-1.5 border border-line-100 bg-surface/[0.98] px-2 py-1 text-[11px] text-tone-700"
+                                        className="flex items-center gap-1.5 border border-line-100 bg-surface/[0.98] px-2 py-1 text-11 text-tone-700"
                                     >
                                         {stopping
                                             ? "Stopping…"
@@ -588,9 +714,40 @@ export default function AiPage() {
                     </TooltipProvider>
 
                     {empty && error && (
-                        <p className="mx-auto max-w-[560px] mt-2 text-[10.5px] text-red-300/80">{error}</p>
+                        <p className="mx-auto max-w-140 mt-2 text-10.5 text-red-300/80">{error}</p>
                     )}
                 </div>
+            </div>
+
+            {/* Mirrors the conversations rail on the left, so it never sits
+                over the transcript. */}
+            <div className="w-9 shrink-0 flex flex-col items-center pt-2.5">
+                <TooltipProvider delayDuration={300}>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <button
+                                onClick={toggleKeepOpen}
+                                aria-pressed={keepOpen}
+                                aria-label={keepOpen ? "Kept open when you click away" : "Hides when you click away"}
+                                className={`p-1.5 rounded-md transition-colors cursor-pointer ${
+                                    keepOpen
+                                        ? "text-tone-600 bg-fill-060 hover:text-tone-850 hover:bg-fill-080"
+                                        : "text-tone-300 hover:text-tone-700 hover:bg-fill-060"
+                                }`}
+                            >
+                                {keepOpen ? <Pin size={14} className="fill-current" /> : <PinOff size={14} />}
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent
+                            side="left"
+                            className="max-w-56 border border-line-100 bg-surface/[0.98] px-2 py-1.5 text-11 leading-snug text-tone-700"
+                        >
+                            {keepOpen
+                                ? <>Volt stays open when you click away, so an answer isn't lost mid-stream. Click to let it hide again. <span className="text-tone-400">Esc or the hotkey still closes it.</span></>
+                                : "Volt hides when you click away, like the rest of the launcher. A running answer carries on in the background. Click to keep it open."}
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
             </div>
         </div>
     );
@@ -676,22 +833,22 @@ function ChatSidebar({ chats, activeId, running, onOpen, onNew, onDelete, onDele
                         >
                             <PanelLeft size={14} />
                         </button>
-                        {pinned && <span className="text-[9px] uppercase tracking-wide text-tone-200 pr-1">Pinned</span>}
+                        {pinned && <span className="text-9 uppercase tracking-wide text-tone-200 pr-1">Pinned</span>}
                     </div>
 
                     <button
                         onClick={onNew}
-                        className="mx-2 flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-[12px] text-tone-750 hover:bg-fill-070 transition-colors cursor-pointer"
+                        className="mx-2 flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-12 text-tone-750 hover:bg-fill-070 transition-colors cursor-pointer"
                     >
                         <Plus size={14} className="text-tone-450" />
                         New chat
                     </button>
 
-                    <p className="px-4 pt-3 pb-1 text-[10px] text-tone-250">Recents</p>
+                    <p className="px-4 pt-3 pb-1 text-10 text-tone-250">Recents</p>
 
                     <ScrollArea className="flex-1 min-h-0 px-2 pb-2">
                         {chats.length === 0 ? (
-                            <p className="px-2 py-1.5 text-[11px] text-tone-200">No conversations yet</p>
+                            <p className="px-2 py-1.5 text-11 text-tone-200">No conversations yet</p>
                         ) : chats.map(c => (
                             <div
                                 key={c.id}
@@ -717,7 +874,7 @@ function ChatSidebar({ chats, activeId, running, onOpen, onNew, onDelete, onDele
                                                 setRenamingId(null);
                                             }
                                         }}
-                                        className="flex-1 min-w-0 mx-1 my-0.5 px-1.5 py-1 rounded bg-fill-060 border border-line-120 text-[11.5px] text-tone-850 outline-none"
+                                        className="flex-1 min-w-0 mx-1 my-0.5 px-1.5 py-1 rounded bg-fill-060 border border-line-120 text-11.5 text-tone-850 outline-none"
                                     />
                                 ) : (
                                     <>
@@ -728,7 +885,7 @@ function ChatSidebar({ chats, activeId, running, onOpen, onNew, onDelete, onDele
                                             {running.includes(c.id) ? (
                                                 <span
                                                     title="Still answering"
-                                                    className="relative flex w-[13px] h-[13px] shrink-0 items-center justify-center"
+                                                    className="relative flex w-3.25 h-3.25 shrink-0 items-center justify-center"
                                                 >
                                                     <span className="absolute w-1.5 h-1.5 rounded-full bg-sky-400/70 animate-ping" />
                                                     <span className="w-1.5 h-1.5 rounded-full bg-sky-400/80" />
@@ -736,7 +893,7 @@ function ChatSidebar({ chats, activeId, running, onOpen, onNew, onDelete, onDele
                                             ) : (
                                                 <MessageCircle size={13} className="shrink-0 text-tone-300" />
                                             )}
-                                            <span className="block truncate text-left text-[11.5px] text-tone-700">{c.title}</span>
+                                            <span className="block truncate text-left text-11.5 text-tone-700">{c.title}</span>
                                         </button>
                                         {/* Both live on the row itself rather
                                             than behind a menu — one click to
@@ -788,13 +945,13 @@ function ChatSidebar({ chats, activeId, running, onOpen, onNew, onDelete, onDele
                                 <div className="flex items-center gap-1">
                                     <button
                                         onClick={() => { onDeleteAll(); setConfirmingAll(false); }}
-                                        className="flex-1 px-2 py-1.5 rounded-md text-[11px] text-red-300/85 bg-red-400/[0.1] border border-red-400/20 hover:bg-red-400/[0.16] transition-colors cursor-pointer"
+                                        className="flex-1 px-2 py-1.5 rounded-md text-11 text-red-300/85 bg-red-400/[0.1] border border-red-400/20 hover:bg-red-400/[0.16] transition-colors cursor-pointer"
                                     >
                                         Delete {chats.length}
                                     </button>
                                     <button
                                         onClick={() => setConfirmingAll(false)}
-                                        className="px-2 py-1.5 rounded-md text-[11px] text-tone-450 hover:text-tone-750 hover:bg-fill-060 transition-colors cursor-pointer"
+                                        className="px-2 py-1.5 rounded-md text-11 text-tone-450 hover:text-tone-750 hover:bg-fill-060 transition-colors cursor-pointer"
                                     >
                                         Cancel
                                     </button>
@@ -802,7 +959,7 @@ function ChatSidebar({ chats, activeId, running, onOpen, onNew, onDelete, onDele
                             ) : (
                                 <button
                                     onClick={() => setConfirmingAll(true)}
-                                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-[11px] text-tone-300 hover:text-red-300/80 hover:bg-red-400/[0.07] transition-colors cursor-pointer"
+                                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-11 text-tone-300 hover:text-red-300/80 hover:bg-red-400/[0.07] transition-colors cursor-pointer"
                                 >
                                     <Trash2 size={12} /> Clear all conversations
                                 </button>
@@ -816,35 +973,118 @@ function ChatSidebar({ chats, activeId, running, onOpen, onNew, onDelete, onDele
 }
 
 /**
+ * Tool calls waiting on the reader, attached to the top of the composer.
+ *
+ * They used to sit at the foot of the transcript, where the floating prompt
+ * box covered them — on a short window the buttons ended up beneath it and
+ * couldn't be clicked at all. Docked to the composer they grow it instead,
+ * and the transcript makes room. One request at a time, oldest first; the
+ * full command or path is shown, since a summary is not something you can
+ * meaningfully approve.
+ */
+function PermissionTray({ requests, onDecide }: {
+    requests: AiPermissionRequest[];
+    onDecide: (permissionId: string, decision: AiPermissionDecision) => void;
+}) {
+    const request = requests[0];
+    if (!request) return null;
+    const planning = request.toolName === "ExitPlanMode";
+    const button = "h-6 px-2.5 rounded-md text-10.5 transition-colors cursor-pointer";
+
+    return (
+        <div
+            role="alertdialog"
+            aria-label={request.title}
+            className="mx-3 -mb-px px-3 pt-2.5 pb-2.5 rounded-t-xl border border-b-0 border-amber-400/25 bg-surface-float/[0.9] backdrop-blur-2xl shadow-[0_-6px_20px_var(--shadow-1)] animate-in fade-in slide-in-from-bottom-1 duration-150"
+        >
+            <div className="flex items-start gap-2">
+                <ShieldAlert size={13} className="mt-px shrink-0 text-amber-300/80" />
+                <p className="min-w-0 flex-1 text-11.5 text-tone-800 break-words">{request.title}</p>
+                {requests.length > 1 && (
+                    <span className="shrink-0 text-10 text-tone-300 tabular-nums">1 of {requests.length}</span>
+                )}
+            </div>
+
+            {request.detail && (planning ? (
+                <div className="mt-1.5 max-h-40 overflow-auto scrollbar-thin-shadcn px-2.5 py-1.5 rounded-md bg-fill-030 border border-line-070 text-11.5">
+                    <Markdown>{request.detail}</Markdown>
+                </div>
+            ) : (
+                <pre className="mt-1.5 max-h-24 overflow-auto scrollbar-thin-shadcn px-2 py-1.5 rounded-md bg-[var(--code-bg)] border border-line-070 font-mono text-10.5 leading-relaxed text-tone-700 whitespace-pre-wrap break-all">
+                    {request.detail}
+                </pre>
+            ))}
+
+            <div className="flex flex-wrap items-center justify-end gap-1.5 mt-2">
+                <button
+                    onClick={() => onDecide(request.permissionId, "deny")}
+                    className={`${button} mr-auto text-red-300/85 hover:bg-red-400/[0.1]`}
+                >
+                    {planning ? "Keep planning" : "Deny"}
+                </button>
+                {!planning && (
+                    <button
+                        onClick={() => onDecide(request.permissionId, "allow-chat")}
+                        title={`Don't ask again about ${request.toolName} in this conversation`}
+                        className={`${button} bg-fill-050 border border-line-080 text-tone-650 hover:bg-fill-090 hover:text-tone-850`}
+                    >
+                        Allow {request.toolName} for this chat
+                    </button>
+                )}
+                <button
+                    onClick={() => onDecide(request.permissionId, "allow")}
+                    className={`${button} bg-ink/[0.85] text-surface hover:bg-ink`}
+                >
+                    {planning ? "Start" : "Allow once"}
+                </button>
+            </div>
+        </div>
+    );
+}
+
+/**
  * Toolbar dropdown: a real listbox rather than a native <select>, so the popup
- * is themed with the rest of the app instead of being drawn by Windows.
+ * is themed with the rest of the app instead of being drawn by Windows. An
+ * option's `detail` explains it in the menu only — the trigger stays one word
+ * — and a dangerous choice tints the trigger so it can't be left on unnoticed.
  */
 function ControlSelect({ value, onChange, options }: {
     value: string;
     onChange: (v: string) => void;
-    options: Array<{ id: string; label: string }>;
+    options: AiControl["options"];
 }) {
     if (options.length === 0) return null;
+    const danger = options.find(o => o.id === value)?.danger;
     return (
         <Select value={value} onValueChange={onChange}>
             <SelectTrigger
                 size="sm"
-                className="data-[size=sm]:h-6 w-fit max-w-[150px] gap-1 rounded-md border-none bg-transparent px-1.5 text-[10.5px] font-medium text-tone-450 shadow-none hover:bg-fill-070 hover:text-tone-800 focus-visible:ring-0 aria-expanded:bg-fill-070 aria-expanded:text-tone-800 dark:bg-transparent dark:hover:bg-fill-070 [&_svg]:size-3 [&_svg:not([class*='text-'])]:text-tone-300"
+                className={`data-[size=sm]:h-6 w-fit max-w-37.5 gap-1 rounded-md border-none px-1.5 text-10.5 font-medium shadow-none focus-visible:ring-0 [&_svg]:size-3 ${
+                    danger
+                        ? "bg-amber-400/[0.12] text-amber-200/90 hover:bg-amber-400/[0.18] dark:bg-amber-400/[0.12] dark:hover:bg-amber-400/[0.18] [&_svg:not([class*='text-'])]:text-amber-200/70"
+                        : "bg-transparent text-tone-450 hover:bg-fill-070 hover:text-tone-800 aria-expanded:bg-fill-070 aria-expanded:text-tone-800 dark:bg-transparent dark:hover:bg-fill-070 [&_svg:not([class*='text-'])]:text-tone-300"
+                }`}
             >
                 <SelectValue />
             </SelectTrigger>
             <SelectContent
                 position="popper"
-                className="min-w-[9rem] rounded-lg border-line-090 bg-surface-menu/[0.97] backdrop-blur-md shadow-[0_8px_24px_var(--shadow-2)]"
+                className="min-w-36 max-w-72 rounded-lg border-line-090 bg-surface-menu/[0.97] backdrop-blur-md shadow-[0_8px_24px_var(--shadow-2)]"
             >
                 {options.map(o => (
-                    <SelectItem
+                    <SelectPrimitive.Item
                         key={o.id}
                         value={o.id}
-                        className="text-[11px] text-tone-650 focus:bg-fill-070 focus:text-tone-900 [&_svg]:size-3"
+                        className="relative flex flex-col items-start gap-0.5 w-full cursor-default select-none rounded-sm py-1.5 pl-2 pr-7 outline-hidden focus:bg-fill-070 data-[disabled]:opacity-50"
                     >
-                        {o.label}
-                    </SelectItem>
+                        <span className="absolute right-2 top-2 flex size-3 items-center justify-center text-tone-500">
+                            <SelectPrimitive.ItemIndicator><Check className="size-3" /></SelectPrimitive.ItemIndicator>
+                        </span>
+                        <span className={`text-11 ${o.danger ? "text-amber-200/90" : "text-tone-750"}`}>
+                            <SelectPrimitive.ItemText>{o.label}</SelectPrimitive.ItemText>
+                        </span>
+                        {o.detail && <span className="text-10 leading-snug text-tone-300">{o.detail}</span>}
+                    </SelectPrimitive.Item>
                 ))}
             </SelectContent>
         </Select>

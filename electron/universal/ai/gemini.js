@@ -1,5 +1,6 @@
-import { registerProvider } from "./provider.js";
+import { registerProvider, trimHistory } from "./provider.js";
 import { getKey } from "./credentials.js";
+import { sseEvents } from "./sse.js";
 
 /**
  * Google Gemini over its REST API.
@@ -18,24 +19,10 @@ const FALLBACK_MODELS = [
     { id: "gemini-2.5-flash", label: "gemini-2.5-flash" },
 ];
 
-async function* sseEvents(response) {
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        let boundary;
-        while ((boundary = buffer.indexOf("\n\n")) !== -1) {
-            const raw = buffer.slice(0, boundary);
-            buffer = buffer.slice(boundary + 2);
-            for (const line of raw.split("\n")) {
-                if (line.startsWith("data:")) yield line.slice(5).trim();
-            }
-        }
-    }
-}
+const NORMAL_FINISH = new Set(["STOP", "FINISH_REASON_UNSPECIFIED"]);
+
+/** "PROHIBITED_CONTENT" → "prohibited content". */
+const readable = (reason) => String(reason).toLowerCase().replace(/_/g, " ");
 
 async function describeFailure(response) {
     const text = await response.text().catch(() => "");
@@ -94,16 +81,16 @@ export const geminiProvider = registerProvider({
             return;
         }
 
-        const priorTurns = (history ?? []).filter(m => m.content?.trim());
-        const contents = priorTurns.map(m => ({
+        const turns = (history ?? []).filter(m => m.content?.trim());
+        const last = turns.at(-1);
+        if (!last || last.role !== "user" || last.content !== prompt) {
+            turns.push({ role: "user", content: prompt });
+        }
+        const contents = trimHistory(turns).map(m => ({
             // Gemini calls the assistant "model".
             role: m.role === "assistant" ? "model" : "user",
             parts: [{ text: m.content }],
         }));
-        const last = priorTurns.at(-1);
-        if (!last || last.role !== "user" || last.content !== prompt) {
-            contents.push({ role: "user", parts: [{ text: prompt }] });
-        }
 
         const chosen = model || FALLBACK_MODELS[0].id;
         let response;
@@ -140,13 +127,33 @@ export const geminiProvider = registerProvider({
                     yield { type: "error", message: event.error.message ?? "Gemini reported an error." };
                     break;
                 }
-                for (const part of event?.candidates?.[0]?.content?.parts ?? []) {
+                // A blocked prompt arrives as a normal event with no
+                // candidates at all, so without this the turn just ended
+                // empty with no hint why.
+                const blocked = event?.promptFeedback?.blockReason;
+                if (blocked) {
+                    yield { type: "error", message: `Gemini blocked the prompt (${readable(blocked)}).` };
+                    break;
+                }
+                const candidate = event?.candidates?.[0];
+                for (const part of candidate?.content?.parts ?? []) {
                     if (!part?.text) continue;
                     // Gemini returns thinking as ordinary text parts flagged
                     // with `thought`, so without this check the reasoning would
                     // be concatenated straight into the answer.
                     if (part.thought) yield { type: "reasoning", text: part.text };
                     else yield { type: "text", text: part.text };
+                }
+                // Likewise a safety stop mid-answer: the stream simply ends.
+                const reason = candidate?.finishReason;
+                if (reason && !NORMAL_FINISH.has(reason)) {
+                    yield {
+                        type: "error",
+                        message: reason === "MAX_TOKENS"
+                            ? "Gemini stopped at its output length limit."
+                            : `Gemini stopped the answer (${readable(reason)}).`,
+                    };
+                    break;
                 }
             }
         } catch (err) {

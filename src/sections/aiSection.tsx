@@ -27,7 +27,9 @@ export default function AiSection() {
     const [loading, setLoading] = useState(true);
     const [keys, setKeys] = useState<Record<string, boolean>>({});
     const [canEncrypt, setCanEncrypt] = useState(true);
-    const [prefs, setPrefsState] = useState<AiPrefs>({ providerId: null, model: null, settings: {}, workspace: null, customModels: {} });
+    const [prefs, setPrefsState] = useState<AiPrefs>({
+        providerId: null, model: null, settings: {}, workspace: null, customModels: {}, claudeSkipPermissions: false, keepOpen: true,
+    });
     const [workspace, setWorkspace] = useState<{ path: string; isDefault: boolean; defaultPath: string } | null>(null);
 
     const fetchAll = useCallback(async () => {
@@ -82,6 +84,13 @@ export default function AiSection() {
         ? defaultProvider.models.find(m => m.id === defaultModelId)?.controls ?? defaultProvider.controls
         : [];
 
+    // The dangerous option picked as a default, if any — Full access.
+    const defaultDanger = defaultProvider
+        ? defaultControls
+            .map(c => c.options.find(o => o.id === (prefs.settings[defaultProvider.id]?.[c.id] ?? c.default)))
+            .find(o => o?.danger) ?? null
+        : null;
+
     const savePrefs = async (patch: Partial<AiPrefs>) => {
         setPrefsState(await window.ai.setPrefs(patch));
     };
@@ -111,7 +120,7 @@ export default function AiSection() {
                 {!canEncrypt && (
                     <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-400/[0.07] border border-amber-400/20">
                         <ShieldAlert size={13} className="mt-px shrink-0 text-amber-300/70" />
-                        <p className="text-[11px] text-amber-200/70 leading-relaxed">
+                        <p className="text-11 text-amber-200/70 leading-relaxed">
                             Your system can't encrypt stored secrets, so API keys can't be saved.
                             Providers that sign in through their own CLI still work.
                         </p>
@@ -124,14 +133,14 @@ export default function AiSection() {
                     <GroupLabel>Providers</GroupLabel>
                     <button
                         onClick={load}
-                        className="flex items-center gap-1.5 text-[10.5px] text-tone-300 hover:text-tone-650 transition-colors cursor-pointer"
+                        className="flex items-center gap-1.5 text-10.5 text-tone-300 hover:text-tone-650 transition-colors cursor-pointer"
                     >
                         <RefreshCw size={11} /> Re-check
                     </button>
                 </div>
 
                 {providers.length === 0 && (
-                    <p className="text-[11.5px] text-tone-300">No providers are registered.</p>
+                    <p className="text-11.5 text-tone-300">No providers are registered.</p>
                 )}
 
                 {/* Split by how you authenticate: sign in through a tool you
@@ -142,8 +151,8 @@ export default function AiSection() {
                     return (
                         <div key={group.title} className="flex flex-col gap-2">
                             <div className="flex items-baseline gap-2 mt-1">
-                                <span className="text-[11px] font-medium text-tone-450">{group.title}</span>
-                                <span className="text-[10px] text-tone-200">{group.hint}</span>
+                                <span className="text-11 font-medium text-tone-450">{group.title}</span>
+                                <span className="text-10 text-tone-200">{group.hint}</span>
                             </div>
                             {members.map(p => (
                                 <ProviderCard
@@ -161,7 +170,7 @@ export default function AiSection() {
 
             <div className="flex flex-col gap-3">
                 <GroupLabel>Defaults</GroupLabel>
-                <p className="text-[11px] text-tone-300 -mt-1 leading-relaxed">
+                <p className="text-11 text-tone-300 -mt-1 leading-relaxed">
                     What a new conversation starts with. You can still change any of it per chat.
                 </p>
 
@@ -193,8 +202,8 @@ export default function AiSection() {
                 <div className="flex flex-col gap-2 px-4 py-3 rounded-lg bg-fill-025 border border-line-050">
                     <div className="flex items-center justify-between gap-5">
                         <div className="min-w-0">
-                            <p className="text-[12px] text-tone-700">Working folder</p>
-                            <p className="text-[10.5px] text-tone-250 mt-0.5">
+                            <p className="text-12 text-tone-700">Working folder</p>
+                            <p className="text-10.5 text-tone-250 mt-0.5">
                                 Where the CLI providers read and write files
                             </p>
                         </div>
@@ -207,7 +216,7 @@ export default function AiSection() {
                                         setWorkspace(await window.ai.workspace());
                                     }
                                 }}
-                                className="flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-fill-050 border border-line-080 text-[11px] text-tone-650 hover:bg-fill-090 hover:text-tone-850 transition-colors cursor-pointer"
+                                className="flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-fill-050 border border-line-080 text-11 text-tone-650 hover:bg-fill-090 hover:text-tone-850 transition-colors cursor-pointer"
                             >
                                 <FolderOpen size={12} /> Change
                             </button>
@@ -217,14 +226,14 @@ export default function AiSection() {
                                         await savePrefs({ workspace: null });
                                         setWorkspace(await window.ai.workspace());
                                     }}
-                                    className="h-7 px-2.5 rounded-md text-[11px] text-tone-350 hover:text-tone-700 hover:bg-fill-060 transition-colors cursor-pointer"
+                                    className="h-7 px-2.5 rounded-md text-11 text-tone-350 hover:text-tone-700 hover:bg-fill-060 transition-colors cursor-pointer"
                                 >
                                     Reset
                                 </button>
                             )}
                         </div>
                     </div>
-                    <p className="text-[10.5px] font-mono text-tone-350 break-all">
+                    <p className="text-10.5 font-mono text-tone-350 break-all">
                         {workspace?.path ?? "…"}
                         {workspace?.isDefault && (
                             <span className="ml-1.5 font-sans text-tone-200">(managed default)</span>
@@ -248,6 +257,20 @@ export default function AiSection() {
                         />
                     </Row>
                 ))}
+
+                {/* A chat can carry pasted text or fetched pages written by
+                    someone else, and in full access that text can run
+                    commands. Said plainly wherever it's made the default. */}
+                {defaultDanger && (
+                    <div className="flex items-start gap-2 px-4 py-3 rounded-lg border bg-red-400/[0.05] border-red-400/25">
+                        <ShieldAlert size={12} className="mt-px shrink-0 text-red-300/70" />
+                        <p className="text-10.5 text-red-200/70 leading-relaxed">
+                            New conversations start in {defaultDanger.label}. {defaultProvider.label} can run any
+                            command, edit or delete any file your account can reach, and send data anywhere —
+                            including when instructions hidden in pasted text or a web page tell it to.
+                        </p>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -297,7 +320,7 @@ function ProviderCard({ provider, hasKey, canEncrypt, onChanged }: {
                     <div className="flex items-center gap-2">
                         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${ready ? "bg-emerald-400/70" : "bg-ink/20"}`} />
                         {logo && <img src={logo} alt="" className={`w-4 h-4 shrink-0 object-contain ${providerLogoTint(provider.id)}`} />}
-                        <h3 className="text-[12.5px] font-medium text-tone-800 tracking-tight">{provider.label}</h3>
+                        <h3 className="text-12.5 font-medium text-tone-800 tracking-tight">{provider.label}</h3>
                         {/* For a CLI, what matters is which wallet it draws on —
                             a plan you already pay for, or per-token billing. */}
                         {provider.needsKey ? (
@@ -310,13 +333,13 @@ function ProviderCard({ provider, hasKey, canEncrypt, onChanged }: {
                             <Badge tone="neutral">Local / CLI</Badge>
                         )}
                     </div>
-                    <p className="text-[11px] text-tone-350 leading-relaxed mt-1 break-all">
+                    <p className="text-11 text-tone-350 leading-relaxed mt-1 break-all">
                         {provider.needsKey
                             ? (hasKey ? "Key stored in your system keychain." : "Add a key to enable this provider.")
                             : (provider.detail ?? (ready ? "Ready." : "Not detected."))}
                     </p>
                     {!provider.needsKey && provider.billing?.mode === "api-key" && (
-                        <p className="text-[10.5px] text-amber-300/55 leading-relaxed mt-1">
+                        <p className="text-10.5 text-amber-300/55 leading-relaxed mt-1">
                             This CLI is signed in with an API key, so turns are billed per token
                             rather than drawn from a plan.
                         </p>
@@ -326,7 +349,7 @@ function ProviderCard({ provider, hasKey, canEncrypt, onChanged }: {
                     <button
                         onClick={remove}
                         disabled={busy}
-                        className="shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-md text-[10.5px] text-tone-300 hover:text-red-300/80 hover:bg-red-400/[0.07] transition-colors cursor-pointer disabled:opacity-40"
+                        className="shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-md text-10.5 text-tone-300 hover:text-red-300/80 hover:bg-red-400/[0.07] transition-colors cursor-pointer disabled:opacity-40"
                     >
                         <Trash2 size={11} /> Remove
                     </button>
@@ -346,7 +369,7 @@ function ProviderCard({ provider, hasKey, canEncrypt, onChanged }: {
                             placeholder={`${provider.label} API key`}
                             spellCheck={false}
                             autoComplete="off"
-                            className="w-full h-7 pl-7 pr-7 rounded-md bg-fill-030 border border-line-070 text-[11.5px] text-tone-800 placeholder:text-tone-200 outline-none focus:border-ink/[0.16] transition-colors disabled:opacity-40"
+                            className="w-full h-7 pl-7 pr-7 rounded-md bg-fill-030 border border-line-070 text-11.5 text-tone-800 placeholder:text-tone-200 outline-none focus:border-ink/[0.16] transition-colors disabled:opacity-40"
                         />
                         <button
                             onClick={() => setReveal(r => !r)}
@@ -359,14 +382,14 @@ function ProviderCard({ provider, hasKey, canEncrypt, onChanged }: {
                     <button
                         onClick={save}
                         disabled={!canEncrypt || busy || !draft.trim()}
-                        className="flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-fill-070 border border-line-080 text-[11px] text-tone-700 hover:bg-fill-110 hover:text-tone-900 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-default"
+                        className="flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-fill-070 border border-line-080 text-11 text-tone-700 hover:bg-fill-110 hover:text-tone-900 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-default"
                     >
                         {busy ? <Spinner className="size-3" /> : <Check size={12} />} Save
                     </button>
                 </div>
             )}
 
-            {problem && <p className="mt-2 text-[10.5px] text-red-300/80">{problem}</p>}
+            {problem && <p className="mt-2 text-10.5 text-red-300/80">{problem}</p>}
         </div>
     );
 }
@@ -446,7 +469,7 @@ function Badge({ tone, children }: { tone: "good" | "warn" | "neutral"; children
         neutral: "text-tone-300 bg-fill-050 border-line-060",
     };
     return (
-        <span className={`shrink-0 px-1.5 py-px rounded text-[9.5px] uppercase tracking-wide border ${tones[tone]}`}>
+        <span className={`shrink-0 px-1.5 py-px rounded text-9.5 uppercase tracking-wide border ${tones[tone]}`}>
             {children}
         </span>
     );
@@ -456,8 +479,8 @@ function Row({ label, hint, children }: { label: string; hint?: string; children
     return (
         <div className="flex items-center justify-between gap-5 px-4 py-2.5 rounded-lg bg-fill-025 border border-line-050">
             <div className="min-w-0">
-                <p className="text-[12px] text-tone-700">{label}</p>
-                {hint && <p className="text-[10.5px] text-tone-250 mt-0.5">{hint}</p>}
+                <p className="text-12 text-tone-700">{label}</p>
+                {hint && <p className="text-10.5 text-tone-250 mt-0.5">{hint}</p>}
             </div>
             <div className="shrink-0">{children}</div>
         </div>
@@ -474,7 +497,7 @@ function SettingSelect({ value, onChange, options }: {
         <Select value={value} onValueChange={onChange}>
             <SelectTrigger
                 size="sm"
-                className="data-[size=sm]:h-7 w-44 rounded-md border-line-080 bg-fill-030 px-2.5 text-[11.5px] text-tone-750 shadow-none hover:bg-fill-060 focus-visible:ring-0 dark:bg-fill-030 dark:hover:bg-fill-060 [&_svg]:size-3 [&_svg:not([class*='text-'])]:text-tone-300"
+                className="data-[size=sm]:h-7 w-44 rounded-md border-line-080 bg-fill-030 px-2.5 text-11.5 text-tone-750 shadow-none hover:bg-fill-060 focus-visible:ring-0 dark:bg-fill-030 dark:hover:bg-fill-060 [&_svg]:size-3 [&_svg:not([class*='text-'])]:text-tone-300"
             >
                 <SelectValue />
             </SelectTrigger>
@@ -486,7 +509,7 @@ function SettingSelect({ value, onChange, options }: {
                     <SelectItem
                         key={o.id}
                         value={o.id}
-                        className="text-[11.5px] text-tone-650 focus:bg-fill-070 focus:text-tone-900 [&_svg]:size-3"
+                        className="text-11.5 text-tone-650 focus:bg-fill-070 focus:text-tone-900 [&_svg]:size-3"
                     >
                         {o.label}
                     </SelectItem>

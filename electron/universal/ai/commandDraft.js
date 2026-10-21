@@ -7,7 +7,9 @@ import { sanitiseCommand, reviewCommand, COMMAND_TYPES, SHELLS } from "../comman
  *
  * The result is only ever a *draft*. It is sanitised through the same validator
  * as an imported file, handed to the renderer for review, and saved only if the
- * person reading the script chooses to. Nothing generated here is executed.
+ * person reading the script chooses to. Nothing generated here is executed —
+ * and the model is asked for a pure completion (`toolless`), so it can't run
+ * anything while drafting either.
  */
 
 const TYPE_NOTES = {
@@ -39,6 +41,7 @@ function instructionFor({ description, existing, platform }) {
         `- Choose an "Open" type when the user will want to read the output.`,
         `- Arguments are optional. Use them only for values that genuinely vary per run.`,
         `- Every {placeholder} in the script must have a matching entry in "args", and every arg must be used.`,
+        `- Write placeholders bare, never inside quotes: the launcher quotes each value itself when it runs the command. Write Get-Item {path}, not Get-Item "{path}" or '{path}'.`,
         `- Argument names must match ${"/^[a-zA-Z_][a-zA-Z0-9_]*$/"}.`,
         `- Omit "args" entirely if the command takes none.`,
         "",
@@ -99,7 +102,8 @@ export async function draftCommand({
     let failure = null;
     try {
         // A one-shot turn: no session id, so this never joins a conversation.
-        for await (const chunk of provider.send({ prompt, model, settings, history: [], signal })) {
+        // No tools either — CLI providers otherwise bring Bash and file access.
+        for await (const chunk of provider.send({ prompt, model, settings, history: [], signal, toolless: true })) {
             if (chunk.type === "text") text += chunk.text;
             if (chunk.type === "error") failure = chunk.message;
         }

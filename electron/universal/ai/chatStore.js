@@ -2,6 +2,7 @@ import path from "path";
 import fs from "fs";
 import { randomUUID } from "node:crypto";
 import { app } from "electron";
+import { withCodexMode } from "./prefs.js";
 
 /**
  * Chats live as one JSON file each under userData/chats, not in electron-store.
@@ -17,7 +18,18 @@ function chatsDir() {
     return dir;
 }
 
-const chatPath = (id) => path.join(chatsDir(), `${id}.json`);
+// Every id this store hands out is a randomUUID().
+const CHAT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Ids come from the renderer; anything else could path.join out of chats/. */
+export const isChatId = (id) => typeof id === "string" && CHAT_ID.test(id);
+
+function chatPath(id) {
+    // Thrown rather than returned: every caller already treats a failed read
+    // or write as "no such chat", so a bad id lands there too.
+    if (!isChatId(id)) throw new Error("Invalid chat id");
+    return path.join(chatsDir(), `${id}.json`);
+}
 
 /** First line of the opening prompt, trimmed to something list-sized. */
 function deriveTitle(prompt) {
@@ -48,19 +60,31 @@ export function createChat({ providerId, model, settings }) {
 
 export function readChat(id) {
     try {
-        return JSON.parse(fs.readFileSync(chatPath(id), "utf8"));
+        const chat = JSON.parse(fs.readFileSync(chatPath(id), "utf8"));
+        if (chat?.providerId === "codex") chat.settings = withCodexMode(chat.settings);
+        return chat;
     } catch {
         return null;
     }
 }
 
+/**
+ * Written beside the real file and renamed over it. writeFileSync truncates
+ * first, so a crash or power cut mid-write used to leave an empty or half
+ * file — and the whole conversation with it.
+ */
 export function writeChat(chat) {
+    let temp = null;
     try {
+        const file = chatPath(chat.id);
         chat.updatedAt = Date.now();
-        fs.writeFileSync(chatPath(chat.id), JSON.stringify(chat, null, 2), "utf8");
+        temp = `${file}.${process.pid}.tmp`;
+        fs.writeFileSync(temp, JSON.stringify(chat, null, 2), "utf8");
+        fs.renameSync(temp, file);
         return true;
     } catch (err) {
         console.error("Failed to save chat:", err?.message ?? err);
+        if (temp) try { fs.unlinkSync(temp); } catch { /* never written */ }
         return false;
     }
 }
@@ -76,29 +100,73 @@ export function appendMessage(id, message) {
     return chat;
 }
 
-/** Replaces the last assistant message — used to commit a streamed answer. */
 /** Thinking can run to tens of thousands of tokens; a transcript shouldn't. */
 const MAX_STORED_REASONING = 20_000;
 
-export function finishAssistantMessage(id, { content, sessionId, reasoning, activities }) {
+/**
+ * Replaces the last assistant message — used to commit a streamed answer.
+ *
+ * `providerId` is the provider the turn ran on. The session id is only kept
+ * if the chat still uses that provider: switching mid-answer clears the old
+ * thread id, and the finishing turn used to write it straight back, so the
+ * next turn resumed a foreign session and failed from then on.
+ * `sessionId` null clears the stored id; undefined leaves it alone.
+ */
+/** Fields describing how an answer was reached, replaced wholesale per turn. */
+const TRACE_FIELDS = ["reasoning", "thoughts", "activities", "steps", "hiddenSteps", "plan", "stats", "traceId", "error"];
+
+/** Thinking entries trimmed to a shared budget, so a turn's thinking stays bounded however it's split. */
+function boundThoughts(thoughts) {
+    let budget = MAX_STORED_REASONING;
+    const kept = [];
+    for (const thought of thoughts) {
+        if (!thought?.text?.trim()) continue;
+        if (budget <= 0) break;
+        const text = thought.text.length > budget ? thought.text.slice(0, budget) + "\n…" : thought.text;
+        budget -= thought.text.length;
+        kept.push({ ...thought, text });
+    }
+    return kept;
+}
+
+export function finishAssistantMessage(id, { content, sessionId, providerId, reasoning, thoughts, activities, steps, hiddenSteps, plan, stats, traceId, error }) {
     const chat = readChat(id);
     if (!chat) return null;
 
     // Kept alongside the answer so reopening a chat shows how it was reached,
-    // not just what it concluded. Both are optional: older files predate them,
-    // and most providers expose neither.
+    // not just what it concluded. All optional: older files predate them,
+    // and most providers expose none of it.
     const trace = {};
     if (reasoning?.trim()) {
         trace.reasoning = reasoning.length > MAX_STORED_REASONING
             ? reasoning.slice(0, MAX_STORED_REASONING) + "\n…"
             : reasoning;
     }
+    if (Array.isArray(thoughts)) {
+        const kept = boundThoughts(thoughts);
+        if (kept.length) trace.thoughts = kept;
+    }
+    // Older chats saved a flat list of labels; the view still reads those.
     if (activities?.length) trace.activities = activities;
+    if (Array.isArray(steps) && steps.length) trace.steps = steps;
+    if (hiddenSteps > 0) trace.hiddenSteps = hiddenSteps;
+    if (Array.isArray(plan) && plan.length) trace.plan = plan;
+    if (stats && typeof stats === "object" && Object.keys(stats).length) trace.stats = stats;
+    if (typeof traceId === "string") trace.traceId = traceId;
+    // Kept so a failed turn reopens as the failure it was, not a blank answer.
+    if (typeof error === "string" && error.trim()) trace.error = error.slice(0, 2000);
 
+    const text = typeof content === "string" ? content : "";
     const last = chat.messages[chat.messages.length - 1];
-    if (last && last.role === "assistant") Object.assign(last, { content }, trace);
-    else chat.messages.push({ role: "assistant", content, ...trace });
-    if (sessionId) chat.sessionId = sessionId;
+    if (last && last.role === "assistant") {
+        // A rerun must not keep the previous attempt's error, or its steps.
+        for (const field of TRACE_FIELDS) delete last[field];
+        Object.assign(last, { content: text }, trace);
+    } else {
+        chat.messages.push({ role: "assistant", content: text, ...trace });
+    }
+    const sameProvider = !providerId || chat.providerId === providerId;
+    if (sessionId !== undefined && sameProvider) chat.sessionId = sessionId || null;
     writeChat(chat);
     return chat;
 }

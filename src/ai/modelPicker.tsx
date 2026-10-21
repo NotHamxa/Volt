@@ -26,6 +26,7 @@ function monogram(label: string) {
 
 export function ModelPicker({
     providers, providerId, model, customModels, onSelect, onBrowse, onRemember, onForget, variant = "inline",
+    disabled = false,
 }: {
     providers: AiProviderInfo[];
     providerId: string;
@@ -43,6 +44,8 @@ export function ModelPicker({
      * Settings, opening downwards.
      */
     variant?: "inline" | "field";
+    /** Held while a turn is running, so the provider can't change under it. */
+    disabled?: boolean;
 }) {
     const field = variant === "field";
     const [open, setOpen] = useState(false);
@@ -54,7 +57,8 @@ export function ModelPicker({
 
     const current = providers.find(p => p.id === providerId) ?? null;
     const shown = providers.find(p => p.id === browsing) ?? current;
-    const currentLabel = current?.models.find(m => m.id === model)?.label ?? model ?? "Model";
+    // An empty id is the provider's own default, not a missing label.
+    const currentLabel = current?.models.find(m => m.id === model)?.label || model || "Default";
     const shownLogo = shown ? providerLogo(shown.id) : null;
     const currentLogo = current ? providerLogo(current.id) : null;
 
@@ -114,20 +118,23 @@ export function ModelPicker({
     };
 
     return (
-        <Popover open={open} onOpenChange={setOpenState}>
+        <Popover open={open && !disabled} onOpenChange={(next) => { if (!disabled || !next) setOpenState(next); }}>
             <PopoverTrigger asChild>
                 <button
                     aria-label="Choose a model"
-                    className={field
-                        ? "flex items-center gap-1.5 h-7 w-52 px-2.5 rounded-md border border-line-080 bg-fill-030 text-[11.5px] text-tone-750 hover:bg-fill-060 aria-expanded:bg-fill-060 transition-colors cursor-pointer"
-                        : "flex items-center gap-1 h-6 max-w-[190px] px-1.5 rounded-md text-[10.5px] font-medium text-tone-450 hover:bg-fill-070 hover:text-tone-800 aria-expanded:bg-fill-070 aria-expanded:text-tone-800 transition-colors cursor-pointer"}
+                    disabled={disabled}
+                    title={disabled ? "Can't change the model while it's answering" : undefined}
+                    className={`${field
+                        ? "flex items-center gap-1.5 h-7 w-52 px-2.5 rounded-md border border-line-080 bg-fill-030 text-11.5 text-tone-750 hover:bg-fill-060 aria-expanded:bg-fill-060 transition-colors cursor-pointer"
+                        : "flex items-center gap-1 h-6 max-w-47.5 px-1.5 rounded-md text-10.5 font-medium text-tone-450 hover:bg-fill-070 hover:text-tone-800 aria-expanded:bg-fill-070 aria-expanded:text-tone-800 transition-colors cursor-pointer"
+                    } disabled:opacity-50 disabled:cursor-default disabled:hover:bg-transparent`}
                 >
                     {currentLogo && (
                         <img src={currentLogo} alt="" className={`w-3.5 h-3.5 shrink-0 object-contain ${current ? providerLogoTint(current.id) : ""}`} />
                     )}
                     <span className={`truncate ${field ? "flex-1 text-left" : ""}`}>{currentLabel}</span>
                     {field && current && (
-                        <span className="shrink-0 max-w-[40%] truncate text-[10.5px] text-tone-250">{current.label}</span>
+                        <span className="shrink-0 max-w-[40%] truncate text-10.5 text-tone-250">{current.label}</span>
                     )}
                     <ChevronRight size={field ? 12 : 11} className="shrink-0 rotate-90 text-tone-300" />
                 </button>
@@ -137,7 +144,7 @@ export function ModelPicker({
                 side={field ? "bottom" : "top"}
                 align={field ? "end" : "start"}
                 sideOffset={8}
-                className="w-[400px] p-0 overflow-hidden rounded-xl border-line-090 bg-surface-menu/[0.98] backdrop-blur-xl shadow-[0_12px_36px_var(--shadow-2)]"
+                className="w-100 p-0 overflow-hidden rounded-xl border-line-090 bg-surface-menu/[0.98] backdrop-blur-xl shadow-[0_12px_36px_var(--shadow-2)]"
             >
                 {/* Capped to the room Radix reports, so it never runs past the
                     window edge — in Settings the row can sit low in the page. */}
@@ -154,14 +161,14 @@ export function ModelPicker({
                                     onClick={() => { onBrowse(p.id); setBrowsing(p.id); setShowAll(false); setActive(0); }}
                                     title={p.available ? p.label : `${p.label} — unavailable`}
                                     aria-label={p.label}
-                                    className={`relative flex items-center justify-center w-7 h-7 rounded-lg text-[9.5px] font-semibold transition-colors cursor-pointer ${
+                                    className={`relative flex items-center justify-center w-7 h-7 rounded-lg text-9.5 font-semibold transition-colors cursor-pointer ${
                                         isBrowsing
                                             ? "bg-fill-100 text-tone-850"
                                             : "text-tone-300 hover:bg-fill-060 hover:text-tone-700"
                                     } ${p.available ? "" : "opacity-40"}`}
                                 >
                                     {isBrowsing && (
-                                        <span className="absolute -left-1.5 h-4 w-[2px] rounded-full bg-sky-400/70" />
+                                        <span className="absolute -left-1.5 h-4 w-0.5 rounded-full bg-sky-400/70" />
                                     )}
                                     {logo
                                         ? <img src={logo} alt="" className={`w-4 h-4 object-contain ${providerLogoTint(p.id)}`} />
@@ -200,20 +207,20 @@ export function ModelPicker({
                                     }
                                 }}
                                 placeholder="Search models, or type an id…"
-                                className="w-full h-9 pl-8 pr-3 bg-transparent text-[12px] text-tone-850 placeholder:text-tone-250 outline-none"
+                                className="w-full h-9 pl-8 pr-3 bg-transparent text-12 text-tone-850 placeholder:text-tone-250 outline-none"
                             />
                         </div>
 
                         <ScrollArea className="flex-1 min-h-0" ref={listRef}>
                             <div className="p-1">
                                 {shown && !shown.available && (
-                                    <p className="px-2 py-2 text-[10.5px] text-amber-300/60 leading-relaxed">
+                                    <p className="px-2 py-2 text-10.5 text-amber-300/60 leading-relaxed">
                                         {shown.detail ?? "This provider isn't set up yet."}
                                     </p>
                                 )}
 
                                 {visible.length === 0 && !exactId && (
-                                    <p className="px-2 py-3 text-[11px] text-tone-250">
+                                    <p className="px-2 py-3 text-11 text-tone-250">
                                         {!shown?.models.length && shown?.available
                                             ? "Loading models…"
                                             : "No models match."}
@@ -236,8 +243,8 @@ export function ModelPicker({
                                                 <img src={shownLogo} alt="" className={`w-4 h-4 shrink-0 object-contain opacity-90 ${shown ? providerLogoTint(shown.id) : ""}`} />
                                             )}
                                             <div className="flex-1 min-w-0">
-                                                <span className="block truncate text-[12px] text-tone-850">{m.label}</span>
-                                                <span className="block truncate text-[10px] text-tone-300 mt-px">
+                                                <span className="block truncate text-12 text-tone-850">{m.label}</span>
+                                                <span className="block truncate text-10 text-tone-300 mt-px">
                                                     {/* The wire id where the label is
                                                         an alias, so "Opus" says which
                                                         version it resolves to. */}
@@ -276,10 +283,10 @@ export function ModelPicker({
                                         className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left hover:bg-fill-060 transition-colors cursor-pointer"
                                     >
                                         <div className="flex-1 min-w-0">
-                                            <span className="block truncate text-[12px] text-tone-750">
+                                            <span className="block truncate text-12 text-tone-750">
                                                 Use “{exactId}”
                                             </span>
-                                            <span className="block truncate text-[10px] text-tone-300 mt-px">
+                                            <span className="block truncate text-10 text-tone-300 mt-px">
                                                 Adds it to the list for next time
                                             </span>
                                         </div>
@@ -292,8 +299,8 @@ export function ModelPicker({
                                         className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-left hover:bg-fill-050 transition-colors cursor-pointer"
                                     >
                                         <div className="flex-1 min-w-0">
-                                            <span className="block text-[12px] text-tone-700">Older models</span>
-                                            <span className="block text-[10px] text-tone-300 mt-px">
+                                            <span className="block text-12 text-tone-700">Older models</span>
+                                            <span className="block text-10 text-tone-300 mt-px">
                                                 {matches.length - SHOWN_BY_DEFAULT} more
                                             </span>
                                         </div>
@@ -307,7 +314,7 @@ export function ModelPicker({
                             Claude CLI lists five aliases but accepts any model
                             name — so say that rather than leave it to chance. */}
                         {!exactId && (
-                            <p className="shrink-0 px-3 py-1.5 border-t border-line-060 text-[10px] text-tone-250">
+                            <p className="shrink-0 px-3 py-1.5 border-t border-line-060 text-10 text-tone-250">
                                 Type any model id to use one that isn't listed
                             </p>
                         )}

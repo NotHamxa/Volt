@@ -1,5 +1,6 @@
-import { registerProvider } from "./provider.js";
+import { registerProvider, trimHistory } from "./provider.js";
 import { getKey } from "./credentials.js";
+import { sseEvents } from "./sse.js";
 
 /**
  * One adapter for every vendor that speaks the OpenAI chat-completions dialect
@@ -12,36 +13,6 @@ import { getKey } from "./credentials.js";
  * Raw fetch rather than the vendor SDK: streaming chat completions is a dozen
  * lines of SSE, and the installer already carries an Electron runtime.
  */
-
-/** Reads an SSE body and yields each decoded `data:` payload. */
-async function* sseEvents(response, signal) {
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    try {
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-
-            // Events are separated by a blank line; a chunk can split mid-event,
-            // so only complete ones are consumed and the tail is kept.
-            let boundary;
-            while ((boundary = buffer.indexOf("\n\n")) !== -1) {
-                const raw = buffer.slice(0, boundary);
-                buffer = buffer.slice(boundary + 2);
-                for (const line of raw.split("\n")) {
-                    if (!line.startsWith("data:")) continue;
-                    const payload = line.slice(5).trim();
-                    if (payload === "[DONE]") return;
-                    yield payload;
-                }
-            }
-        }
-    } finally {
-        if (signal?.aborted) reader.cancel().catch(() => {});
-    }
-}
 
 /** Vendors return errors as JSON, plain text, or an HTML error page. */
 async function describeFailure(response) {
@@ -124,10 +95,11 @@ function createOpenAiCompatible({
             // The caller appends an empty assistant turn to stream into; it
             // must not be sent back as part of the conversation.
             const priorTurns = (history ?? []).filter(m => m.content?.trim());
-            const messages = [...priorTurns.map(m => ({ role: m.role, content: m.content }))];
+            let messages = priorTurns.map(m => ({ role: m.role, content: m.content }));
             if (messages.at(-1)?.role !== "user" || messages.at(-1)?.content !== prompt) {
                 messages.push({ role: "user", content: prompt });
             }
+            messages = trimHistory(messages);
 
             let response;
             try {
@@ -149,7 +121,8 @@ function createOpenAiCompatible({
             }
 
             try {
-                for await (const payload of sseEvents(response, signal)) {
+                for await (const payload of sseEvents(response)) {
+                    if (payload.trim() === "[DONE]") break;
                     let event;
                     try {
                         event = JSON.parse(payload);

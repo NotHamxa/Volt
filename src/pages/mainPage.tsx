@@ -100,10 +100,6 @@ export default function MainLayout({ inputRef, query, setQuery, argCommand, argI
     }, [query]);
 
     const pinApp = async (app: SearchQueryT) => {
-        if (pinnedApps.length === 21) {
-            window.electron.notify("Maximum Pins Reached", "You can pin up to 21 apps only.");
-            return;
-        }
         if (!pinnedApps.find((a) => isSameApp(a, app))) {
             const updated = [...pinnedApps, app];
             window.electronStore.set("pinnedApps", JSON.stringify(updated));

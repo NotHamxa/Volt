@@ -4,12 +4,13 @@ import { SectionLead } from "@/components/settingsLayout.tsx";
 import { HotkeyRow, SaveResult } from "@/components/hotkeyRow.tsx";
 import { useLaunchHotkeys } from "@/hooks/useLaunchHotkeys.ts";
 import { LinkShortcutType } from "@/interfaces/links.ts";
+import { cachedFavicon, linkFavicon } from "@/utils/linkFavicons.ts";
 
 function Favicon({ url }: { url: string }) {
-    const [icon, setIcon] = useState<string | null>(null);
+    const [icon, setIcon] = useState<string | null>(() => cachedFavicon(url) ?? null);
     useEffect(() => {
         let cancelled = false;
-        window.apps.getLinkFavicon(url).then(i => { if (!cancelled) setIcon(i); }).catch(() => {});
+        linkFavicon(url).then(i => { if (!cancelled) setIcon(i); });
         return () => { cancelled = true; };
     }, [url]);
     return icon
@@ -54,7 +55,7 @@ export default function LinksSection({ onRecordingChange }: { onRecordingChange?
     return (
         <div className="space-y-6">
             <SectionLead>
-                While Volt is open, Ctrl + 1–8 open your pinned links in order. Give
+                While Volt is open, Ctrl + 1–9 open your first nine links. Give
                 one a hotkey and it opens from anywhere in Windows instead.
             </SectionLead>
 

@@ -12,7 +12,7 @@ import { SaveResult } from "@/components/hotkeyRow.tsx";
 function launchComboProblem(combo: string): string | null {
     if (!toAccelerator(combo)) return "Windows can't use that key for a global shortcut.";
     if (!hasCommandModifier(combo)) return "Add Ctrl, Alt or Win — a hotkey that works everywhere can't be a bare key.";
-    if (/^Ctrl\+[1-8]$/.test(combo)) return "Volt uses Ctrl + 1–8 to open pinned links.";
+    if (/^Ctrl\+[1-9]$/.test(combo)) return "Volt uses Ctrl + 1–9 to open pinned links.";
     const clash = conflictWith("", combo);
     if (clash) return `Volt uses that for "${clash}".`;
     return null;

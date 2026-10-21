@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Unlock, Lock, Loader2, RefreshCw } from "lucide-react";
 import { GitHub } from "@/components/icons/github.tsx";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip.tsx";
@@ -19,20 +19,59 @@ import { isEscapeCaptured } from "@/hooks/useEscape.ts";
 import { getChangelogForVersion, getLatestChangelog, ChangelogEntry } from "@/data/changelog.ts";
 import ErrorBoundary from "@/components/ErrorBoundary.tsx";
 import { SearchQueryT } from "@/interfaces/searchQuery.ts";
-import { matchesCombo } from "@/data/keybindings.ts";
-import { getBinding, loadKeybindings } from "@/hooks/useKeybindings.ts";
+import { comboParts, hasCommandModifier, matchesCombo } from "@/data/keybindings.ts";
+import { getBinding, loadKeybindings, useKeybindings } from "@/hooks/useKeybindings.ts";
+import { useUpdateStatus } from "@/hooks/useUpdateStatus.ts";
+
+function isEditable(el: Element | null): boolean {
+    return el instanceof HTMLInputElement
+        || el instanceof HTMLTextAreaElement
+        || el instanceof HTMLSelectElement
+        || (el instanceof HTMLElement && el.isContentEditable);
+}
+
+/**
+ * Asks Settings whether it can be left, then runs `go`. Settings cancels the
+ * event while it holds an unsaved edit and shows its discard prompt, calling
+ * `go` itself if you discard; with `quiet` it just stays put.
+ */
+function leaveSettingsThen(path: string, go: () => void, quiet = false) {
+    if (path === '/settings') {
+        const allowed = window.dispatchEvent(new CustomEvent("settingsLeave", {
+            cancelable: true,
+            detail: { proceed: go, quiet },
+        }));
+        if (!allowed) return;
+    }
+    go();
+}
 
 
 export default function App() {
-    const [cacheLoadingStatus, setCacheLoadingStatus] = useState<boolean>(false);
+    // null until the main process has answered. Starting at false rendered the
+    // whole app for a frame, then swapped it for the loader — a false start that
+    // also mounted and tore down every page underneath.
+    const [cacheLoadingStatus, setCacheLoadingStatus] = useState<boolean | null>(null);
     const [cacheProgress, setCacheProgress] = useState<{current:number; total:number}>({current:0, total:0});
     const [showIntroModal, setShowIntroModal] = useState(false);
     const [showWalkthrough, setShowWalkthrough] = useState(false);
     const [showUpdateModal, setShowUpdateModal] = useState(false);
     const [updateModalVersion, setUpdateModalVersion] = useState("");
     const [updateModalChangelog, setUpdateModalChangelog] = useState<ChangelogEntry | null>(null);
-    const [updateProgress, setUpdateProgress] = useState<number | null>(null);
-    const [updateReady, setUpdateReady] = useState(false);
+    // Stable, so the modal's key handlers aren't re-registered every render.
+    const closeUpdateModal = useCallback(() => setShowUpdateModal(false), []);
+    const closeWalkthrough = useCallback(() => setShowWalkthrough(false), []);
+    const update = useUpdateStatus();
+    // Re-renders the footer's keycaps when the settings shortcut is rebound.
+    const { get: bindingFor } = useKeybindings();
+    const settingsKeys = comboParts(bindingFor("open-settings"));
+
+    // The intro, update and walkthrough overlays own the keyboard while up.
+    // A ref, because the global keydown handler below is installed once.
+    const overlayOpenRef = useRef(false);
+    useEffect(() => {
+        overlayOpenRef.current = showIntroModal || showUpdateModal || showWalkthrough;
+    });
 
     const [query, setQuery] = useState<string>("");
     const inputRef = useRef<HTMLInputElement>(null);
@@ -102,11 +141,6 @@ export default function App() {
         }
     }, [query]);
 
-    window.onerror = function (msg, url, line, col, error) {
-        console.error("GLOBAL ERROR CAUGHT:");
-        console.error(msg, url, line, col, error);
-    };
-
     useEffect(() => {
         // Before any shortcut can fire, so a rebound key works on a cold start
         // and not only after settings has been opened once.
@@ -133,76 +167,107 @@ export default function App() {
         checkUpdateModal();
 
         const handleBlur = () => {
-            if (inputRef.current) {
-                setQuery("");
-                inputRef.current.focus();
-            }
-            navigate('/');
+            // Quietly: an unsaved settings edit outlives the window hiding, and
+            // Settings is where you'll be when it comes back.
+            leaveSettingsThen(locationRef.current, () => {
+                if (inputRef.current) {
+                    setQuery("");
+                    inputRef.current.focus();
+                }
+                navigate('/');
+            }, true);
         };
 
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === "Escape") {
-                if (isEscapeCaptured()) return;
+                if (isEscapeCaptured(e)) return;
                 if (locationRef.current === '/') {
                     window.electron.hideWindow();
                 } else {
-                    inputRef.current?.focus();
-                    setQuery("");
-                    navigate('/', { replace: true });
+                    leaveSettingsThen(locationRef.current, () => {
+                        inputRef.current?.focus();
+                        setQuery("");
+                        navigate('/', { replace: true });
+                    });
                 }
+                return;
             }
-            // Switches into the AI view, carrying whatever has been typed.
-            if (matchesCombo(e, getBinding("open-ai")) && !argCommandRef.current) {
-                e.preventDefault();
-                const typed = inputRef.current?.value?.trim() ?? "";
-                if (locationRef.current === '/ai') {
-                    navigate('/', { replace: true });
-                } else {
-                    navigate(typed ? `/ai?prompt=${encodeURIComponent(typed)}` : '/ai');
-                    setQuery("");
+
+            // Nothing below fires from under an overlay — the intro, update
+            // and walkthrough cards, or any open dialog or menu.
+            if (overlayOpenRef.current || document.querySelector('[role="dialog"], [role="alertdialog"], [role="menu"]')) return;
+
+            const active = document.activeElement;
+            const inSearch = !!inputRef.current && active === inputRef.current;
+            // Focus in some other field: a settings form, the argument bar, a
+            // rename box. A binding without Ctrl/Alt/Win is ordinary typing
+            // there (Tab moves between fields), so it's left alone.
+            const typingElsewhere = !inSearch && isEditable(active);
+            const usableHere = (combo: string) => !typingElsewhere || hasCommandModifier(combo);
+
+            // Switches into the AI view, carrying whatever has been typed. Only
+            // from the search box — its default is plain Tab — or, on the AI
+            // view, from its composer to switch back.
+            const openAi = getBinding("open-ai");
+            if (matchesCombo(e, openAi) && !argCommandRef.current) {
+                const onAi = locationRef.current === '/ai';
+                const fromComposer = onAi && (active instanceof HTMLTextAreaElement || !isEditable(active));
+                if (inSearch || fromComposer) {
+                    e.preventDefault();
+                    const typed = inputRef.current?.value?.trim() ?? "";
+                    if (onAi) {
+                        navigate('/', { replace: true });
+                    } else {
+                        navigate(typed ? `/ai?prompt=${encodeURIComponent(typed)}` : '/ai');
+                        setQuery("");
+                    }
+                    setTimeout(() => inputRef.current?.focus(), 0);
+                    return;
                 }
-                setTimeout(() => inputRef.current?.focus(), 0);
             }
             // Ctrl+N opens the AI view. Once there, the view handles it itself
             // so the shortcut starts a fresh conversation rather than doing
             // nothing on a route it is already on.
-            if (matchesCombo(e, getBinding("ai-new-chat")) && locationRef.current !== '/ai') {
+            const newChat = getBinding("ai-new-chat");
+            if (matchesCombo(e, newChat) && locationRef.current !== '/ai' && usableHere(newChat)) {
                 e.preventDefault();
-                setQuery("");
-                navigate('/ai');
+                leaveSettingsThen(locationRef.current, () => {
+                    setQuery("");
+                    navigate('/ai');
+                });
+                return;
             }
-            if (matchesCombo(e, getBinding("open-settings"))) {
+            const openSettings = getBinding("open-settings");
+            if (matchesCombo(e, openSettings) && usableHere(openSettings)) {
                 e.preventDefault();
                 if (locationRef.current === '/settings') {
-                    navigate('/');
+                    leaveSettingsThen(locationRef.current, () => navigate('/'));
                 } else {
                     navigate('/settings');
                 }
             }
-
         };
 
-        const handleCacheLoadedEvent = () => {
+        // Register listeners BEFORE the status check to avoid a race where
+        // cache-loaded fires during the IPC round-trip and is never caught.
+        let cacheAlreadyLoaded = false;
+        const offCacheLoaded = window.electron.onCacheLoaded(() => {
+            cacheAlreadyLoaded = true;
             setCacheLoadingStatus(false);
-        };
+        });
+        const offCacheProgress = window.electron.setCacheLoadingBar((current, total) => {
+            setCacheProgress({current, total});
+        });
 
         const getCacheLoadingStatus = async () => {
-            let cacheAlreadyLoaded = false;
-
-            // Register listeners BEFORE the status check to avoid a race where
-            // cache-loaded fires during the IPC round-trip and is never caught.
-            window.electron.onCacheLoaded(() => {
-                cacheAlreadyLoaded = true;
-                handleCacheLoadedEvent();
-            });
-            window.electron.setCacheLoadingBar((current, total) => {
-                setCacheProgress({current, total});
-            });
-
-            const status = await window.electron.getCacheLoadingStatus();
-            if (!cacheAlreadyLoaded) {
-                setCacheLoadingStatus(status.loading);
+            try {
+                const status = await window.electron.getCacheLoadingStatus();
+                if (cacheAlreadyLoaded) return;
                 setCacheProgress({current: status.current, total: status.total});
+                setCacheLoadingStatus(status.loading);
+            } catch {
+                // Never leave the window blank on a failed status check.
+                if (!cacheAlreadyLoaded) setCacheLoadingStatus(false);
             }
         };
 
@@ -238,17 +303,9 @@ export default function App() {
             }, 1000);
         };
 
-        window.electron.onUpdateProgress((data: { percent: number }) => {
-            setUpdateProgress(Math.round(data.percent));
-        });
-        window.electron.onUpdateDownloaded(() => {
-            setUpdateReady(true);
-            setUpdateProgress(null);
-        });
-
-        window.electron.onWindowBlurred(handleBlur);
-        window.electron.onWindowLocked(handleWindowLock);
-        window.electron.onWindowUnlocked(handleWindowUnlock);
+        const offBlurred = window.electron.onWindowBlurred(handleBlur);
+        const offLocked = window.electron.onWindowLocked(handleWindowLock);
+        const offUnlocked = window.electron.onWindowUnlocked(handleWindowUnlock);
         window.addEventListener("keydown", handleKeyDown);
         window.addEventListener("shortcutModalOpen", handleShortcutModalOpen);
         window.addEventListener("shortcutModalClose", handleShortcutModalClose);
@@ -257,12 +314,23 @@ export default function App() {
         getCacheLoadingStatus();
 
         return () => {
+            offCacheLoaded();
+            offCacheProgress();
+            offBlurred();
+            offLocked();
+            offUnlocked();
+            if (lockTimeoutRef.current) clearTimeout(lockTimeoutRef.current);
+            if (unlockTimeoutRef.current) clearTimeout(unlockTimeoutRef.current);
             window.removeEventListener("keydown", handleKeyDown);
             window.removeEventListener("shortcutModalOpen", handleShortcutModalOpen);
             window.removeEventListener("shortcutModalClose", handleShortcutModalClose);
             window.removeEventListener("refocusInput", handleRefocusInput);
         };
     }, []);
+
+    if (cacheLoadingStatus === null) {
+        return <div className="w-screen h-screen bg-surface dark:bg-surface/[0.99] rounded-xl" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties} />;
+    }
 
     if (cacheLoadingStatus) {
         const hasProgress = cacheProgress.total > 0;
@@ -278,7 +346,7 @@ export default function App() {
                         <img src={logo} alt="Volt" className="w-8 h-8 object-contain opacity-60" />
                     </div>
                     <div className="flex flex-col items-center gap-2.5">
-                        <span className="text-[10px] tracking-[0.25em] uppercase text-tone-200">
+                        <span className="text-10 tracking-[0.25em] uppercase text-tone-200">
                             {hasProgress ? `Loading ${pct}%` : 'Loading'}
                         </span>
                         <div className="w-32 h-0.5 rounded-full bg-fill-060 overflow-hidden">
@@ -309,17 +377,17 @@ export default function App() {
                     setShowWalkthrough(true);
                 }}
             />
-            <Walkthrough open={showWalkthrough} onClose={() => setShowWalkthrough(false)} />
+            <Walkthrough open={showWalkthrough} onClose={closeWalkthrough} />
             <UpdateModal
                 open={showUpdateModal && !showIntroModal}
-                onClose={() => setShowUpdateModal(false)}
+                onClose={closeUpdateModal}
                 changelog={updateModalChangelog}
                 version={updateModalVersion}
             />
             {(showUnlockedIcon || showLockedIcon) &&
                 <div className="absolute top-3 right-3 flex items-center gap-2 z-50 bg-surface/[0.92] px-3 py-2 rounded-lg backdrop-blur-[10px] border border-line-080 shadow-[0_4px_15px_var(--shadow-1)] animate-in fade-in slide-in-from-top-2 duration-200">
-                    {showLockedIcon && <><Lock size={14} className="text-tone-600" /><span className="text-[11px] text-tone-500">Locked</span></>}
-                    {showUnlockedIcon && <><Unlock size={14} className="text-tone-600" /><span className="text-[11px] text-tone-500">Unlocked</span></>}
+                    {showLockedIcon && <><Lock size={14} className="text-tone-600" /><span className="text-11 text-tone-500">Locked</span></>}
+                    {showUnlockedIcon && <><Unlock size={14} className="text-tone-600" /><span className="text-11 text-tone-500">Unlocked</span></>}
                 </div>
             }
 
@@ -351,7 +419,7 @@ export default function App() {
                 </ErrorBoundary>
             </div>
 
-            <div className="border-t border-line-070 h-10 shrink-0 flex items-center justify-between px-4 w-[800px]">
+            <div className="border-t border-line-070 h-10 shrink-0 flex items-center justify-between px-4 w-200">
                 <button
                     aria-label="GitHub"
                     // The mark carries its own colour now, so a text-colour
@@ -365,23 +433,23 @@ export default function App() {
                 </button>
                 <div className="flex items-center gap-3">
                     <TooltipProvider delayDuration={100}>
-                        {updateReady ? (
+                        {update.state === "ready" ? (
                             <button
-                                onClick={() => window.electron.quitAndInstall()}
-                                className="flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium text-amber-400 bg-amber-400/10 border border-amber-400/20 hover:bg-amber-400/20 transition-colors duration-150"
+                                onClick={update.install}
+                                className="flex items-center gap-1.5 px-2 py-0.5 rounded-md text-11 font-medium text-amber-400 bg-amber-400/10 border border-amber-400/20 hover:bg-amber-400/20 transition-colors duration-150"
                             >
                                 <RefreshCw size={11} />
                                 Restart to update
                             </button>
-                        ) : updateProgress !== null ? (
+                        ) : update.state === "downloading" ? (
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <span className="flex items-center text-tone-250 cursor-default">
                                         <Loader2 size={13} className="animate-spin" />
                                     </span>
                                 </TooltipTrigger>
-                                <TooltipContent side="top" className="bg-surface/[0.98] border border-line-100 text-tone-700 text-[11px]">
-                                    Downloading update… {updateProgress}%
+                                <TooltipContent side="top" className="bg-surface/[0.98] border border-line-100 text-tone-700 text-11">
+                                    Downloading update… {update.percent}%
                                 </TooltipContent>
                             </Tooltip>
                         ) : null}
@@ -391,7 +459,7 @@ export default function App() {
                         <button
                             onClick={() => {
                                 if (locationRef.current === '/settings') {
-                                    navigate('/');
+                                    leaveSettingsThen(locationRef.current, () => navigate('/'));
                                 } else {
                                     navigate('/settings');
                                 }
@@ -400,9 +468,12 @@ export default function App() {
                         >
                             Settings
                         </button>
-                        <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-fill-070 border border-line-100">Ctrl</span>
-                        <span className="text-tone-150">+</span>
-                        <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-fill-070 border border-line-100">H</span>
+                        {settingsKeys.map((key, i) => (
+                            <span key={i} className="flex items-center space-x-2">
+                                {i > 0 && <span className="text-tone-150">+</span>}
+                                <span className="inline-flex items-center px-1.5 py-0.5 text-10 rounded-md bg-fill-070 border border-line-100">{key}</span>
+                            </span>
+                        ))}
                     </div>
                 </div>
             </div>

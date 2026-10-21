@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BINDINGS } from "@/data/keybindings.ts";
+import { BINDINGS, expandCombo, isTypingCombo, normalizeCombo } from "@/data/keybindings.ts";
 
 const STORE_KEY = "keybindings";
 
@@ -43,7 +43,9 @@ export async function loadKeybindings() {
         const parsed = raw ? JSON.parse(raw) : null;
         if (parsed && typeof parsed === "object") {
             for (const [k, v] of Object.entries(parsed)) {
-                if (typeof v === "string") overrides[k] = v;
+                // Older recorders saved DOM names ("ArrowUp") the matcher no
+                // longer produces.
+                if (typeof v === "string") overrides[k] = normalizeCombo(v);
             }
             emit();
         }
@@ -64,14 +66,24 @@ export function resetBinding(id: string) {
 
 /**
  * Which other binding a combo would collide with, if any. Two commands on one
- * combo means whichever handler runs first wins, silently.
+ * combo means whichever handler runs first wins, silently. Structural rows are
+ * expanded first — "Up / Down" has to clash with Up.
  */
 export function conflictWith(id: string, combo: string): string | null {
     if (!combo) return null;
     for (const b of BINDINGS) {
         if (b.id === id || b.global) continue;
-        if (getBinding(b.id) === combo) return b.label;
+        if (expandCombo(getBinding(b.id)).includes(combo)) return b.label;
     }
+    return null;
+}
+
+/**
+ * Why a combo can't be used at all, or null. A bare letter bound to a command
+ * would fire every time it's typed into a field.
+ */
+export function comboProblem(combo: string): string | null {
+    if (isTypingCombo(combo)) return "Add Ctrl, Alt or Win — on its own that key is needed for typing.";
     return null;
 }
 

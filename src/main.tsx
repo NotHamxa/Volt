@@ -5,6 +5,12 @@ import './index.css'
 import App from './App.tsx'
 import { ThemeProvider } from './theme.tsx'
 
+// Once, here, rather than reassigned on every App render.
+window.onerror = function (msg, url, line, col, error) {
+  console.error("GLOBAL ERROR CAUGHT:");
+  console.error(msg, url, line, col, error);
+};
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ThemeProvider>

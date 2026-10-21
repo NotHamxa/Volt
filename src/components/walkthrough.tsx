@@ -2,11 +2,13 @@ import { useEffect, useLayoutEffect, useRef, useState, useCallback, CSSPropertie
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router";
 import { useEscape } from "@/hooks/useEscape.ts";
+import { useKeybindings } from "@/hooks/useKeybindings.ts";
 
 type Step = {
     selector?: string;
     title: string;
-    body: string;
+    /** A function when it names the settings shortcut, which can be rebound. */
+    body: string | ((settingsKey: string | null) => string);
     placement?: "top" | "bottom" | "left" | "right";
     padding?: number;
     nextLabel?: string;
@@ -32,7 +34,7 @@ const STEPS: Step[] = [
     {
         selector: '[data-walkthrough="settings-btn"]',
         title: "Everything else lives here",
-        body: "Pin apps, rebind the shortcut, add custom commands, watched folders, bangs. Ctrl+H opens it any time.",
+        body: (key) => `Pin apps, rebind the shortcut, add custom commands, watched folders, bangs.${key ? ` ${key} opens it any time.` : ""}`,
         placement: "top",
         padding: 6,
         nextLabel: "Open Settings",
@@ -40,7 +42,7 @@ const STEPS: Step[] = [
     },
     {
         title: "You're set",
-        body: "Press Esc or Ctrl+H to come back to search. Have fun.",
+        body: (key) => `Press Esc${key ? ` or ${key}` : ""} to come back to search. Have fun.`,
         centered: true,
         nextLabel: "Done",
     },
@@ -60,6 +62,8 @@ export function Walkthrough({ open, onClose }: WalkthroughProps) {
     const [tooltipHeight, setTooltipHeight] = useState(140);
     const tooltipRef = useRef<HTMLDivElement>(null);
     const navigate = useNavigate();
+    const { get: bindingFor } = useKeybindings();
+    const settingsKey = bindingFor("open-settings") || null;
 
     const current = STEPS[step];
 
@@ -103,13 +107,39 @@ export function Walkthrough({ open, onClose }: WalkthroughProps) {
 
     useEscape(close, open);
 
-    function next() {
+    const next = useCallback(() => {
         if (current.onNext) current.onNext(navigate);
         if (step >= STEPS.length - 1) close();
         else setStep(step + 1);
-    }
+    }, [current, navigate, close, step]);
+
+    const back = useCallback(() => {
+        if (step === 0) return;
+        // The step before a page change was shown on the page that was left.
+        if (STEPS[step - 1].onNext) navigate("/");
+        setStep(step - 1);
+    }, [step, navigate]);
+
+    // Enter or → steps on, ← steps back. The tour holds the keyboard while it's
+    // up: captured on window, so nothing reaches the search box behind it or
+    // the app's own shortcuts. Escape is left to useEscape, which closes it.
+    useEffect(() => {
+        if (!open) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") return;
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            if (e.repeat) return;
+            if (e.key === "Enter" || e.key === "ArrowRight") next();
+            else if (e.key === "ArrowLeft") back();
+        };
+        window.addEventListener("keydown", onKey, true);
+        return () => window.removeEventListener("keydown", onKey, true);
+    }, [open, next, back]);
 
     if (!open) return null;
+
+    const body = typeof current.body === "function" ? current.body(settingsKey) : current.body;
 
     const padding = current.padding ?? 6;
     const target = rect && !current.centered
@@ -233,18 +263,18 @@ export function Walkthrough({ open, onClose }: WalkthroughProps) {
                     className="absolute pointer-events-auto rounded-xl bg-surface-modal/[0.98] border border-line-090 shadow-[0_20px_50px_var(--shadow-3),inset_0_1px_0_var(--edge-hi)] p-3.5"
                 >
                     <div className="flex items-center justify-between mb-2">
-                        <p className="text-[10px] uppercase tracking-widest text-tone-250">
+                        <p className="text-10 uppercase tracking-widest text-tone-250">
                             {step + 1} / {STEPS.length}
                         </p>
                         <button
                             onClick={close}
-                            className="text-[10px] text-tone-250 hover:text-tone-550 transition-colors"
+                            className="text-10 text-tone-250 hover:text-tone-550 transition-colors"
                         >
                             Skip
                         </button>
                     </div>
-                    <h3 className="text-[14px] font-semibold text-ink tracking-[-0.01em] mb-1.5">{current.title}</h3>
-                    <p className="text-[12px] text-tone-450 leading-relaxed mb-3.5">{current.body}</p>
+                    <h3 className="text-14 font-semibold text-ink tracking-[-0.01em] mb-1.5">{current.title}</h3>
+                    <p className="text-12 text-tone-450 leading-relaxed mb-3.5">{body}</p>
                     <div className="flex items-center justify-between">
                         <div className="flex gap-1">
                             {STEPS.map((_, i) => (
@@ -256,7 +286,7 @@ export function Walkthrough({ open, onClose }: WalkthroughProps) {
                         </div>
                         <button
                             onClick={next}
-                            className="px-3 py-1.5 rounded-lg text-[11px] font-medium text-surface bg-ink hover:opacity-90 active:scale-[0.98] transition-all"
+                            className="px-3 py-1.5 rounded-lg text-11 font-medium text-surface bg-ink hover:opacity-90 active:scale-[0.98] transition-all"
                         >
                             {current.nextLabel ?? "Next"}
                         </button>

@@ -1,6 +1,13 @@
 import { useEffect } from "react";
 type Entry = { handler: () => void; id: symbol; passthrough: boolean };
 const stack: Entry[] = [];
+/**
+ * Escapes a barrier let through. The overlay's own handler (Radix listens on
+ * document, in capture) closes it and React can commit — dropping the barrier
+ * — before App's bubble-phase handler asks, so the stack alone would already
+ * be empty by then and the same keypress would leave the page too.
+ */
+const barred = new WeakSet<Event>();
 
 let installed = false;
 function install() {
@@ -12,7 +19,7 @@ function install() {
             if (e.key !== "Escape") return;
             if (stack.length === 0) return;
             const top = stack[stack.length - 1];
-            if (top.passthrough) return; // let the overlay's own handler run
+            if (top.passthrough) { barred.add(e); return; } // let the overlay's own handler run
             e.preventDefault();
             e.stopPropagation();
             e.stopImmediatePropagation();
@@ -45,6 +52,7 @@ export function useEscapeBarrier(isOpen: boolean) {
     }, [isOpen]);
 }
 
-export function isEscapeCaptured(): boolean {
-    return stack.length > 0;
+/** Pass the event when asking from a keydown handler, so a barrier that closed on it still counts. */
+export function isEscapeCaptured(e?: Event): boolean {
+    return stack.length > 0 || (!!e && barred.has(e));
 }

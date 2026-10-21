@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button.tsx";
-import { Globe, ExternalLink, RefreshCw, Check } from "lucide-react";
+import { Globe, ExternalLink, RefreshCw, Check, AlertTriangle } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { GitHub } from "@/components/icons/github.tsx";
 import { LinkedIn } from "@/components/icons/linkedin.tsx";
@@ -10,7 +10,7 @@ export default function AboutSection() {
     const [appVersion, setAppVersion] = useState("");
     // Shared with the version chip in the settings header, so the two can't
     // disagree — and so the update IPC is subscribed to once, not per mount.
-    const { state: updateStatus, percent: downloadPercent, check, install } = useUpdateStatus();
+    const { state: updateStatus, percent: downloadPercent, error: updateError, check, install } = useUpdateStatus();
 
     useEffect(() => {
         window.electron.getAppVersion().then(setAppVersion);
@@ -34,28 +34,35 @@ export default function AboutSection() {
             case "downloading": return <><RefreshCw size={14} className="animate-spin" /> Downloading {downloadPercent}%</>;
             case "ready": return <><Check size={14} /> Install & Restart</>;
             case "uptodate": return <><Check size={14} className="text-green-400" /> Up to date</>;
+            case "error": return <><RefreshCw size={14} /> Try Again</>;
             default: return <><RefreshCw size={14} /> Check for Updates</>;
         }
     };
 
     return (
         <div className="space-y-6">
-            <p className="text-[12px] text-tone-400 leading-relaxed">Application info and developer contact.</p>
+            <p className="text-12 text-tone-400 leading-relaxed">Application info and developer contact.</p>
 
             <div className="space-y-2">
                 <div className="px-4 py-3 rounded-lg bg-fill-025 border border-line-050 hover:border-line-090 transition-colors">
                     <div className="flex items-center justify-between gap-4">
                         <div>
-                            <h3 className="text-[12.5px] font-medium text-tone-800 mb-0.5">Application Version</h3>
-                            <p className="text-[11px] text-tone-350">Current release build</p>
+                            <h3 className="text-12.5 font-medium text-tone-800 mb-0.5">Application Version</h3>
+                            {updateStatus === "error" ? (
+                                <p className="flex items-center gap-1.5 text-11 text-amber-300/80">
+                                    <AlertTriangle size={10} className="shrink-0" /> {updateError ?? "Couldn't check for updates."}
+                                </p>
+                            ) : (
+                                <p className="text-11 text-tone-350">Current release build</p>
+                            )}
                         </div>
                         <div className="flex items-center gap-2">
                             <div className="px-2 py-1 rounded-md bg-fill-050 border border-line-080">
-                                <span className="text-tone-600 font-mono text-[11px]">v{appVersion}</span>
+                                <span className="text-tone-600 font-mono text-11">v{appVersion}</span>
                             </div>
                             <Button
                                 variant="outline"
-                                className="rounded-md text-[11px] text-tone-550 hover:text-tone-850 hover:bg-fill-050 transition-colors border-line-080 h-8 px-3 gap-1.5"
+                                className="rounded-md text-11 text-tone-550 hover:text-tone-850 hover:bg-fill-050 transition-colors border-line-080 h-8 px-3 gap-1.5"
                                 onClick={updateStatus === "ready" ? () => window.electron.quitAndInstall() : handleCheckUpdate}
                                 disabled={updateStatus === "checking" || updateStatus === "downloading"}
                             >
@@ -66,12 +73,12 @@ export default function AboutSection() {
                 </div>
 
                 <div className="px-4 py-3 rounded-lg bg-fill-025 border border-line-050 hover:border-line-090 transition-colors">
-                    <h3 className="text-[12.5px] font-medium text-tone-800 mb-1.5">Developer</h3>
-                    <p className="text-[12px] text-tone-650">Hamza Ahmed</p>
+                    <h3 className="text-12.5 font-medium text-tone-800 mb-1.5">Developer</h3>
+                    <p className="text-12 text-tone-650">Hamza Ahmed</p>
                 </div>
 
                 <div className="px-4 py-3 rounded-lg bg-fill-025 border border-line-050">
-                    <h3 className="text-[12.5px] font-medium text-tone-800 mb-2">Connect</h3>
+                    <h3 className="text-12.5 font-medium text-tone-800 mb-2">Connect</h3>
                     <div className="space-y-0.5">
                         {socialLinks.map((link, index) => {
                             const Icon = link.icon;
@@ -86,8 +93,8 @@ export default function AboutSection() {
                                             <Icon size={12} strokeWidth={1.8} />
                                         </div>
                                         <div>
-                                            <p className="text-[12px] font-medium text-tone-750">{link.name}</p>
-                                            <p className="text-[10px] text-tone-300">{link.label}</p>
+                                            <p className="text-12 font-medium text-tone-750">{link.name}</p>
+                                            <p className="text-10 text-tone-300">{link.label}</p>
                                         </div>
                                     </div>
                                     <ExternalLink size={12} className="text-tone-200 group-hover:text-tone-500 transition-colors" />
@@ -100,12 +107,12 @@ export default function AboutSection() {
                 <div className="px-4 py-3 rounded-lg bg-fill-025 border border-line-050 hover:border-line-090 transition-colors">
                     <div className="flex items-center justify-between gap-4">
                         <div>
-                            <h3 className="text-[12.5px] font-medium text-tone-800 mb-0.5">License & Credits</h3>
-                            <p className="text-[11px] text-tone-350">View source on GitHub.</p>
+                            <h3 className="text-12.5 font-medium text-tone-800 mb-0.5">License & Credits</h3>
+                            <p className="text-11 text-tone-350">View source on GitHub.</p>
                         </div>
                         <Button
                             variant="outline"
-                            className="rounded-md text-[11px] text-tone-550 hover:text-tone-850 hover:bg-fill-050 transition-colors border-line-080 h-8 px-3"
+                            className="rounded-md text-11 text-tone-550 hover:text-tone-850 hover:bg-fill-050 transition-colors border-line-080 h-8 px-3"
                             onClick={() => window.electron.openExternal("https://github.com/NotHamxa/volt")}
                         >
                             <GitHub className="mr-1.5" />

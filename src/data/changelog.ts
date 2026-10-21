@@ -2,6 +2,12 @@ export interface ChangelogEntry {
     version: string;
     date: string;
     highlights: string[];
+    /**
+     * Offer the tour from the update window. For releases that change enough
+     * that someone upgrading — who never sees the first-run intro — would
+     * want walking through it.
+     */
+    tour?: boolean;
     sections: {
         title: string;
         items: string[];
@@ -9,6 +15,70 @@ export interface ChangelogEntry {
 }
 
 const changelog: ChangelogEntry[] = [
+    {
+        version: "2.0.0",
+        date: "2026-10-21",
+        tour: true,
+        highlights: [
+            "A fresh new look, with a light theme",
+            "An AI chat that shows its work",
+            "App groups and global hotkeys",
+        ],
+        sections: [
+            {
+                title: "A Fresh New Look",
+                items: [
+                    "A redesigned home screen: your pinned apps fill the space above a links dock that never moves, with no limit on how many of either",
+                    "Group apps by dragging one onto another — a group shows its first four icons and opens into its own grid",
+                    "A light theme alongside the dark one — pick System, Light or Dark in Settings → General",
+                    "Settings is laid out down the left side, with a search box (Ctrl + F) to find any setting",
+                    "Real Windows icons for files and folders, and sharper icons for every app",
+                    "Cleaner, more consistent text and spacing throughout",
+                ],
+            },
+            {
+                title: "New Features",
+                items: [
+                    "The AI chat shows each step Claude or Codex takes, where it happened in the answer — what it ran, read or edited, whether it worked, and its output a click away — along with its thinking and to-do list",
+                    "Choose how much the AI may do: Ask first, Auto-edit, Auto or Full access (and Plan for Claude). Claude and Codex both ask before running commands or changing files, and the mode you pick becomes your default",
+                    "Each AI answer shows the model, time and tokens used, and how much of your Claude plan's window is spent",
+                    "Give any app or link a global hotkey in Settings → Apps and Settings → Links — it opens from anywhere in Windows",
+                    "Links open with Ctrl + 1–9, and your pinned links now show up in search",
+                    "Preview pane (Alt + P): thumbnails, PDF first pages, file details and quick actions beside your results",
+                    "A Shortcuts section to rebind Volt's keys",
+                    "Search is one ranked list of apps, files, commands, settings and the web, with the rest of a name hinted as you type",
+                    "Importing commands lets you review every script before it's saved",
+                    "A new welcome tour that takes you through search, the home screen, the AI chat and the Settings worth knowing",
+                ],
+            },
+            {
+                title: "Improvements",
+                items: [
+                    "Search learns which result you pick for a query, ranks by how well things match, and finds apps by their initials (vsc → Visual Studio Code) or without accents",
+                    "Much faster: search over very large folders is up to ten times quicker, app icons appear in under two seconds, and indexing no longer holds up startup",
+                    "The installer is half the size, and Volt now runs on Electron 44",
+                    "The app list matches Start's All apps, and Store installs and uninstalls appear within seconds",
+                    "Commands run more reliably, and the built-in commands work properly on Windows 11",
+                    "A failed update check says so, with a Try Again button, and the version number in Settings is now the update button",
+                    "Claude and Codex are found wherever they're installed, and the AI integrations run on the latest Claude Agent SDK and Codex app server",
+                    "The AI chat can stay open while you click away — the pin in its corner shows it and turns it off",
+                ],
+            },
+            {
+                title: "Bug Fixes",
+                items: [
+                    "Security: file actions, command arguments and dropped HTML files can no longer be used to run code",
+                    "Volt no longer freezes on startup with very large indexed folders, and new or moved files are picked up reliably",
+                    "Typing a command's full name now picks that command, and failed commands show their actual error",
+                    "Dismissing Volt returns you to the window you were using, and the loading screen never gets stuck",
+                    "Apps no longer appear twice or replace a namesake, and apps without a Start shortcut can be launched",
+                    "Leaving Settings with unsaved changes asks first, and Tab in a settings field no longer jumps to the AI chat",
+                    "AI chats survive switching providers mid-reply, keep their errors, and can't be corrupted by closing Volt",
+                    "A downloaded update is no longer thrown away when you quit from the tray",
+                ],
+            },
+        ],
+    },
     {
         version: "1.1.7",
         date: "2026-06-11",

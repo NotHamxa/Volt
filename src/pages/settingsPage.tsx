@@ -174,6 +174,16 @@ export default function SettingsPage() {
         }
     };
 
+    // The tour shows sections by name; it asks for one with this event.
+    useEffect(() => {
+        const show = (e: Event) => {
+            const id = (e as CustomEvent<string>).detail as SectionId;
+            if (NAV.some(n => n.id === id)) setActiveSection(id);
+        };
+        window.addEventListener("walkthrough:settings-section", show);
+        return () => window.removeEventListener("walkthrough:settings-section", show);
+    }, []);
+
     const confirmDiscard = () => {
         hasUnsavedRef.current = false;
         if (pendingLeave) {
@@ -392,6 +402,7 @@ export default function SettingsPage() {
                         return (
                             <button
                                 key={item.id}
+                                data-walkthrough={`settings-${item.id}`}
                                 ref={el => { tabRefs.current[i] = el; }}
                                 onClick={() => handleSectionChange(item.id)}
                                 onMouseEnter={() => setHovered(i)}

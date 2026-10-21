@@ -59,7 +59,10 @@ export default function App() {
     const [updateModalVersion, setUpdateModalVersion] = useState("");
     const [updateModalChangelog, setUpdateModalChangelog] = useState<ChangelogEntry | null>(null);
     // Stable, so the modal's key handlers aren't re-registered every render.
-    const closeUpdateModal = useCallback(() => setShowUpdateModal(false), []);
+    const closeUpdateModal = useCallback(() => {
+        setShowUpdateModal(false);
+        window.electron.updateModalSeen();
+    }, []);
     const closeWalkthrough = useCallback(() => setShowWalkthrough(false), []);
     const update = useUpdateStatus();
     // Re-renders the footer's keycaps when the settings shortcut is rebound.
@@ -383,6 +386,12 @@ export default function App() {
                 onClose={closeUpdateModal}
                 changelog={updateModalChangelog}
                 version={updateModalVersion}
+                onStartTour={() => {
+                    closeUpdateModal();
+                    navigate('/');
+                    // After the card's exit, as the intro does.
+                    setTimeout(() => setShowWalkthrough(true), 280);
+                }}
             />
             {(showUnlockedIcon || showLockedIcon) &&
                 <div className="absolute top-3 right-3 flex items-center gap-2 z-50 bg-surface/[0.92] px-3 py-2 rounded-lg backdrop-blur-[10px] border border-line-080 shadow-[0_4px_15px_var(--shadow-1)] animate-in fade-in slide-in-from-top-2 duration-200">

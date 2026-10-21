@@ -55,6 +55,7 @@ contextBridge.exposeInMainWorld("electron", {
     onUpdateNotAvailable:(cb)=>listen("update-not-available",cb),
     getFolderFileCounts:()=>ipcRenderer.invoke("get-folder-file-counts"),
     getUpdateModalInfo:()=>ipcRenderer.invoke("get-update-modal-info"),
+    updateModalSeen: () => ipcRenderer.send("update-modal-seen"),
 });
 contextBridge.exposeInMainWorld("file",{
     searchFilesAndFolders: (baseDir, query) => ipcRenderer.invoke('search-files', baseDir, query),

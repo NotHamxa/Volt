@@ -309,6 +309,8 @@ declare global {
             checkForUpdates:()=>Promise<{ok:boolean; message?:string}>;
             getFolderFileCounts:()=>Promise<Record<string, number>>;
             getUpdateModalInfo:()=>Promise<{show:boolean; previousVersion?:string; currentVersion?:string}>;
+            /** The update notes were closed; they won't be offered again this run. */
+            updateModalSeen: () => void;
         };
         electronStore: {
             set: (key: string, value: any) => void;

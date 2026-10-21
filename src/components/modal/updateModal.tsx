@@ -1,12 +1,13 @@
 import { ReactNode, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, ArrowRight, Wrench, Bug } from "lucide-react";
+import { Sparkles, ArrowRight, Wrench, Bug, Palette } from "lucide-react";
 import { ChangelogEntry } from "@/data/changelog.ts";
 import { useEscape } from "@/hooks/useEscape.ts";
 
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
 const sectionIcons: Record<string, ReactNode> = {
+    "A Fresh New Look": <Palette size={13} className="text-tone-500" strokeWidth={1.5} />,
     "New Features": <Sparkles size={13} className="text-tone-500" strokeWidth={1.5} />,
     "Improvements": <Wrench size={13} className="text-tone-500" strokeWidth={1.5} />,
     "Bug Fixes": <Bug size={13} className="text-tone-500" strokeWidth={1.5} />,
@@ -17,9 +18,12 @@ interface UpdateModalProps {
     onClose: () => void;
     changelog: ChangelogEntry | null;
     version: string;
+    /** Closes the card and starts the walkthrough; offered when the release asks for it. */
+    onStartTour?: () => void;
 }
 
-export function UpdateModal({ open, onClose, changelog, version }: UpdateModalProps) {
+export function UpdateModal({ open, onClose, changelog, version, onStartTour }: UpdateModalProps) {
+    const offerTour = Boolean(changelog?.tour && onStartTour);
     // Esc closes the card rather than hiding the window with it still up.
     useEscape(onClose, open);
 
@@ -32,15 +36,19 @@ export function UpdateModal({ open, onClose, changelog, version }: UpdateModalPr
             e.stopImmediatePropagation();
             if (e.key === "Enter") {
                 e.preventDefault();
-                onClose();
-            } else if (e.key === "Tab") {
+                // Whichever button has focus; the first one otherwise.
+                const focused = document.activeElement;
+                if (focused instanceof HTMLButtonElement && focused.closest('[role="dialog"]')) focused.click();
+                else if (offerTour) onStartTour?.();
+                else onClose();
+            } else if (e.key === "Tab" && !offerTour) {
                 // One button — nowhere else for focus to go.
                 e.preventDefault();
             }
         };
         window.addEventListener("keydown", onKey, true);
         return () => window.removeEventListener("keydown", onKey, true);
-    }, [open, onClose]);
+    }, [open, onClose, offerTour, onStartTour]);
 
     if (!open) return null;
 
@@ -120,15 +128,34 @@ export function UpdateModal({ open, onClose, changelog, version }: UpdateModalPr
                         )}
                     </div>
 
-                    {/* Footer */}
+                    {/* Footer. A big release offers the tour: someone upgrading
+                        never sees the first-run intro that would. */}
                     <div className="px-7 py-4 border-t border-line-050">
-                        <button
-                            autoFocus
-                            onClick={onClose}
-                            className="w-full py-2.5 rounded-xl text-13 font-medium text-surface transition-all duration-150 hover:opacity-90 active:scale-[0.98] bg-ink"
-                        >
-                            Got it
-                        </button>
+                        {offerTour ? (
+                            <div className="flex flex-col items-center gap-1.5">
+                                <button
+                                    autoFocus
+                                    onClick={onStartTour}
+                                    className="w-full py-2.5 rounded-xl text-13 font-medium text-surface transition-all duration-150 hover:opacity-90 active:scale-[0.98] bg-ink"
+                                >
+                                    Take the tour
+                                </button>
+                                <button
+                                    onClick={onClose}
+                                    className="text-11 text-tone-250 hover:text-tone-500 transition-colors duration-150 py-1"
+                                >
+                                    Maybe later
+                                </button>
+                            </div>
+                        ) : (
+                            <button
+                                autoFocus
+                                onClick={onClose}
+                                className="w-full py-2.5 rounded-xl text-13 font-medium text-surface transition-all duration-150 hover:opacity-90 active:scale-[0.98] bg-ink"
+                            >
+                                Got it
+                            </button>
+                        )}
                     </div>
                 </motion.div>
             </motion.div>

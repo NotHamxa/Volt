@@ -1,48 +1,151 @@
 import { useEffect, useLayoutEffect, useRef, useState, useCallback, CSSProperties } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { useEscape } from "@/hooks/useEscape.ts";
 import { useKeybindings } from "@/hooks/useKeybindings.ts";
 
 type Step = {
     selector?: string;
     title: string;
-    /** A function when it names the settings shortcut, which can be rebound. */
-    body: string | ((settingsKey: string | null) => string);
+    /** A function when it names a shortcut, since those can be rebound. */
+    body: string | ((keys: StepKeys) => string);
     placement?: "top" | "bottom" | "left" | "right";
     padding?: number;
     nextLabel?: string;
-    onNext?: (nav: ReturnType<typeof useNavigate>) => void;
     centered?: boolean;
+    /**
+     * The page the step is shown on; the tour goes there itself, forwards or
+     * back. Home when unset.
+     */
+    route?: string;
+    /** On the Settings page, the section to open for it. */
+    section?: string;
 };
 
+/** The shortcuts a step can name, as currently bound. Null when unbound. */
+type StepKeys = { settings: string | null; ai: string | null; preview: string | null; open: string | null };
+
+/**
+ * The tour: search and the home screen, then the AI view, then the parts of
+ * Settings worth knowing about — each shown on its own page, so it ends with
+ * the person having actually been to every place it mentions.
+ */
 const STEPS: Step[] = [
     {
         selector: '[data-walkthrough="search-input"]',
-        title: "Search anything",
-        body: "Type to find apps, files, commands, and settings — all at once. This bar is the whole app.",
+        title: "Search everything",
+        body: (keys) => `Apps, files, commands, settings and your pinned links in one list, with the web underneath. Add a bang like !yt to search a site directly.${keys.preview ? ` ${keys.preview} previews the highlighted result.` : ""}`,
         placement: "bottom",
         padding: 6,
     },
     {
-        selector: '[data-walkthrough="search-input"]',
-        title: "The web is right here too",
-        body: "Every search offers a web result at the bottom. Add a bang like !yt or !g to send it straight to that site instead.",
+        selector: '[data-walkthrough="pinned-apps"]',
+        title: "Your apps, your way",
+        body: "Pin the apps you use from search or All apps. Drag one onto another to group them, or rest on a tile's edge to reorder.",
         placement: "bottom",
-        padding: 6,
+        padding: 4,
     },
     {
-        selector: '[data-walkthrough="settings-btn"]',
-        title: "Everything else lives here",
-        body: (key) => `Pin apps, rebind the shortcut, add custom commands, watched folders, bangs.${key ? ` ${key} opens it any time.` : ""}`,
+        selector: '[data-walkthrough="links-dock"]',
+        title: "Links in the dock",
+        body: "Your favourite sites live here, always in the same spot. Ctrl + 1–9 opens the first nine, and they show up in search too.",
         placement: "top",
-        padding: 6,
-        nextLabel: "Open Settings",
-        onNext: (nav) => nav("/settings"),
+        padding: 4,
+        nextLabel: "Show me AI",
+    },
+
+    // --- the AI view ---------------------------------------------------------
+    {
+        route: "/ai",
+        selector: '[data-walkthrough="ai-composer"]',
+        title: "Ask AI",
+        body: (keys) => `Ask anything here${keys.ai ? ` — ${keys.ai} brings you here from search` : ""}. Answers show each step the AI takes where it happened: the files it read, the commands it ran, what it was thinking.`,
+        placement: "top",
+        padding: 4,
+    },
+    {
+        route: "/ai",
+        selector: '[data-walkthrough="ai-model"]',
+        title: "Pick a model",
+        body: "Claude, Codex, Gemini or any OpenAI-compatible provider, and any model id you type. Claude and Codex use the accounts you're already signed in to.",
+        placement: "top",
+        padding: 4,
+    },
+    {
+        route: "/ai",
+        selector: '[data-walkthrough="ai-mode"]',
+        title: "Decide what it may do",
+        body: "Ask first approves every command and file change. Auto-edit lets edits through, Auto has a reviewer approve routine steps, and Full access runs anything. Your pick becomes the default.",
+        placement: "top",
+        padding: 4,
+    },
+    {
+        route: "/ai",
+        selector: '[data-walkthrough="ai-history"]',
+        title: "Your chats",
+        body: "Past conversations are kept here — hover to see them. Each remembers its model and mode, and a reply keeps going if you leave.",
+        placement: "right",
+        padding: 4,
+    },
+    {
+        route: "/ai",
+        selector: '[data-walkthrough="ai-pin"]',
+        title: "Stays open while you chat",
+        body: "Volt won't hide when you click away from a chat, so an answer isn't cut off. Click the pin to change that.",
+        placement: "left",
+        padding: 4,
+        nextLabel: "Show me Settings",
+    },
+
+    // --- Settings ------------------------------------------------------------
+    {
+        route: "/settings",
+        section: "settings",
+        selector: '[data-walkthrough="settings-settings"]',
+        title: "General",
+        body: "Light or dark theme, starting with Windows, and how Volt opens.",
+        placement: "right",
+        padding: 3,
+    },
+    {
+        route: "/settings",
+        section: "keys",
+        selector: '[data-walkthrough="settings-keys"]',
+        title: "Shortcuts",
+        body: (keys) => `Every key Volt responds to, and the ones you can change${keys.open ? ` — like ${keys.open}, which opens Volt` : ""}.`,
+        placement: "right",
+        padding: 3,
+    },
+    {
+        route: "/settings",
+        section: "apps",
+        selector: '[data-walkthrough="settings-apps"]',
+        title: "Hotkeys for apps and links",
+        body: "Give any app — or, under Links, any site — a hotkey that opens it from anywhere in Windows, even when Volt is hidden.",
+        placement: "right",
+        padding: 3,
+    },
+    {
+        route: "/settings",
+        section: "folders",
+        selector: '[data-walkthrough="settings-folders"]',
+        title: "What gets searched",
+        body: "Choose which folders Volt indexes for file search. Your Desktop and Downloads are in from the start.",
+        placement: "right",
+        padding: 3,
+    },
+    {
+        route: "/settings",
+        section: "ai",
+        selector: '[data-walkthrough="settings-ai"]',
+        title: "AI providers",
+        body: "Connect providers and API keys, and choose the default model and the folder AI tools work in.",
+        placement: "right",
+        padding: 3,
     },
     {
         title: "You're set",
-        body: (key) => `Press Esc${key ? ` or ${key}` : ""} to come back to search. Have fun.`,
+        body: (keys) => `${keys.open ? `${keys.open} brings Volt up from anywhere, and ` : ""}Esc puts it away. Have fun.`,
         centered: true,
         nextLabel: "Done",
     },
@@ -63,27 +166,38 @@ export function Walkthrough({ open, onClose }: WalkthroughProps) {
     const tooltipRef = useRef<HTMLDivElement>(null);
     const navigate = useNavigate();
     const { get: bindingFor } = useKeybindings();
-    const settingsKey = bindingFor("open-settings") || null;
+    const keys: StepKeys = {
+        settings: bindingFor("open-settings") || null,
+        ai: bindingFor("open-ai") || null,
+        preview: bindingFor("toggle-preview") || null,
+        open: bindingFor("open-volt") || null,
+    };
+    const location = useLocation();
 
     const current = STEPS[step];
 
     const measure = useCallback(() => {
-        if (!current?.selector) {
-            setRect(null);
-            return;
-        }
-        const el = document.querySelector(current.selector);
-        setRect(el ? el.getBoundingClientRect() : null);
+        const el = current?.selector ? document.querySelector(current.selector) : null;
+        const next = el ? el.getBoundingClientRect() : null;
+        // Only a real move re-renders — this runs every frame.
+        setRect(prev => (
+            prev === next || (prev && next && prev.top === next.top && prev.left === next.left
+                && prev.width === next.width && prev.height === next.height)
+                ? prev
+                : next
+        ));
     }, [current]);
 
+    // Followed for as long as the step is up, not just as it opens: the
+    // target can mount late (a page the tour just went to) or move once it
+    // has (the AI composer gains its effort menu when the model list loads,
+    // pushing the mode menu along), and the highlight stayed behind.
     useLayoutEffect(() => {
         if (!open) return;
-        // Re-measure across a few frames — target may have just mounted (e.g. after nav)
-        let frames = 0;
         let id: number;
         const tick = () => {
             measure();
-            if (++frames < 6) id = requestAnimationFrame(tick);
+            id = requestAnimationFrame(tick);
         };
         id = requestAnimationFrame(tick);
         return () => cancelAnimationFrame(id);
@@ -99,26 +213,39 @@ export function Walkthrough({ open, onClose }: WalkthroughProps) {
         };
     }, [open, measure]);
 
+    // Each step is shown on its own page: going forwards or back, the tour
+    // takes you there, and to the Settings section it's about.
+    const route = current?.route ?? "/";
+    const section = current?.section;
+    useEffect(() => {
+        if (!open) return;
+        if (location.pathname !== route) navigate(route);
+        if (!section) return;
+        // Settings may only just be mounting; asking a few times is harmless,
+        // since opening the section that's already open does nothing.
+        const ask = () => window.dispatchEvent(new CustomEvent("walkthrough:settings-section", { detail: section }));
+        const timers = [0, 80, 250].map(ms => window.setTimeout(ask, ms));
+        return () => timers.forEach(t => window.clearTimeout(t));
+    }, [open, route, section, location.pathname, navigate]);
+
     const close = useCallback(() => {
         setStep(0);
         setRect(null);
         onClose();
-    }, [onClose]);
+        // The tour started on the home screen; it ends there too.
+        navigate("/");
+    }, [onClose, navigate]);
 
     useEscape(close, open);
 
     const next = useCallback(() => {
-        if (current.onNext) current.onNext(navigate);
         if (step >= STEPS.length - 1) close();
         else setStep(step + 1);
-    }, [current, navigate, close, step]);
+    }, [close, step]);
 
     const back = useCallback(() => {
-        if (step === 0) return;
-        // The step before a page change was shown on the page that was left.
-        if (STEPS[step - 1].onNext) navigate("/");
-        setStep(step - 1);
-    }, [step, navigate]);
+        if (step > 0) setStep(step - 1);
+    }, [step]);
 
     // Enter or → steps on, ← steps back. The tour holds the keyboard while it's
     // up: captured on window, so nothing reaches the search box behind it or
@@ -139,7 +266,7 @@ export function Walkthrough({ open, onClose }: WalkthroughProps) {
 
     if (!open) return null;
 
-    const body = typeof current.body === "function" ? current.body(settingsKey) : current.body;
+    const body = typeof current.body === "function" ? current.body(keys) : current.body;
 
     const padding = current.padding ?? 6;
     const target = rect && !current.centered

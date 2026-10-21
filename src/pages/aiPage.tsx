@@ -595,6 +595,7 @@ export default function AiPage() {
                     )}
                     <TooltipProvider delayDuration={300}>
                         <InputGroup
+                            data-walkthrough="ai-composer"
                             className={`mx-auto w-full rounded-2xl border-line-090 bg-surface-float/[0.6] backdrop-blur-2xl backdrop-saturate-150 shadow-[0_6px_26px_var(--shadow-1)] transition-colors focus-within:border-ink/[0.18] has-[[data-slot=input-group-control]:focus-visible]:ring-0 ${empty ? "max-w-140" : ""}`}
                         >
                             <InputGroupTextarea
@@ -620,6 +621,7 @@ export default function AiPage() {
                                 {/* Provider and model in one control — the
                                     provider list is only useful next to what it
                                     offers. */}
+                                <div data-walkthrough="ai-model" className="flex items-center">
                                 <ModelPicker
                                     providers={providers}
                                     providerId={providerId}
@@ -645,11 +647,12 @@ export default function AiPage() {
                                         });
                                     }}
                                 />
+                                </div>
 
                                 {/* Only knobs this provider honours */}
                                 {controls.map(control => (
+                                    <div key={control.id} data-walkthrough={control.sticky ? "ai-mode" : undefined} className="flex items-center">
                                     <ControlSelect
-                                        key={control.id}
                                         value={settings[control.id] ?? control.default}
                                         onChange={(v) => {
                                             applyConfig({ settings: { ...settings, [control.id]: v } });
@@ -660,6 +663,7 @@ export default function AiPage() {
                                         }}
                                         options={control.options}
                                     />
+                                    </div>
                                 ))}
 
                                 {/* One button for all three states, the way
@@ -728,6 +732,7 @@ export default function AiPage() {
                             <button
                                 onClick={toggleKeepOpen}
                                 aria-pressed={keepOpen}
+                                data-walkthrough="ai-pin"
                                 aria-label={keepOpen ? "Kept open when you click away" : "Hides when you click away"}
                                 className={`p-1.5 rounded-md transition-colors cursor-pointer ${
                                     keepOpen
@@ -811,6 +816,7 @@ function ChatSidebar({ chats, activeId, running, onOpen, onNew, onDelete, onDele
                     onClick={() => setPinned(p => !p)}
                     aria-label="Conversations"
                     aria-expanded={open}
+                    data-walkthrough="ai-history"
                     className={`p-1.5 rounded-md transition-colors cursor-pointer ${
                         open ? "text-tone-700 bg-fill-070" : "text-tone-300 hover:text-tone-700 hover:bg-fill-060"
                     }`}

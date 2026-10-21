@@ -32,6 +32,16 @@ function openExternalSafely(rawUrl, allowedSchemes) {
 
 export { openExternalSafely };
 
+/** The pinned links, as the home screen stores them. Unreadable means none. */
+function readLinks(store) {
+    try {
+        const parsed = JSON.parse(store.get("linkShortcuts") ?? "[]");
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
+}
+
 export function registerElectronIpc({ hideMainWindow, cache, store }) {
     ipcMain.on("log", (_, data) => console.log(data));
 
@@ -47,6 +57,8 @@ export function registerElectronIpc({ hideMainWindow, cache, store }) {
             loadUsage(),
             query,
             searchFilters,
+            Date.now(),
+            readLinks(store),
         );
     });
 
@@ -111,11 +123,16 @@ export function registerElectronIpc({ hideMainWindow, cache, store }) {
     // renderer mustn't wait for an event that isn't coming.
     ipcMain.handle("check-for-updates", () => checkForUpdates());
 
+    // Asked on every load until it's been closed: clearing it on the first
+    // ask lost it whenever the page reloaded before it showed — every time
+    // in development, which reloads the window once just after launch.
     ipcMain.handle("get-update-modal-info", () => {
         if (cache.showUpdateModal) {
-            cache.showUpdateModal = false;
             return { show: true, previousVersion: cache.previousVersion, currentVersion: app.getVersion() };
         }
         return { show: false };
+    });
+    ipcMain.on("update-modal-seen", () => {
+        cache.showUpdateModal = false;
     });
 }

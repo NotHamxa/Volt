@@ -29,5 +29,6 @@ export function previewActions(item: SearchQueryT | null): PreviewAction[] {
         actions.push({ id: "copyPath", label: "Copy path", icon: Copy });
     }
     if (type === "file" && path) actions.push({ id: "copyFile", label: "Copy file", icon: Files });
+    if (type === "link" && path) actions.push({ id: "copyPath", label: "Copy link", icon: Copy });
     return actions;
 }

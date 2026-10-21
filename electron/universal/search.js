@@ -35,6 +35,8 @@ const TYPE_WEIGHT = {
     commandConfirm: 0.97,
     commandConfirmOpen: 0.97,
     setting: 0.94,
+    // A pinned link was put there on purpose, like an app.
+    link: 0.96,
     folder: 0.9,
     file: 0.86,
 };
@@ -259,12 +261,14 @@ function collect(top, items, nq, bucket) {
  * buckets the renderer expects. Selection is global: a strong file result is no
  * longer discarded just because other categories happen to have matches.
  */
-export function processSearchQuery(appCache, commandsCache, cachedFolderData, usage, query, filters, now = Date.now()) {
+export function processSearchQuery(appCache, commandsCache, cachedFolderData, usage, query, filters, now = Date.now(), links = []) {
     const q = normaliseString(query).trim();
     if (!q) return { results: [] };
 
     const top = new TopPerBucket(usageSignals(usage, q, now));
     if (filters[0]) collect(top, appCache, q, "apps");
+    // Links ride with apps: both are things you pinned to launch.
+    if (filters[0]) collectLinks(top, links, q);
     if (filters[3]) collect(top, settingsIndex, q, "settings");
     if (filters[4]) collectCommands(top, commandsCache, q, query);
 
@@ -275,6 +279,29 @@ export function processSearchQuery(appCache, commandsCache, cachedFolderData, us
     }
 
     return { results: top.results() };
+}
+
+/** A link's address without the scheme and "www." — what people type for it. */
+function linkHost(url) {
+    try {
+        return new URL(url).hostname.replace(/^www\./, "");
+    } catch {
+        return "";
+    }
+}
+
+/**
+ * Pinned links, matched on their name or their address, whichever fits
+ * better — "gh" finds a link named GitHub, and so does "github.com".
+ */
+function collectLinks(top, links, q) {
+    for (const link of links ?? []) {
+        if (typeof link?.shortcut !== "string" || !link.shortcut) continue;
+        const item = { name: String(link.name || linkHost(link.shortcut) || link.shortcut), type: "link", path: link.shortcut };
+        const host = linkHost(link.shortcut);
+        const base = Math.max(scoreItem(item, q), host ? scoreItem({ name: host }, q) : 0);
+        if (base > 0) top.offer(item, "links", base);
+    }
 }
 
 /** "kill port 3000" → ["killport", "kill"]: the query with trailing words dropped. */

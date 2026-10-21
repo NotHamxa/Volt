@@ -74,6 +74,7 @@ import { getBinding } from "@/hooks/useKeybindings.ts";
 import PreviewPane from "@/components/previewPane.tsx";
 import { COMMAND_TYPES, previewActions, type PreviewActionId } from "@/components/previewActions.ts";
 import { useFileIcons } from "@/hooks/useFileIcons.ts";
+import { cachedFavicon, linkFavicon } from "@/utils/linkFavicons.ts";
 import { useOutletContext, useNavigate } from "react-router";
 import type { MainLayoutContext } from "@/pages/mainPage.tsx";
 
@@ -185,6 +186,28 @@ function getParentFolders(p: string): string {
 
 const getLogoKey = (item: SearchQueryT) => `${item.path ?? ""}|${item.appId ?? ""}`;
 
+/** "https://www.github.com/x" → "github.com": how a link result is described. */
+function linkHost(url: string): string {
+    try {
+        return new URL(url).hostname.replace(/^www\./, "");
+    } catch {
+        return url;
+    }
+}
+
+/** A pinned link's favicon, as the home screen's dock shows it. */
+function LinkFavicon({ url }: { url: string }) {
+    const [src, setSrc] = useState<string | null>(() => cachedFavicon(url) ?? null);
+    useEffect(() => {
+        let cancelled = false;
+        linkFavicon(url).then(found => { if (!cancelled) setSrc(found); });
+        return () => { cancelled = true; };
+    }, [url]);
+    return src
+        ? <img className="w-6 h-6 object-contain rounded" src={src} alt="" />
+        : <Globe size={22} className="text-tone-400" />;
+}
+
 const isSameApp = (a: SearchQueryT, b: SearchQueryT) => {
     return (
         a.appId === b.appId &&
@@ -293,6 +316,9 @@ const QueryComponent = memo(({
         if (type === "setting") {
             return <Bolt size={24} />;
         }
+        if (type === "link" && path) {
+            return <LinkFavicon url={path} />;
+        }
         if (type === "command" || type === "commandConfirm" || type === "commandOpen" || type === "commandConfirmOpen") {
             return <CodeXml size={24} />;
         }
@@ -303,6 +329,7 @@ const QueryComponent = memo(({
         if (type === "file" && path) return getParentFolders(path);
         if (type === "app") return "Application";
         if (type === "setting") return "Setting";
+        if (type === "link" && path) return `Link · ${linkHost(path)}`;
         if (type === "commandOpen" || type === "commandConfirmOpen") return "Command (opens terminal)";
         if (type === "command" || type === "commandConfirm") return "Command";
         return "";
@@ -813,6 +840,9 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
             openAi(item.name);
         } else if (item.type === "webSuggestion") {
             openBlockEntry(item);
+        } else if (item.type === "link" && item.path) {
+            recordChoice(item);
+            window.electron.openExternal(item.path);
         } else if (item.type === "app") {
             recordChoice(item);
             await window.apps.openApp(item);
@@ -949,10 +979,6 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
 
     const pinApp = useStableCallback((app: SearchQueryT) => {
         const current = pinnedAppsRef.current;
-        if (current.length === 21) {
-            window.electron.notify("Maximum Pins Reached", "You can pin up to 21 apps only.");
-            return;
-        }
         if (!current.find((a) => isSameApp(a, app))) {
             const updated = [...current, app];
             window.electronStore.set("pinnedApps", JSON.stringify(updated));

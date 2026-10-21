@@ -157,6 +157,7 @@ export default function PreviewPane({ item, logo, fileIcon, activeAction, onActi
     else if (type === "setting") { Icon = Bolt; kindLabel = "Windows setting"; }
     else if (isCommand) { Icon = CodeXml; kindLabel = type.endsWith("Open") ? "Command · opens a terminal" : "Command"; }
     else if (type === "askAi") { Icon = Sparkles; kindLabel = "Ask AI"; }
+    else if (type === "link") { Icon = Globe; kindLabel = "Pinned link"; }
     else if (type === "webSearch" || type === "webSuggestion") { Icon = Globe; kindLabel = `Web · ${item.source ?? "link"}`; }
 
     // A real thumbnail when Windows can draw one (images, video…), otherwise
@@ -223,7 +224,7 @@ export default function PreviewPane({ item, logo, fileIcon, activeAction, onActi
                         {type === "setting" && path && <Detail label="Opens">{path}</Detail>}
                         {isCommand && item.shell && item.shell !== "auto" && <Detail label="Shell">{item.shell === "cmd" ? "Command Prompt" : "PowerShell"}</Detail>}
                         {isCommand && !!item.args?.length && <Detail label="Arguments">{item.args.map(a => a.label ?? a.name).join(", ")}</Detail>}
-                        {(type === "webSearch" || type === "webSuggestion") && path && <Detail label="Opens">{path}</Detail>}
+                        {(type === "webSearch" || type === "webSuggestion" || type === "link") && path && <Detail label="Opens">{path}</Detail>}
                         {type === "askAi" && <Detail label="Question">Sends this to your AI provider in the AI tab.</Detail>}
                     </div>
 

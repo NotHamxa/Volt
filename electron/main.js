@@ -1,16 +1,15 @@
 import {app, BrowserWindow, globalShortcut, ipcMain, Menu, shell, Tray} from "electron";
-import pkg from "electron-updater"
-const {autoUpdater} = pkg;
 import Store from "electron-store";
+import fs from "fs";
 import path from "path";
-import {fileURLToPath} from "url";
+import {fileURLToPath, pathToFileURL} from "url";
 import {deleteFolder, indexPath} from "./universal/folderCache.js";
 import {FolderWatcher, watchTree} from "./universal/folderWatcher.js";
 import {initStoreState, loadFolderCache, loadCommandsData} from "./universal/startup.js";
 import {sendInstallTelemetryIfNeeded} from "./universal/telemetry.js";
+import {createLaunchHotkeys} from "./universal/launchHotkeys.js";
 import { registerIpc } from "./ipc/index.js";
-import {setupAutoUpdater} from "./universal/updater.js";
-import {createNotificationWindow} from "./universal/notification.js";
+import {createNotificationWindow, showNotification} from "./universal/notification.js";
 import {
     initWindowFocusTracker,
     setOwnWindowHandle,
@@ -19,11 +18,19 @@ import {
     loadAppData,
     revalidateAppIcons,
     appWatchPaths,
+    packageWatchPath,
+    registerIconScheme,
+    handleIconProtocol,
+    appLogoUrls,
 } from "./platform.js";
+registerIconScheme();
 if (!app.requestSingleInstanceLock()) {
     app.quit();
     process.exit(0);
 }
+// Launching Volt again (Start menu, desktop shortcut) while it's already
+// running in the background should bring it up, not silently do nothing.
+app.on("second-instance", () => showMainWindow());
 const store = new Store();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -33,6 +40,8 @@ if (!openShortcut) {
     openShortcut = "Ctrl+Space";
 }
 let mainWindow = null;
+let tray = null;
+const LOADER_MAX_MS = 30000;
 const cache = {
     appCache:[],
     appIconsCache:{},
@@ -50,6 +59,9 @@ const appStates = {
     // focus back on blur — you should be able to click away and read something
     // while an answer streams.
     aiMode:false,
+    // Whether the AI view holds the window open on blur. On unless the pin
+    // in the AI view is switched off.
+    aiKeepOpen:true,
     dialogOpen:false,
 }
 
@@ -127,23 +139,44 @@ const handleWindowLock = ()=>{
     else mainWindow.webContents.send('window-unlocked');
     console.log(process.memoryUsage().heapUsed/8/1024/1024)
 }
+const toggleMainWindow = () => {
+    if (!mainWindow) return;
+    if (mainWindow.isVisible()) {
+        hideMainWindow();
+    } else {
+        showMainWindow();
+    }
+};
+const launchHotkeys = createLaunchHotkeys({
+    store,
+    cache,
+    getOpenShortcut: () => openShortcut,
+    // No focus restore: whatever the hotkey opens is about to take the front.
+    hideIfShown: () => { if (mainWindow?.isVisible()) hideMainWindow(false); },
+});
+// The hotkey is the only way into Volt, so a new one must be registered
+// before the old one is let go. Windows refuses combos another app owns, and
+// Electron throws on names it can't parse — either way the old key stays.
 const changeOpenBind = async (binding)=>{
+    if (binding === openShortcut) return true;
+    // Already Volt's own, as an app or link hotkey.
+    if (launchHotkeys.owner(binding)) return false;
+    let registered = false;
+    try {
+        registered = globalShortcut.register(binding, toggleMainWindow);
+    } catch (err) {
+        console.warn("Could not register hotkey:", binding, err?.message);
+    }
+    if (!registered) return false;
     globalShortcut.unregister(openShortcut);
-    globalShortcut.register(binding, () => {
-        if (!mainWindow || cache.loadingAppCache) return;
-        if (mainWindow.isVisible()) {
-            hideMainWindow();
-        } else {
-            showMainWindow();
-        }
-    });
     openShortcut = binding;
     store.set("openWindowBind", binding);
-    return true
+    return true;
 }
 ipcMain.handle("set-open-bind", (_, binding) => {
     return changeOpenBind(binding);
 });
+ipcMain.handle("get-app-logo-urls", (_, apps) => appLogoUrls(apps, cache));
 ipcMain.on("hide-window", () => {
     hideMainWindow();
 });
@@ -159,6 +192,9 @@ const createWindow = async () => {
         return;
     }
     mainWindow = new BrowserWindow({
+        // Hidden until startup decides: at login it would otherwise flash up
+        // and take focus from whatever the user had open.
+        show: false,
         width: 800,
         height: 550,
         transparent: true,
@@ -187,26 +223,29 @@ const createWindow = async () => {
             : nativeHandle.readUInt32LE(0)
     );
 
-    const tray = new Tray(path.join(__dirname, "Assets/appLogo2CroppedNoBg.png"));
+    // Module-level: a Tray only referenced from here can be garbage-collected
+    // and vanish from the notification area.
+    tray = new Tray(path.join(__dirname, "Assets/appLogo2CroppedNoBg.png"));
     tray.setToolTip("Volt")
     const contextMenu = Menu.buildFromTemplate([
+        { label: 'Open Volt', click: () => showMainWindow() },
+        { type: 'separator' },
         {
             label: 'Quit',
-            click: () => {
-                app.quit();
-                process.exit(0);
-
-            },
+            // No process.exit: electron-updater installs a downloaded update
+            // on the 'quit' event, which exiting outright would skip.
+            click: () => app.quit(),
         },
     ]);
     tray.setContextMenu(contextMenu);
+    tray.on('click', () => showMainWindow());
 
     const devServerURL = "http://localhost:5173";
 
     mainWindow.on('blur', () => {
         // AI mode keeps the window open but must not grab focus back — you
         // should be able to click away and read while an answer streams.
-        if (appStates.aiMode) return;
+        if (appStates.aiMode && appStates.aiKeepOpen) return;
         if (appStates.fixWindowOpen && !appStates.dialogOpen) mainWindow.focus();
         // No focus restore here: blur means the user has already put something
         // else in front, and pulling the *previous* window forward would steal
@@ -221,6 +260,14 @@ const createWindow = async () => {
     mainWindow.webContents.on('before-input-event', (event, input) => {
         if (input.type === 'keyDown' && input.key === 'F4' && input.alt) {
             app.quit();
+            return;
+        }
+        // Lock is a Volt-only shortcut. Registered globally it stole Ctrl+L
+        // from every other app (a browser's address bar) and silently locked
+        // Volt open behind the user's back.
+        if (input.type === 'keyDown' && input.control && !input.alt && !input.shift && input.key.toLowerCase() === 'l') {
+            event.preventDefault();
+            handleWindowLock();
             return;
         }
         if ((input.control || input.meta) && ZOOM_KEYS.has(input.key)) {
@@ -240,9 +287,12 @@ const createWindow = async () => {
 
     // The renderer only ever loads the local bundle (or the dev server). Any
     // other navigation would inherit the preload bridge, so refuse it and hand
-    // the URL to the OS browser instead. Same for window.open.
+    // the URL to the OS browser instead. Same for window.open. Only the app's
+    // own index.html counts: any file:// page — say an .html dropped onto the
+    // window — would otherwise load with the bridge attached.
+    const indexURL = pathToFileURL(path.join(__dirname, "../dist/index.html")).href;
     const isInternalURL = (url) =>
-        url.startsWith("file://") ||
+        url.split("#")[0].split("?")[0] === indexURL ||
         (process.env.NODE_ENV === "development" && url.startsWith(devServerURL));
 
     mainWindow.webContents.on('will-navigate', (event, url) => {
@@ -268,6 +318,7 @@ const createWindow = async () => {
 };
 
 app.whenReady().then(async () => {
+    handleIconProtocol(cache);
     initWindowFocusTracker();
     await createWindow();
     createNotificationWindow();
@@ -278,6 +329,7 @@ app.whenReady().then(async () => {
         appStates,
         folderWatcher,
         store,
+        launchHotkeys,
     });
 
     // Lightweight sync setup so we can hide the window + register the
@@ -290,18 +342,29 @@ app.whenReady().then(async () => {
     else
         showMainWindow()
 
-    globalShortcut.register(openShortcut, () => {
-        if (!mainWindow) return;
-        if (mainWindow.isVisible()) {
-            hideMainWindow();
-        } else {
-            showMainWindow();
-        }
-    });
-    globalShortcut.register("Ctrl+L",handleWindowLock)
+    let hotkeyRegistered = false;
+    try {
+        hotkeyRegistered = globalShortcut.register(openShortcut, toggleMainWindow);
+    } catch (err) {
+        console.warn("Invalid stored hotkey:", openShortcut, err?.message);
+    }
+    if (!hotkeyRegistered) {
+        // Another app holds the combo (or it's unparseable). The tray and a
+        // second launch still open Volt; tell the user how to get back in.
+        console.warn("Could not register hotkey:", openShortcut);
+        setTimeout(() => showNotification({
+            title: "Volt's shortcut is unavailable",
+            message: `${openShortcut} is in use by another app. Open Volt from the tray icon to pick a new one.`,
+        }), 2000);
+    }
+    launchHotkeys.sync();
 
     if (process.env.NODE_ENV !== "development") {
-        setupAutoUpdater(mainWindow);
+        // Loaded on demand: electron-updater is a large module graph, and
+        // importing it up front added ~80ms to every startup.
+        import("./universal/updater.js")
+            .then(({ setupAutoUpdater }) => setupAutoUpdater(mainWindow))
+            .catch(err => console.warn("Auto-updater unavailable:", err?.message));
     }
 
     // One-time install ping. Retries on every launch until the server
@@ -309,12 +372,27 @@ app.whenReady().then(async () => {
     sendInstallTelemetryIfNeeded(store).catch(() => { /* swallowed */ });
 
     // Heavy caching in the background: the window is already dismissible.
+    // The file index doesn't gate the loader — a large indexed folder used to
+    // hold it on an unmoving "Loading" for as long as the walk took.
+    loadFolderCache(cache)
+        .then(() => folderWatcher.add(cache.cachedFolders))
+        .catch(err => console.warn("Folder indexing failed:", err?.message ?? err));
+
     (async () => {
-        await loadFolderCache(cache);
-        await loadAppData(mainWindow.webContents, cache);
-        folderWatcher.add(cache.cachedFolders);
-        cache.loadingAppCache = false;
-        mainWindow.webContents.send('cache-loaded');
+        try {
+            // A first run extracts every icon; past this cap the loader lets go
+            // and the icons land when the pass finishes ('reloaded-app-cache').
+            await Promise.race([
+                loadAppData(mainWindow.webContents, cache),
+                new Promise(resolve => setTimeout(resolve, LOADER_MAX_MS)),
+            ]);
+        } catch (err) {
+            console.warn("loadAppData failed:", err?.message ?? err);
+        } finally {
+            // Always release the loader, whatever happened above.
+            cache.loadingAppCache = false;
+            mainWindow?.webContents.send('cache-loaded');
+        }
 
         // Freshness pass: prune dead entries and re-extract icons whose
         // source file has changed since the cached PNG was written.
@@ -328,13 +406,27 @@ app.whenReady().then(async () => {
     let appReloadTimer = null;
     const reloadAppsSoon = (delayMs) => {
         clearTimeout(appReloadTimer);
-        appReloadTimer = setTimeout(() => loadAppData(mainWindow.webContents, cache), delayMs);
+        appReloadTimer = setTimeout(() => {
+            if (mainWindow && !mainWindow.isDestroyed()) loadAppData(mainWindow.webContents, cache).catch(() => {});
+        }, delayMs);
     };
     for (const dir of appWatchPaths) {
         watchTree(dir, events => {
             if (events.some(e => e.type === "delete")) reloadAppsSoon(5000);
             else if (events.some(e => e.type === "create")) reloadAppsSoon(1000);
         });
+    }
+
+    // Store installs and uninstalls add or remove a package folder. Top level
+    // only, and only "rename" (added/removed): "change" fires whenever an app
+    // is merely opened. A package install brings its frameworks along a second
+    // earlier, which the debounce folds into the same rescan.
+    try {
+        fs.watch(packageWatchPath, { recursive: false }, (type) => {
+            if (type === "rename") reloadAppsSoon(2000);
+        }).on("error", err => console.warn("Package watcher stopped:", err?.message));
+    } catch (err) {
+        console.warn("Could not watch installed packages:", err?.message);
     }
 
     app.on("activate", () => {

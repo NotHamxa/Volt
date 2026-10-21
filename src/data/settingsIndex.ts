@@ -1,5 +1,5 @@
 export type SettingsSectionId =
-    "settings" | "keys" | "folders" | "commands" | "bangs" | "ai" | "tips" | "about";
+    "settings" | "keys" | "apps" | "links" | "folders" | "commands" | "bangs" | "ai" | "tips" | "about";
 
 export type SettingsEntry = {
     section: SettingsSectionId;
@@ -67,6 +67,18 @@ export const SETTINGS_INDEX: SettingsEntry[] = [
         section: "keys", title: "Preview pane", anchor: "toggle-preview",
         hint: "The key that shows details and thumbnails beside the results",
         keywords: ["alt p", "preview", "thumbnail", "details", "info"],
+    },
+
+    // ── Apps & Links ─────────────────────────────────────────────────────
+    {
+        section: "apps", title: "App Hotkeys", anchor: "app-hotkeys",
+        hint: "Open any app from anywhere with a key combination",
+        keywords: ["hotkey", "shortcut", "launch", "open app", "program", "global", "keybind"],
+    },
+    {
+        section: "links", title: "Link Hotkeys", anchor: "link-hotkeys",
+        hint: "Open a pinned link from anywhere with a key combination",
+        keywords: ["hotkey", "shortcut", "pinned links", "website", "url", "bookmark", "global"],
     },
 
     // ── Search index ─────────────────────────────────────────────────────

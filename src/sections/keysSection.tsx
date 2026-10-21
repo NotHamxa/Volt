@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
-import { Check, RotateCcw, X, AlertTriangle } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { RotateCcw } from "lucide-react";
 import { SectionLead, GroupLabel } from "@/components/settingsLayout.tsx";
-import { BINDINGS, Binding, BindingGroup, comboFromEvent, comboParts } from "@/data/keybindings.ts";
-import { useKeybindings, conflictWith } from "@/hooks/useKeybindings.ts";
-import { Spinner } from "@/components/ui/spinner.tsx";
+import { BINDINGS, Binding, BindingGroup, comboParts, expandCombo, normalizeCombo, toAccelerator } from "@/data/keybindings.ts";
+import { useKeybindings, conflictWith, comboProblem } from "@/hooks/useKeybindings.ts";
+import { useLaunchHotkeys } from "@/hooks/useLaunchHotkeys.ts";
+import { HotkeyRow, SaveResult } from "@/components/hotkeyRow.tsx";
 
 const GROUP_ORDER: BindingGroup[] = ["Global", "Navigation", "Results", "AI", "Settings"];
 
@@ -15,147 +16,25 @@ const GROUP_HINT: Record<BindingGroup, string> = {
     Settings: "In here",
 };
 
-function Keycap({ children }: { children: string }) {
-    return (
-        <span className="inline-flex items-center justify-center min-w-[22px] h-5 px-1.5 rounded-md bg-fill-060 border border-line-080 text-[10px] font-mono text-tone-600">
-            {children}
-        </span>
-    );
-}
-
-function Combo({ combo }: { combo: string }) {
-    const parts = comboParts(combo);
-    if (parts.length === 0) return <span className="text-[11px] text-tone-250">Not set</span>;
-    return (
-        <span className="flex items-center gap-1">
-            {parts.map((p, i) => (
-                <span key={i} className="flex items-center gap-1">
-                    {i > 0 && <span className="text-tone-200 text-[10px]">+</span>}
-                    <Keycap>{p}</Keycap>
-                </span>
-            ))}
-        </span>
-    );
-}
-
-/**
- * One row. Editable rows swap the keycaps for a live recorder while capturing,
- * so the thing you are about to bind is shown in the place it will end up.
- */
-function BindingRow({ binding, current, recording, onRecord, onStop, onSave, onReset }: {
-    binding: Binding;
-    current: string;
-    /** Owned by the section, so two rows can't listen for keys at once. */
-    recording: boolean;
-    onRecord: () => void;
-    onStop: () => void;
-    onSave: (combo: string) => Promise<string | null> | string | null;
-    onReset: () => void;
-}) {
-    const [draft, setDraft] = useState("");
-    const [error, setError] = useState<string | null>(null);
-    const [busy, setBusy] = useState(false);
-    const draftRef = useRef("");
-
-    useEffect(() => {
-        if (!recording) return;
-        const onKey = (e: KeyboardEvent) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (e.key === "Escape") { onStop(); setDraft(""); draftRef.current = ""; return; }
-            const combo = comboFromEvent(e);
-            // Modifiers alone aren't a binding; keep listening until a real key
-            // lands so holding Ctrl doesn't read as a finished combo.
-            if (!combo || /^(Ctrl|Alt|Shift|Super)(\+(Ctrl|Alt|Shift|Super))*$/.test(combo)) return;
-            setDraft(combo);
-            draftRef.current = combo;
-            setError(null);
-        };
-        // Capture phase: the app's own shortcuts are on window too, and a
-        // recorder that fires them while you record is useless.
-        window.addEventListener("keydown", onKey, true);
-        return () => window.removeEventListener("keydown", onKey, true);
-    }, [recording, onStop]);
-
-    const commit = async () => {
-        const combo = draftRef.current;
-        if (!combo) return;
-        setBusy(true);
-        const err = await onSave(combo);
-        setBusy(false);
-        if (err) { setError(err); return; }
-        onStop();
-        setDraft("");
-        draftRef.current = "";
-    };
-
-    const cancel = () => { onStop(); setDraft(""); draftRef.current = ""; setError(null); };
-
-    return (
-        <div
-            data-setting={binding.id}
-            className="group flex items-center justify-between gap-4 px-4 py-2.5 rounded-xl bg-fill-025 border border-line-050 hover:border-line-090 transition-colors"
-        >
-            <div className="min-w-0">
-                <h3 className="text-[12.5px] font-medium text-tone-850 tracking-tight">{binding.label}</h3>
-                <p className="text-[11px] text-tone-400 leading-relaxed mt-0.5">{binding.description}</p>
-                {error && (
-                    <p className="flex items-center gap-1.5 text-[10.5px] text-amber-300/80 mt-1">
-                        <AlertTriangle size={10} /> {error}
-                    </p>
-                )}
-            </div>
-
-            <div className="shrink-0 flex items-center gap-1.5">
-                {recording ? (
-                    <>
-                        <div className="flex items-center h-7 px-2 rounded-lg bg-fill-040 border border-line-090 min-w-28 justify-center">
-                            {draft
-                                ? <Combo combo={draft} />
-                                : <span className="text-[11px] text-tone-400 animate-pulse">Press keys…</span>}
-                        </div>
-                        <button onClick={cancel} aria-label="Cancel"
-                            className="flex items-center justify-center w-6 h-6 rounded-md text-tone-400 hover:text-tone-800 hover:bg-fill-060 transition-colors cursor-pointer">
-                            <X size={12} />
-                        </button>
-                        <button onClick={commit} disabled={!draft} aria-label="Save"
-                            className="flex items-center justify-center w-6 h-6 rounded-md bg-ink text-surface disabled:opacity-30 hover:opacity-90 transition-opacity cursor-pointer">
-                            {busy ? <Spinner /> : <Check size={12} />}
-                        </button>
-                    </>
-                ) : (
-                    <>
-                        <Combo combo={current} />
-                        {binding.editable && (
-                            <>
-                                <button
-                                    onClick={() => { onRecord(); setError(null); }}
-                                    className="ml-1.5 h-7 px-2.5 rounded-lg text-[11px] text-tone-500 hover:text-tone-800 hover:bg-fill-060 transition-colors cursor-pointer"
-                                >
-                                    Change
-                                </button>
-                                {current !== binding.default && (
-                                    <button onClick={onReset} title="Reset to default"
-                                        className="flex items-center justify-center w-6 h-6 rounded-md text-tone-300 hover:text-tone-700 hover:bg-fill-060 transition-colors cursor-pointer">
-                                        <RotateCcw size={11} />
-                                    </button>
-                                )}
-                            </>
-                        )}
-                    </>
-                )}
-            </div>
-        </div>
-    );
-}
-
 export default function KeysSection({ onRecordingChange }: { onRecordingChange?: (v: boolean) => void }) {
     const { get, set, reset } = useKeybindings();
-    const [globalCombo, setGlobalCombo] = useState("");
+    // App and link hotkeys are global, so they'd swallow any of these too.
+    const { ownerOf: launchOwner } = useLaunchHotkeys();
+    // null until the store answers; the row shows the default meanwhile.
+    const [globalCombo, setGlobalCombo] = useState<string | null>(null);
     const [recordingId, setRecordingId] = useState<string | null>(null);
+    // Stable: the recorder lists it as an effect dependency.
+    const stopRecording = useCallback(() => setRecordingId(null), []);
+
+    const readGlobalCombo = () =>
+        window.electronStore.get("openWindowBind")
+            .then(v => setGlobalCombo(v ? normalizeCombo(v) : ""))
+            .catch(() => { /* keep what's shown */ });
 
     useEffect(() => {
-        window.electronStore.get("openWindowBind").then(v => setGlobalCombo(v || ""));
+        window.electronStore.get("openWindowBind")
+            .then(v => setGlobalCombo(v ? normalizeCombo(v) : ""))
+            .catch(() => { /* the default stays shown */ });
     }, []);
 
     // A half-recorded shortcut is the one unsaved edit in settings, so the
@@ -164,20 +43,55 @@ export default function KeysSection({ onRecordingChange }: { onRecordingChange?:
         onRecordingChange?.(recordingId !== null);
     }, [recordingId, onRecordingChange]);
 
-    /** Returns an error string, or null when the binding was taken. */
-    const save = async (b: Binding, combo: string): Promise<string | null> => {
-        if (b.global) {
-            // Registered with the OS, which refuses single keys and anything
-            // another application already owns.
-            if (comboParts(combo).length < 2) return "Use at least two keys, e.g. Ctrl + Space.";
-            const ok = await window.electron.setOpenBind(combo.split("+").join("+"));
-            if (!ok) return "Windows wouldn't grant that combination — something else has it.";
-            setGlobalCombo(combo);
-            return null;
+    const globalLabel = BINDINGS.find(b => b.global)?.label ?? "Open Volt";
+
+    /**
+     * Hands the combo to the main process, which registers the new hotkey
+     * before letting the old one go and answers false when Windows refuses it.
+     * Either way the old binding is re-read, so the row shows what's live.
+     */
+    const registerGlobal = async (combo: string): Promise<SaveResult> => {
+        const accelerator = toAccelerator(combo);
+        if (!accelerator) return { message: "Windows can't use that key for a global shortcut." };
+        let ok = false;
+        try {
+            ok = await window.electron.setOpenBind(accelerator);
+        } catch { /* treated as a refusal */ }
+        if (!ok) {
+            await readGlobalCombo();
+            return { message: "Windows wouldn't grant that combination — something else has it.", revert: true };
         }
-        const clash = conflictWith(b.id, combo);
-        if (clash) return `Already used by "${clash}".`;
+        setGlobalCombo(accelerator);
+        return null;
+    };
+
+    const save = async (b: Binding, combo: string): Promise<SaveResult> => {
+        // Registered with the OS, which refuses single keys and anything
+        // another application already owns.
+        if (b.global && comboParts(combo).length < 2) return { message: "Use at least two keys, e.g. Ctrl + Space." };
+        const problem = comboProblem(combo);
+        if (problem) return { message: problem };
+        const opens = launchOwner(toAccelerator(combo) ?? combo);
+        if (opens) return { message: `Already opens "${opens}" from anywhere.` };
+        if (b.global) {
+            // Windows hands a registered hotkey to Volt even while Volt is
+            // focused, so it would also swallow the in-app binding.
+            const clash = conflictWith(b.id, combo);
+            if (clash) return { message: `Already used by "${clash}".` };
+            return registerGlobal(combo);
+        }
+        const clash = conflictWith(b.id, combo) ?? (combo === globalCombo ? globalLabel : null);
+        if (clash) return { message: `Already used by "${clash}".` };
         set(b.id, combo);
+        return null;
+    };
+
+    const resetTo = async (b: Binding): Promise<SaveResult> => {
+        if (b.global) return registerGlobal(b.default);
+        // The default may have been handed to another command since.
+        const clash = expandCombo(b.default).map(c => conflictWith(b.id, c)).find(Boolean);
+        if (clash) return { message: `Its default is now used by "${clash}".` };
+        reset(b.id);
         return null;
     };
 
@@ -196,20 +110,28 @@ export default function KeysSection({ onRecordingChange }: { onRecordingChange?:
                     <div key={group} className="space-y-2">
                         <div className="flex items-baseline gap-2">
                             <GroupLabel>{group}</GroupLabel>
-                            <span className="text-[10px] text-tone-250">{GROUP_HINT[group]}</span>
+                            <span className="text-10 text-tone-250">{GROUP_HINT[group]}</span>
                         </div>
-                        {members.map(b => (
-                            <BindingRow
-                                key={b.id}
-                                binding={b}
-                                current={b.global ? globalCombo : get(b.id)}
-                                recording={recordingId === b.id}
-                                onRecord={() => setRecordingId(b.id)}
-                                onStop={() => setRecordingId(null)}
-                                onSave={combo => save(b, combo)}
-                                onReset={() => reset(b.id)}
-                            />
-                        ))}
+                        {members.map(b => {
+                            const current = b.global ? (globalCombo ?? b.default) : get(b.id);
+                            return (
+                                <HotkeyRow
+                                    key={b.id}
+                                    anchor={b.id}
+                                    title={b.label}
+                                    description={b.description}
+                                    current={current}
+                                    editable={b.editable}
+                                    recording={recordingId === b.id}
+                                    onRecord={() => setRecordingId(b.id)}
+                                    onStop={stopRecording}
+                                    onSave={combo => save(b, combo)}
+                                    action={normalizeCombo(current) !== b.default
+                                        ? { icon: <RotateCcw size={11} />, title: `Reset to ${b.default}`, run: () => resetTo(b) }
+                                        : null}
+                                />
+                            );
+                        })}
                     </div>
                 );
             })}

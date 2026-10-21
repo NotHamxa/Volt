@@ -1,13 +1,13 @@
-import { useState, useRef, useEffect, ReactNode, useLayoutEffect, useMemo } from "react";
+import { useState, useRef, useEffect, ReactNode, useLayoutEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router";
-import { Settings, Hash, FolderOpen, Info, Terminal, Lightbulb, Sparkles, ArrowLeft, Search, CornerDownLeft, RefreshCw, Check, Keyboard } from "lucide-react";
+import { Settings, Hash, FolderOpen, Info, Terminal, Lightbulb, Sparkles, ArrowLeft, Search, CornerDownLeft, RefreshCw, Check, Keyboard, AlertTriangle, LayoutGrid, Link2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { useEscape } from "@/hooks/useEscape.ts";
 import { useUpdateStatus } from "@/hooks/useUpdateStatus.ts";
-import { searchSettings, SettingsEntry } from "@/data/settingsIndex.ts";
-import { matchesCombo } from "@/data/keybindings.ts";
-import { getBinding } from "@/hooks/useKeybindings.ts";
+import { searchSettings, SettingsEntry, SettingsSectionId } from "@/data/settingsIndex.ts";
+import { comboParts, matchesCombo } from "@/data/keybindings.ts";
+import { getBinding, useKeybindings } from "@/hooks/useKeybindings.ts";
 import GeneralSettingsSection from "@/sections/generalSection.tsx";
 import FoldersSection from "@/sections/foldersSection.tsx";
 import QuickBangsSection from "@/sections/bangsSection.tsx";
@@ -16,8 +16,10 @@ import CommandsSection from "@/sections/commandsSection.tsx";
 import TipsSection from "@/sections/tipsSection.tsx";
 import KeysSection from "@/sections/keysSection.tsx";
 import AiSection from "@/sections/aiSection.tsx";
+import AppsSection from "@/sections/appsSection.tsx";
+import LinksSection from "@/sections/linksSection.tsx";
 
-type SectionId = "settings" | "keys" | "folders" | "commands" | "bangs" | "ai" | "tips" | "about";
+type SectionId = SettingsSectionId;
 
 interface NavItem {
     id: SectionId;
@@ -29,6 +31,8 @@ interface NavItem {
 const NAV: NavItem[] = [
     { id: "settings", label: "General",          short: "General", icon: Settings },
     { id: "keys",     label: "Shortcuts",        short: "Keys",    icon: Keyboard },
+    { id: "apps",     label: "Apps",             short: "Apps",    icon: LayoutGrid },
+    { id: "links",    label: "Links",            short: "Links",   icon: Link2 },
     { id: "folders",  label: "Search Index",     short: "Index",   icon: FolderOpen },
     { id: "commands", label: "Commands",         short: "Cmds",    icon: Terminal },
     { id: "bangs",    label: "Quick Bangs",      short: "Bangs",   icon: Hash },
@@ -68,10 +72,10 @@ function AnimatedSection({ active, children }: { active: boolean; children: Reac
  * changes shape as the update progresses.
  */
 function UpdateChip({ version }: { version: string }) {
-    const { state, percent, check, install } = useUpdateStatus();
+    const { state, percent, error, check, install } = useUpdateStatus();
     if (!version && state === "idle") return null;
 
-    const base = "flex items-center gap-1.5 h-6 px-2 rounded-md text-[10px] font-mono transition-colors duration-150";
+    const base = "flex items-center gap-1.5 h-6 px-2 rounded-md text-10 font-mono transition-colors duration-150";
 
     if (state === "ready") {
         return (
@@ -90,6 +94,14 @@ function UpdateChip({ version }: { version: string }) {
     if (state === "uptodate") {
         return <span className={`${base} text-tone-450`}><Check size={10} className="text-green-400" /> Up to date</span>;
     }
+    if (state === "error") {
+        return (
+            <button onClick={check} title={`${error ?? "Update check failed"} — click to retry`}
+                className={`${base} text-amber-300/80 hover:bg-fill-040 cursor-pointer`}>
+                <AlertTriangle size={10} /> Update failed
+            </button>
+        );
+    }
     return (
         <button onClick={check} title="Check for updates"
             className={`${base} text-tone-250 hover:text-tone-600 hover:bg-fill-040 cursor-pointer`}>
@@ -101,9 +113,14 @@ function UpdateChip({ version }: { version: string }) {
 export default function SettingsPage() {
     const [activeSection, setActiveSection] = useState<SectionId>("settings");
     const [pendingSection, setPendingSection] = useState<SectionId | null>(null);
+    // Where "Discard" goes when the unsaved edit was in the way of leaving
+    // Settings altogether rather than of switching section.
+    const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
     const [appVersion, setAppVersion] = useState("");
     const hasUnsavedRef = useRef(false);
     const navigate = useNavigate();
+    const { get: bindingFor } = useKeybindings();
+    const settingsKeys = comboParts(bindingFor("open-settings"));
 
     // Sliding-highlight measurement
     const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -140,7 +157,13 @@ export default function SettingsPage() {
         // this measures are unmounted in between.
     }, [activeSection, hovered, searching]);
 
-    const setHasUnsaved = (val: boolean) => { hasUnsavedRef.current = val; };
+    /**
+     * How a section reports an unsaved edit: pass this as its callback prop
+     * (KeysSection's onRecordingChange) and call it with true while an edit is
+     * half-done, false once saved or abandoned. Stable, so a section can list
+     * it in an effect's dependencies.
+     */
+    const setHasUnsaved = useCallback((val: boolean) => { hasUnsavedRef.current = val; }, []);
 
     const handleSectionChange = (id: SectionId) => {
         if (id === activeSection) return;
@@ -153,14 +176,43 @@ export default function SettingsPage() {
 
     const confirmDiscard = () => {
         hasUnsavedRef.current = false;
+        if (pendingLeave) {
+            const leave = pendingLeave;
+            setPendingLeave(null);
+            leave();
+            return;
+        }
         if (pendingSection) {
             setActiveSection(pendingSection);
             setPendingSection(null);
         }
     };
 
-    const cancelDiscard = () => setPendingSection(null);
-    const goBack = () => navigate('/');
+    const cancelDiscard = () => { setPendingSection(null); setPendingLeave(null); };
+
+    /**
+     * Leaving Settings from anywhere — Esc, the settings shortcut, the footer
+     * button, a window hide — goes through App.tsx, which asks first with a
+     * cancelable "settingsLeave" event. Cancelling it keeps the edit, and the
+     * prompt's Discard runs the leave App would have done.
+     */
+    useEffect(() => {
+        const onLeave = (e: Event) => {
+            if (!hasUnsavedRef.current) return;
+            e.preventDefault();
+            const { proceed, quiet } = (e as CustomEvent<{ proceed: () => void; quiet?: boolean }>).detail;
+            if (!quiet) setPendingLeave(() => proceed);
+        };
+        window.addEventListener("settingsLeave", onLeave);
+        return () => window.removeEventListener("settingsLeave", onLeave);
+    }, []);
+
+    const goBack = () => {
+        if (hasUnsavedRef.current) setPendingLeave(() => () => navigate('/'));
+        else navigate('/');
+    };
+
+    const discardPrompt = pendingSection !== null || pendingLeave !== null;
 
     /**
      * Opens the section a result belongs to and flashes the row, when the
@@ -186,15 +238,15 @@ export default function SettingsPage() {
     // A live search counts as something to back out of too, so Esc clears it
     // rather than dropping straight out of settings.
     useEscape(() => {
-        if (pendingSection) { cancelDiscard(); return; }
+        if (discardPrompt) { cancelDiscard(); return; }
         setQuery("");
         searchRef.current?.blur();
-    }, !!pendingSection || searching);
+    }, discardPrompt || searching);
 
     // ── Keyboard ─────────────────────────────────────────────────────────
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
-            if (pendingSection) return;
+            if (discardPrompt) return;
 
             if (matchesCombo(e, getBinding("settings-search"))) {
                 e.preventDefault();
@@ -203,9 +255,10 @@ export default function SettingsPage() {
                 return;
             }
 
-            // Ctrl+1..7 jumps straight to a section, matching how the rest of
+            // Ctrl+1..9 jumps straight to a section, matching how the rest of
             // the app is driven. Ctrl, not bare digits — a settings pane has
-            // text fields in it.
+            // text fields in it. (Ctrl+0 never arrives: main blocks it as a
+            // zoom key, so the tenth section is reached by arrow or click.)
             if (e.ctrlKey && /^[1-9]$/.test(e.key)) {
                 const item = NAV[Number(e.key) - 1];
                 if (item) { e.preventDefault(); handleSectionChange(item.id); }
@@ -254,15 +307,18 @@ export default function SettingsPage() {
                     className="flex items-center gap-1.5 px-2 py-1 -ml-1 rounded-md text-tone-400 hover:text-tone-800 hover:bg-fill-050 transition-colors cursor-pointer"
                 >
                     <ArrowLeft size={13} strokeWidth={2.2} />
-                    <span className="text-[11px] font-medium">Back</span>
+                    <span className="text-11 font-medium">Back</span>
                 </button>
 
                 <div className="ml-auto flex items-center gap-2.5">
                     <UpdateChip version={appVersion} />
                     <div className="flex items-center gap-1">
-                        <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-fill-050 text-tone-400 font-mono">Ctrl</span>
-                        <span className="text-tone-200 text-[10px]">+</span>
-                        <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-fill-050 text-tone-400 font-mono">H</span>
+                        {settingsKeys.map((key, i) => (
+                            <span key={i} className="flex items-center gap-1">
+                                {i > 0 && <span className="text-tone-200 text-10">+</span>}
+                                <span className="inline-flex items-center px-1.5 py-0.5 text-10 rounded-md bg-fill-050 text-tone-400 font-mono">{key}</span>
+                            </span>
+                        ))}
                     </div>
                 </div>
             </header>
@@ -277,7 +333,7 @@ export default function SettingsPage() {
                 <nav
                     ref={trackRef}
                     onMouseLeave={() => setHovered(null)}
-                    className="relative w-[164px] shrink-0 flex flex-col gap-px px-2.5 pb-3 border-r border-line-050"
+                    className="relative w-41 shrink-0 flex flex-col gap-px px-2.5 pb-3 border-r border-line-050"
                 >
                     <div className="relative mb-2">
                         <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-tone-250 pointer-events-none" />
@@ -287,7 +343,7 @@ export default function SettingsPage() {
                             onChange={e => setQuery(e.target.value)}
                             placeholder="Search settings"
                             aria-label="Search settings"
-                            className="w-full h-7 pl-6.5 pr-2 rounded-lg bg-fill-040 text-[11px] text-tone-800 placeholder:text-tone-250 outline-none focus:bg-fill-060 transition-colors"
+                            className="w-full h-7 pl-6.5 pr-2 rounded-lg bg-fill-040 text-11 text-tone-800 placeholder:text-tone-250 outline-none focus:bg-fill-060 transition-colors"
                         />
                     </div>
 
@@ -296,7 +352,7 @@ export default function SettingsPage() {
                         once would just be the same list twice. */}
                     {searching ? (
                         results.length === 0 ? (
-                            <p className="px-2.5 pt-1 text-[11px] text-tone-300 leading-relaxed">
+                            <p className="px-2.5 pt-1 text-11 text-tone-300 leading-relaxed">
                                 Nothing matches “{query.trim()}”.
                             </p>
                         ) : (
@@ -311,10 +367,10 @@ export default function SettingsPage() {
                                         }`}
                                     >
                                         <span className="flex items-center gap-1.5 w-full">
-                                            <span className="text-[11.5px] font-medium text-tone-850 truncate">{entry.title}</span>
+                                            <span className="text-11.5 font-medium text-tone-850 truncate">{entry.title}</span>
                                             {i === resultIdx && <CornerDownLeft size={10} className="ml-auto shrink-0 text-tone-300" />}
                                         </span>
-                                        <span className="text-[10px] text-tone-350 uppercase tracking-[0.12em]">
+                                        <span className="text-10 text-tone-350 uppercase tracking-[0.12em]">
                                             {NAV.find(n => n.id === entry.section)?.label}
                                         </span>
                                     </button>
@@ -349,12 +405,12 @@ export default function SettingsPage() {
                                     hovered, so the open section keeps a marker
                                     of its own. */}
                                 <span
-                                    className={`absolute left-0 w-[2px] rounded-full bg-ink/75 transition-all duration-200 ${
+                                    className={`absolute left-0 w-0.5 rounded-full bg-ink/75 transition-all duration-200 ${
                                         active ? "h-4 opacity-100" : "h-0 opacity-0"
                                     }`}
                                 />
                                 <Icon size={13} strokeWidth={active ? 2.2 : 1.7} className="shrink-0" />
-                                <span className={`text-[11.5px] truncate ${active ? "font-medium" : "font-normal"}`}>
+                                <span className={`text-11.5 truncate ${active ? "font-medium" : "font-normal"}`}>
                                     {item.label}
                                 </span>
                             </button>
@@ -365,9 +421,9 @@ export default function SettingsPage() {
                 </nav>
 
                 {/* ── Content ─────────────────────────────────────────────── */}
-                <ScrollArea className="flex-1 min-h-0">
+                <ScrollArea className="flex-1 min-h-0 min-w-0">
                     <div className="px-7 pt-5 pb-12">
-                        <h1 className="text-[17px] font-semibold tracking-[-0.02em] text-tone-900 mb-4">
+                        <h1 className="text-17 font-semibold tracking-[-0.02em] text-tone-900 mb-4">
                             {current?.label}
                         </h1>
                         <AnimatedSection active={activeSection === "settings"}>
@@ -376,11 +432,17 @@ export default function SettingsPage() {
                         <AnimatedSection active={activeSection === "keys"}>
                             <KeysSection onRecordingChange={setHasUnsaved} />
                         </AnimatedSection>
+                        <AnimatedSection active={activeSection === "apps"}>
+                            <AppsSection onRecordingChange={setHasUnsaved} />
+                        </AnimatedSection>
+                        <AnimatedSection active={activeSection === "links"}>
+                            <LinksSection onRecordingChange={setHasUnsaved} />
+                        </AnimatedSection>
                         <AnimatedSection active={activeSection === "folders"}>
                             <FoldersSection />
                         </AnimatedSection>
                         <AnimatedSection active={activeSection === "commands"}>
-                            <CommandsSection />
+                            <CommandsSection onUnsavedChange={setHasUnsaved} />
                         </AnimatedSection>
                         <AnimatedSection active={activeSection === "bangs"}>
                             <QuickBangsSection />
@@ -399,16 +461,19 @@ export default function SettingsPage() {
             </div>
 
             {/* ── Discard-changes modal ───────────────────────────────────── */}
-            {pendingSection && (
+            {discardPrompt && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--scrim-strong)] backdrop-blur-[6px]">
-                    <div className="bg-surface-modal/[0.98] border border-line-070 rounded-2xl p-6 w-80 shadow-[0_40px_90px_var(--shadow-3),inset_0_1px_0_var(--edge-hi)]">
-                        <h3 className="text-[14px] font-semibold text-tone-850 mb-2 tracking-[-0.01em]">Discard changes?</h3>
-                        <p className="text-[12px] text-tone-400 mb-5 leading-relaxed">You have unsaved changes. They will be lost if you switch sections.</p>
+                    <div role="alertdialog" aria-modal="true" aria-label="Discard changes?"
+                        className="bg-surface-modal/[0.98] border border-line-070 rounded-2xl p-6 w-80 shadow-[0_40px_90px_var(--shadow-3),inset_0_1px_0_var(--edge-hi)]">
+                        <h3 className="text-14 font-semibold text-tone-850 mb-2 tracking-[-0.01em]">Discard changes?</h3>
+                        <p className="text-12 text-tone-400 mb-5 leading-relaxed">
+                            You have unsaved changes. They will be lost if you {pendingLeave ? "leave Settings" : "switch sections"}.
+                        </p>
                         <div className="flex justify-end gap-2">
-                            <button onClick={cancelDiscard} className="px-4 py-2 text-[12px] text-tone-450 hover:text-tone-700 rounded-lg hover:bg-fill-050 transition-colors">
+                            <button onClick={cancelDiscard} className="px-4 py-2 text-12 text-tone-450 hover:text-tone-700 rounded-lg hover:bg-fill-050 transition-colors">
                                 Stay
                             </button>
-                            <button onClick={confirmDiscard} className="px-4 py-2 text-[12px] text-red-400 hover:bg-red-500/15 rounded-lg transition-colors">
+                            <button onClick={confirmDiscard} className="px-4 py-2 text-12 text-red-400 hover:bg-red-500/15 rounded-lg transition-colors">
                                 Discard
                             </button>
                         </div>

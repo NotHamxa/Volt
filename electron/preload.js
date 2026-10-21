@@ -1,38 +1,58 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
+// Subscribes `callback` to a main-process event (without the IPC event object)
+// and returns the unsubscribe, so a component can detach on unmount.
+const listen = (channel, callback) => {
+    const listener = (_event, ...args) => callback(...args);
+    ipcRenderer.on(channel, listener);
+    return () => ipcRenderer.removeListener(channel, listener);
+};
+
 contextBridge.exposeInMainWorld("electron", {
     log:(data)=>{ipcRenderer.send("log",data)},
     notify:(title,message)=>ipcRenderer.send("notify",title,message),
     setOpenBind:(binding)=>ipcRenderer.invoke("set-open-bind", binding),
     openExternal: (url) => ipcRenderer.send('open-external', url),
-    onWindowBlurred: (callback) => ipcRenderer.on('window-blurred', callback),
-    onWindowLocked: (callback) => ipcRenderer.on('window-locked', callback),
-    onWindowUnlocked: (callback) => ipcRenderer.on('window-unlocked', callback),
+    onWindowBlurred: (callback) => listen('window-blurred', callback),
+    onWindowLocked: (callback) => listen('window-locked', callback),
+    onWindowUnlocked: (callback) => listen('window-unlocked', callback),
     getGoogleSuggestions:(query)=>ipcRenderer.invoke('get-google-suggestions',query),
     openUninstall:()=>ipcRenderer.send('open-uninstall'),
     getCacheLoadingStatus:()=>ipcRenderer.invoke('get-loading-cache-status'),
+    // These return an unsubscribe: the components using them remount (the
+    // loader swaps the whole tree out), and stale listeners would pile up.
     setCacheLoadingBar: (callback) => {
-        ipcRenderer.on('set-cache-loading-bar', (_event, currentNum, totalNum) => {
-            callback(currentNum, totalNum);
-        });
+        const listener = (_event, currentNum, totalNum) => callback(currentNum, totalNum);
+        ipcRenderer.on('set-cache-loading-bar', listener);
+        return () => ipcRenderer.removeListener('set-cache-loading-bar', listener);
     },
-    onCacheLoaded: (callback) => ipcRenderer.on('cache-loaded', callback),
-    onCacheReload: (callback) => ipcRenderer.on('reloaded-app-cache', callback),
+    onCacheLoaded: (callback) => {
+        const listener = () => callback();
+        ipcRenderer.on('cache-loaded', listener);
+        return () => ipcRenderer.removeListener('cache-loaded', listener);
+    },
+    onCacheReload: (callback) => {
+        const listener = () => callback();
+        ipcRenderer.on('reloaded-app-cache', listener);
+        return () => ipcRenderer.removeListener('reloaded-app-cache', listener);
+    },
     executeCmd:(cmd)=>ipcRenderer.send('execute-cmd', cmd),
     setFolderDialogOpen:(isOpen)=>ipcRenderer.invoke('set-folder-dialog-open', isOpen),
     showFolderDialog:()=>ipcRenderer.invoke('show-folder-dialog'),
     deleteFolder:(path)=>ipcRenderer.invoke('delete-folder',path),
     searchQuery:(query,filters)=>ipcRenderer.invoke('search-query',query,filters),
     recordChoice:(query,item)=>ipcRenderer.send('record-choice',query,item),
+    clearUsage:()=>ipcRenderer.invoke('clear-usage'),
     hideWindow:()=>ipcRenderer.send("hide-window"),
     getAppVersion:()=>ipcRenderer.invoke("get-app-version"),
-    onUpdateProgress:(cb)=>ipcRenderer.on("update-progress",(_,data)=>cb(data)),
-    onUpdateDownloaded:(cb)=>ipcRenderer.on("update-downloaded",cb),
+    onUpdateProgress:(cb)=>listen("update-progress",cb),
+    onUpdateDownloaded:(cb)=>listen("update-downloaded",cb),
+    onUpdateError:(cb)=>listen("update-error",cb),
     quitAndInstall:()=>ipcRenderer.send("quit-and-install"),
     getOpenOnStartup:()=>ipcRenderer.invoke("get-open-on-startup"),
     setOpenOnStartup:(enabled)=>ipcRenderer.invoke("set-open-on-startup",enabled),
     checkForUpdates:()=>ipcRenderer.invoke("check-for-updates"),
-    onUpdateNotAvailable:(cb)=>ipcRenderer.on("update-not-available",cb),
+    onUpdateNotAvailable:(cb)=>listen("update-not-available",cb),
     getFolderFileCounts:()=>ipcRenderer.invoke("get-folder-file-counts"),
     getUpdateModalInfo:()=>ipcRenderer.invoke("get-update-modal-info"),
 });
@@ -67,7 +87,11 @@ contextBridge.exposeInMainWorld("apps",{
     getAppLogo: (app) => ipcRenderer.invoke('get-app-logo', app),
     getUwpAppLogo: (appName)=>ipcRenderer.invoke('get-uwp-app-logo', appName),
     getSteamGameLogo: (appId)=>ipcRenderer.invoke('get-steam-game-logo', appId),
+    // volt-icon:// URLs for many apps in one call (null where none is cached).
+    getAppLogoUrls: (apps)=>ipcRenderer.invoke('get-app-logo-urls', apps),
     getLinkFavicon:(link)=>ipcRenderer.invoke('get-link-favicon', link),
+    getLaunchHotkeys:()=>ipcRenderer.invoke('get-launch-hotkeys'),
+    setLaunchHotkey:(target, combo)=>ipcRenderer.invoke('set-launch-hotkey', target, combo),
 })
 
 
@@ -83,6 +107,7 @@ contextBridge.exposeInMainWorld('ai', {
     send: (request) => ipcRenderer.invoke('ai-send', request),
     cancel: (requestId) => ipcRenderer.invoke('ai-cancel', requestId),
     setMode: (active) => ipcRenderer.send('ai-set-mode', active),
+    setKeepOpen: (keepOpen) => ipcRenderer.send('ai-set-keep-open', keepOpen),
     // Presence only — the key itself never crosses this bridge.
     keyStatus: () => ipcRenderer.invoke('ai-key-status'),
     setKey: (providerId, key) => ipcRenderer.invoke('ai-set-key', providerId, key),
@@ -104,6 +129,10 @@ contextBridge.exposeInMainWorld('ai', {
     // A turn keeps running in the main process; this reattaches to one.
     activeTurn: (chatId) => ipcRenderer.invoke('ai-active-turn', chatId),
     activeTurns: () => ipcRenderer.invoke('ai-active-turns'),
+    openTrace: (traceId) => ipcRenderer.invoke('ai-open-trace', traceId),
+    // The user's answer to a tool-approval prompt: "allow", "allow-chat" or "deny".
+    respondPermission: (requestId, permissionId, decision) =>
+        ipcRenderer.invoke('ai-permission-respond', requestId, permissionId, decision),
     onChunk: (cb) => {
         const handler = (_e, chunk) => cb(chunk);
         ipcRenderer.on('ai-chunk', handler);

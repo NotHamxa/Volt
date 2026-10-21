@@ -19,6 +19,7 @@ import AddLinkShortcutModal from "@/components/modal/addLinkShortcutModal.tsx";
 import EditLinkShortcutModal from "@/components/modal/editLinkShortcutModal.tsx";
 import SortablePinnedLink from "@/components/subComponents/pinnedLinks.tsx";
 import SortablePinnedApp from "@/components/subComponents/pinnedApps.tsx";
+import {appKey as pinId} from "@/utils/appUtils.ts";
 
 interface Props {
     setStage: (n: number) => void;
@@ -42,8 +43,12 @@ export default function PinnedApps({setStage, unPinApp, pinnedApps,setPinnedApps
     useEffect(() => {
         const loadLinks = async ()=>{
             const data = await window.electronStore.get("linkShortcuts");
-            const shortcuts = data ? JSON.parse(data) : [];
-            setLinkShortcuts(shortcuts as LinkShortcutType[]);
+            let shortcuts: LinkShortcutType[] = [];
+            try {
+                const parsed = data ? JSON.parse(data) : [];
+                if (Array.isArray(parsed)) shortcuts = parsed;
+            } catch { /* a corrupt value shows as no links rather than a crash */ }
+            setLinkShortcuts(shortcuts);
         }
         loadLinks()
         window.addEventListener("reloadShortcuts", loadLinks);
@@ -66,9 +71,9 @@ export default function PinnedApps({setStage, unPinApp, pinnedApps,setPinnedApps
     // @ts-expect-error
     const handleDragEnd = (event) => {
         const {active, over} = event;
-        if (active.id !== over.id) {
-            const oldIndex = pinnedApps.findIndex(app => app.name === active.id);
-            const newIndex = pinnedApps.findIndex(app => app.name === over.id);
+        if (over && active.id !== over.id) {
+            const oldIndex = pinnedApps.findIndex(app => pinId(app) === active.id);
+            const newIndex = pinnedApps.findIndex(app => pinId(app) === over.id);
             const newOrder = arrayMove(pinnedApps, oldIndex, newIndex);
             setPinnedApps(newOrder);
             window.electronStore.set("pinnedApps", JSON.stringify(newOrder));
@@ -78,7 +83,7 @@ export default function PinnedApps({setStage, unPinApp, pinnedApps,setPinnedApps
     // @ts-expect-error
     const handleLinksDragEnd = (event) => {
         const {active, over} = event;
-        if (active.id !== over.id) {
+        if (over && active.id !== over.id) {
             const oldIndex = linkShortcuts.findIndex(link => link.shortcut === active.id);
             const newIndex = linkShortcuts.findIndex(link => link.shortcut === over.id);
             const newOrder = arrayMove(linkShortcuts, oldIndex, newIndex);
@@ -117,9 +122,9 @@ export default function PinnedApps({setStage, unPinApp, pinnedApps,setPinnedApps
                 editLink={editLinkShortcut}
                 linkShortcuts={linkShortcuts}
             />
-            <div className="h-[325px] shrink-0 flex flex-col">
-                <div className="flex items-center justify-between pr-[10px]">
-                    <span className="mx-3 text-[11px] font-semibold tracking-[0.1em] uppercase text-tone-250">Pinned Apps</span>
+            <div className="h-81.25 shrink-0 flex flex-col">
+                <div className="flex items-center justify-between pr-2.5">
+                    <span className="mx-3 text-11 font-semibold tracking-widest uppercase text-tone-250">Pinned Apps</span>
                     <Button
                         variant="ghost"
                         className="text-tone-400 hover:text-tone-700 px-2.5 py-1 h-auto text-xs rounded-lg flex items-center gap-1 transition-colors duration-150 bg-fill-050 border border-line-080"
@@ -132,10 +137,10 @@ export default function PinnedApps({setStage, unPinApp, pinnedApps,setPinnedApps
                 {pinnedApps?.length > 0 ? (
                     <div className="flex items-center justify-center w-full">
                         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                            <SortableContext items={pinnedApps.map(app => app.name)} strategy={rectSortingStrategy}>
-                                <div className="col-span-6 w-full flex flex-wrap gap-0 px-[20px] py-[10px]">
+                            <SortableContext items={pinnedApps.map(pinId)} strategy={rectSortingStrategy}>
+                                <div className="col-span-6 w-full flex flex-wrap gap-0 px-5 py-2.5">
                                     {pinnedApps.map((app) => (
-                                        <SortablePinnedApp key={app.name} app={app} unPinApp={unPinApp}/>
+                                        <SortablePinnedApp key={pinId(app)} id={pinId(app)} app={app} unPinApp={unPinApp}/>
                                     ))}
                                 </div>
                             </SortableContext>
@@ -143,13 +148,13 @@ export default function PinnedApps({setStage, unPinApp, pinnedApps,setPinnedApps
                     </div>
                 ) : (
                     <div className="flex-1 flex items-center justify-center">
-                        <label className="text-[13px] text-tone-200">No Apps Pinned</label>
+                        <label className="text-13 text-tone-200">No Apps Pinned</label>
                     </div>
                 )}
             </div>
             <div className="flex-1 min-h-0 flex flex-col">
-                <div className="flex items-center justify-between pr-[10px]">
-                    <span className="mx-3 text-[11px] font-semibold tracking-[0.1em] uppercase text-tone-250">Links</span>
+                <div className="flex items-center justify-between pr-2.5">
+                    <span className="mx-3 text-11 font-semibold tracking-widest uppercase text-tone-250">Links</span>
                     <Button
                         variant="ghost"
                         className="text-tone-400 hover:text-tone-700 px-2.5 py-1 h-auto text-xs rounded-lg flex items-center gap-1 transition-colors duration-150 bg-fill-050 border border-line-080"
@@ -166,7 +171,7 @@ export default function PinnedApps({setStage, unPinApp, pinnedApps,setPinnedApps
                     </Button>
                 </div>
 
-                <div className="h-full flex flex-row py-[5px] px-5 w-full">
+                <div className="h-full flex flex-row py-1.25 px-5 w-full">
                     {linkShortcuts.length > 0 ? (
                         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleLinksDragEnd}>
                             <SortableContext items={linkShortcuts.map(link => link.shortcut)} strategy={rectSortingStrategy}>
@@ -185,7 +190,7 @@ export default function PinnedApps({setStage, unPinApp, pinnedApps,setPinnedApps
                         </DndContext>
                     ) : (
                         <div className="flex-1 flex items-center justify-center">
-                            <label className="text-[13px] text-tone-200">No Links Pinned</label>
+                            <label className="text-13 text-tone-200">No Links Pinned</label>
                         </div>
                     )}
                 </div>

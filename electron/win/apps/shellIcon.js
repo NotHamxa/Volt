@@ -121,22 +121,24 @@ public static class VoltShellIcon
 }
 "@ -ReferencedAssemblies System.Drawing, System.Runtime.InteropServices
 
+# The job is UTF-8 JSON; the console's default code page would mangle any
+# non-ASCII app name or path on the way in.
+[Console]::InputEncoding = [Text.Encoding]::UTF8
 $raw = [Console]::In.ReadToEnd()
-if (-not $raw) { "[]"; exit 0 }
+if (-not $raw) { exit 0 }
 $job = $raw | ConvertFrom-Json
-$results = @()
+# One line per entry as it finishes ("<index> 1|0"), so the caller can show
+# real progress, and only ASCII crosses the pipe.
+$i = 0
 foreach ($item in $job.entries) {
+    $ok = 0
     try {
-        if ([VoltShellIcon]::Save($item.parsingName, $job.size, $item.outPath)) {
-            $results += [pscustomobject]@{ key = $item.key; ok = $true }
-        } else {
-            $results += [pscustomobject]@{ key = $item.key; ok = $false }
-        }
-    } catch {
-        $results += [pscustomobject]@{ key = $item.key; ok = $false }
-    }
+        if ([VoltShellIcon]::Save($item.parsingName, $job.size, $item.outPath)) { $ok = 1 }
+    } catch { }
+    [Console]::Out.WriteLine("$i $ok")
+    [Console]::Out.Flush()
+    $i++
 }
-ConvertTo-Json -InputObject @($results) -Compress
 `;
 
 let scriptPath = null;
@@ -153,45 +155,54 @@ function ensureScript() {
 
 /**
  * @param entries [{ key, parsingName, outPath }]
- * @returns Set of keys that were written successfully
+ * @param onEntry called as each entry finishes: (entry, ok)
+ * @returns Set of keys that were written successfully. Entries finished
+ *          before a timeout or crash still count.
  */
-export function extractShellIcons(entries, size = 256, timeoutMs = 120000) {
+export function extractShellIcons(entries, { size = 256, timeoutMs = 120000, onEntry } = {}) {
     return new Promise((resolve) => {
-        if (!entries?.length) return resolve(new Set());
+        const written = new Set();
+        if (!entries?.length) return resolve(written);
 
         let script;
         try {
             script = ensureScript();
         } catch (err) {
             console.warn("shellIcon: could not stage script:", err?.message);
-            return resolve(new Set());
+            return resolve(written);
         }
+
+        let pending = "";
+        const handleLine = (line) => {
+            const match = /^(\d+) ([01])$/.exec(line.trim());
+            const entry = match && entries[Number(match[1])];
+            if (!entry) return;
+            const ok = match[2] === "1";
+            if (ok) written.add(entry.key);
+            try { onEntry?.(entry, ok); } catch { /* a progress hook must not end the run */ }
+        };
 
         const child = execFile(
             "powershell.exe",
-            ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script],
+            ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", script],
             { windowsHide: true, timeout: timeoutMs, maxBuffer: 8 * 1024 * 1024, encoding: "utf8" },
-            (err, stdout) => {
-                if (err) {
-                    console.warn("shellIcon: extraction failed:", err?.message);
-                    return resolve(new Set());
-                }
-                try {
-                    const parsed = JSON.parse((stdout || "").trim() || "[]");
-                    const list = Array.isArray(parsed) ? parsed : [parsed];
-                    resolve(new Set(list.filter(r => r?.ok).map(r => r.key)));
-                } catch {
-                    resolve(new Set());
-                }
+            (err) => {
+                if (pending) handleLine(pending);
+                if (err) console.warn("shellIcon: extraction failed:", err?.message);
+                resolve(written);
             }
         );
+        child.stdout.on("data", (chunk) => {
+            const lines = (pending + chunk).split(/\r?\n/);
+            pending = lines.pop();
+            lines.forEach(handleLine);
+        });
 
-        child.on("error", () => resolve(new Set()));
+        child.on("error", () => resolve(written));
         try {
-            child.stdin.write(JSON.stringify({ size, entries }));
-            child.stdin.end();
+            child.stdin.end(JSON.stringify({ size, entries }), "utf8");
         } catch {
-            resolve(new Set());
+            resolve(written);
         }
     });
 }

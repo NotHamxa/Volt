@@ -28,6 +28,23 @@ async function thumbnail(fullPath) {
     }
 }
 
+/**
+ * Text from the start of a file, or null if it looks binary. UTF-16 is common
+ * on Windows — PowerShell's `>` writes it — and is full of zero bytes, so its
+ * byte-order mark is checked before the binary test.
+ */
+function decodeText(chunk) {
+    if (chunk[0] === 0xff && chunk[1] === 0xfe) return chunk.subarray(2).toString("utf16le");
+    if (chunk[0] === 0xfe && chunk[1] === 0xff) {
+        // Node has no big-endian decoder: swap each pair into little-endian.
+        const body = Buffer.from(chunk.subarray(2, 2 + ((chunk.length - 2) & ~1)));
+        return body.swap16().toString("utf16le");
+    }
+    if (chunk.includes(0)) return null;
+    const bom = chunk[0] === 0xef && chunk[1] === 0xbb && chunk[2] === 0xbf ? 3 : 0;
+    return chunk.subarray(bom).toString("utf8");
+}
+
 /** The first lines of a text file, or null for binary or unreadable content. */
 async function textExcerpt(fullPath) {
     let handle;
@@ -35,9 +52,8 @@ async function textExcerpt(fullPath) {
         handle = await fsp.open(fullPath, "r");
         const buffer = Buffer.alloc(TEXT_PREVIEW_BYTES);
         const { bytesRead } = await handle.read(buffer, 0, TEXT_PREVIEW_BYTES, 0);
-        const chunk = buffer.subarray(0, bytesRead);
-        if (chunk.includes(0)) return null;
-        const lines = chunk.toString("utf8").split(/\r?\n/);
+        const lines = decodeText(buffer.subarray(0, bytesRead))?.split(/\r?\n/);
+        if (!lines) return null;
         return {
             text: lines.slice(0, TEXT_PREVIEW_LINES).join("\n"),
             truncated: lines.length > TEXT_PREVIEW_LINES || bytesRead === TEXT_PREVIEW_BYTES,
@@ -78,6 +94,9 @@ function appPreview(item) {
         } catch { /* not a readable shortcut */ }
     } else if (item.path) {
         preview.target = item.path;
+    } else if (item.target) {
+        // A Start entry with no shortcut: the shell already resolved its exe.
+        Object.assign(preview, { target: item.target, args: item.targetArgs || null });
     }
     return preview;
 }

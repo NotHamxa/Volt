@@ -10,19 +10,21 @@ import {useSortable} from "@dnd-kit/sortable";
 import {CSS} from "@dnd-kit/utilities";
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip.tsx";
 import {useEscapeBarrier} from "@/hooks/useEscape.ts";
+import {appLogo} from "@/utils/appLogos.ts";
 interface IPinnedApp {
     app: SearchQueryT;
     unPinApp: (app: SearchQueryT) => void;
 }
 
-export default function SortablePinnedApp({app, unPinApp}: IPinnedApp) {
+/** `id` is the pin's identity from the list — not the name, which two apps can share. */
+export default function SortablePinnedApp({id, app, unPinApp}: IPinnedApp & {id: string}) {
     const {
         attributes,
         listeners,
         setNodeRef,
         transform,
         transition,
-    } = useSortable({id: app.name});
+    } = useSortable({id});
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -41,21 +43,14 @@ function PinnedApp({app, unPinApp}: IPinnedApp) {
     const [menuOpen, setMenuOpen] = useState(false);
     useEscapeBarrier(menuOpen);
 
-    const getLogo = async () => {
-        let appLogo: string | null = null;
-        if (app?.source === "Steam" && app?.appId) {
-            appLogo = await window.apps.getSteamGameLogo(app.appId);
-        } else if (app?.source === "UWP") {
-            appLogo = await window.apps.getUwpAppLogo(app);
-        } else if (app?.path) {
-            appLogo = await window.apps.getAppLogo(app);
-        }
-        if (appLogo) setLogo(appLogo);
-    };
-
     useEffect(() => {
-        getLogo();
-    },[]);
+        if (!app) return;
+        let cancelled = false;
+        appLogo(app).then(found => {
+            if (found && !cancelled) setLogo(found);
+        });
+        return () => { cancelled = true; };
+    }, [app]);
 
     return (
         <ContextMenu onOpenChange={setMenuOpen}>
@@ -65,7 +60,7 @@ function PinnedApp({app, unPinApp}: IPinnedApp) {
                         <TooltipTrigger asChild>
                             <button
                                 aria-label={`Open ${app.name}`}
-                                className="flex items-center justify-start w-[100px] h-[90px] bg-transparent rounded-lg transition-all duration-300 cursor-pointer flex-col overflow-hidden text-center select-none pt-[5px] hover:bg-fill-140 active:scale-95"
+                                className="flex items-center justify-start w-25 h-22.5 bg-transparent rounded-lg transition-all duration-300 cursor-pointer flex-col overflow-hidden text-center select-none pt-1.25 hover:bg-fill-140 active:scale-95"
                                 onClick={async () => {
                                     await window.apps.openApp(app);
                                 }}
@@ -75,10 +70,10 @@ function PinnedApp({app, unPinApp}: IPinnedApp) {
                                 ) : (
                                     <AppWindowIcon size={36}/>
                                 )}
-                                <label className="mt-2 text-[12px] max-w-[90px] truncate">{app.name}</label>
+                                <label className="mt-2 text-12 max-w-22.5 truncate">{app.name}</label>
                             </button>
                         </TooltipTrigger>
-                        <TooltipContent side="bottom" className="bg-surface/[0.98] border border-line-100 text-tone-700 text-[11px]">
+                        <TooltipContent side="bottom" className="bg-surface/[0.98] border border-line-100 text-tone-700 text-11">
                             {app.name}
                         </TooltipContent>
                     </Tooltip>

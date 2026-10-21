@@ -10,7 +10,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 // App catalog: enumerate installed apps + cache their icons.
-export { appWatchPaths } from "./apps/enumerate.js";
+export { appWatchPaths, packageWatchPath } from "./apps/enumerate.js";
 export { loadAppData, revalidateAppIcons } from "./appCatalog.js";
 
 // Launching apps and fetching their icons on demand.
@@ -18,6 +18,7 @@ export { launchApp } from "./apps/launchApp.js";
 export { getAppLogo } from "./apps/appLogo.js";
 export { getUwpAppIcon } from "./apps/uwpAppLogo.js";
 export { getSteamGameIcon } from "./apps/steam.js";
+export { registerIconScheme, handleIconProtocol, appLogoUrls, ICON_SCHEME } from "./apps/iconProtocol.js";
 
 // Running user/system commands.
 export { executeCommand } from "./runCommand.js";

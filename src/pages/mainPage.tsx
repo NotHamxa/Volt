@@ -7,6 +7,7 @@ import { getBangData } from "@/scripts/bangs.ts";
 import { BangData } from "@/interfaces/bang.ts";
 import { SearchQueryT } from "@/interfaces/searchQuery.ts";
 import { isSameApp } from "@/utils/appUtils.ts";
+import { appLogos } from "@/utils/appLogos.ts";
 import ArgEntryBar from "@/components/argEntryBar.tsx";
 import { useInlineCompletion } from "@/hooks/useInlineCompletion.ts";
 
@@ -49,41 +50,45 @@ export default function MainLayout({ inputRef, query, setQuery, argCommand, argI
     const clearQuery = useCallback(() => setQuery(""), [setQuery]);
 
     useEffect(() => {
+        // A catalog pass announces itself twice (list, then icons). Only the
+        // newest fetch may land, or a slow first one overwrites fresh logos.
+        let generation = 0;
+        let active = true;
+        // A corrupt stored value mustn't abort the logo fetch that follows.
+        const reloadPinnedApps = async () => {
+            let pinned: SearchQueryT[] = [];
+            try {
+                const parsed = JSON.parse(await window.electronStore.get("pinnedApps") ?? "[]");
+                if (Array.isArray(parsed)) pinned = parsed;
+            } catch { /* unreadable pins: show none */ }
+            if (active) setPinnedApps(pinned);
+        };
         const getAppData = async () => {
+            const current = ++generation;
+            const isStale = () => !active || current !== generation;
             const appsData: SearchQueryT[] = await window.apps.searchApps("");
+            if (isStale()) return;
             setApps(appsData);
-            const pApps = await window.electronStore.get("pinnedApps");
-            setPinnedApps(pApps ? JSON.parse(pApps) : []);
+            await reloadPinnedApps();
 
-            const entries = await Promise.all(
-                appsData.map(async (item) => {
-                    let logo: string | undefined;
-                    if (item.source === "Steam" && item.appId) {
-                        logo = await window.apps.getSteamGameLogo(item.appId) ?? undefined;
-                    } else if (item.source === "UWP") {
-                        logo = await window.apps.getUwpAppLogo(item);
-                    } else {
-                        // Covers AppsFolder entries with no path too: getAppLogo
-                        // checks the icon cache first, which the shell pass fills.
-                        logo = await window.apps.getAppLogo(item);
-                    }
-                    return [`${item.path ?? ""}|${item.appId ?? ""}`, logo] as const;
-                })
-            );
+            // One batched call; see appLogos.ts.
+            const logos = await appLogos(appsData);
+            const entries = appsData.map((item, index) => [`${item.path ?? ""}|${item.appId ?? ""}`, logos[index]] as const);
+            if (isStale()) return;
             const map = new Map<string, string>();
             for (const [key, logo] of entries) {
                 if (logo) map.set(key, logo);
             }
             setLogoMap(map);
         };
-        const reloadPinnedApps = async () => {
-            const pApps = await window.electronStore.get("pinnedApps");
-            setPinnedApps(pApps ? JSON.parse(pApps) : []);
-        };
         getAppData();
-        window.electron.onCacheReload(getAppData);
+        const offCacheReload = window.electron.onCacheReload(getAppData);
         window.addEventListener("pinnedAppsChanged", reloadPinnedApps);
-        return () => window.removeEventListener("pinnedAppsChanged", reloadPinnedApps);
+        return () => {
+            active = false;
+            offCacheReload();
+            window.removeEventListener("pinnedAppsChanged", reloadPinnedApps);
+        };
     }, []);
 
     // Drives the favicon chip on the input whenever a bang is typed.
@@ -145,7 +150,7 @@ export default function MainLayout({ inputRef, query, setQuery, argCommand, argI
                     onCancel={exitArgMode}
                 />
             ) : (
-                <div data-walkthrough="search-input" className="flex flex-row gap-2.5 items-center px-5 border-b border-line-070 mb-[5px]">
+                <div data-walkthrough="search-input" className="flex flex-row gap-2.5 items-center px-5 border-b border-line-070 mb-1.25">
                     {faviconUrl
                         ? <img src={faviconUrl} className="w-6 h-6" />
                         : <Search size={20} className="text-tone-300 shrink-0" />
@@ -213,7 +218,7 @@ export default function MainLayout({ inputRef, query, setQuery, argCommand, argI
                 Outlet must still render, since /ai is a child route. */}
             {argCommand && !isAiRoute ? (
                 <div className="flex-1 min-h-0 flex items-center justify-center px-8">
-                    <p className="text-[11px] text-tone-300 text-center leading-relaxed">
+                    <p className="text-11 text-tone-300 text-center leading-relaxed">
                         Filling arguments for <span className="text-tone-550 font-medium">{argCommand.name}</span>.<br />
                         Tab to move between fields. Enter to run. Esc to cancel.
                     </p>

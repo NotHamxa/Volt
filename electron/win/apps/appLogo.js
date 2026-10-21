@@ -1,6 +1,7 @@
 import extractIcon from 'extract-file-icon';
 import fs from "fs";
 import {Jimp} from "jimp";
+import {iconKey} from "./iconCache.js";
 
 
 
@@ -31,14 +32,16 @@ export async function extractAppLogo(filePath) {
 
 export async function getAppLogo(app, appIconsCache) {
     try {
-        const cachedIconPath = appIconsCache[app.name];
+        // Name key: icons cached before the identity key, not yet migrated.
+        const cachedIconPath = appIconsCache[iconKey(app)] ?? appIconsCache[app.name];
 
         if (cachedIconPath && fs.existsSync(cachedIconPath)) {
             const imageBuffer = fs.readFileSync(cachedIconPath);
             const base64 = imageBuffer.toString('base64');
             return `data:image/png;base64,${base64}`;
         }
-        return await extractAppLogo(app.path);
+        const source = app.path || app.target;
+        return source ? await extractAppLogo(source) : null;
 
     } catch (error) {
         return null;

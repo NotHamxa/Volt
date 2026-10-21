@@ -98,36 +98,38 @@ export async function loadSteamGames() {
     }
 }
 
-export async function getSteamGameIcon(appId, steamPath) {
+/** Path of the artwork Steam cached for a game, or null. */
+export async function steamIconPath(appId, steamPath) {
+    if (!/^\d+$/.test(String(appId))) return null;
     if (!steamPath) {
         steamPath = await getSteamPath();
     }
     if (!steamPath) return null;
 
-    const cacheDir = path.join(steamPath, "appcache", "librarycache", appId);
+    const cacheDir = path.join(steamPath, "appcache", "librarycache", String(appId));
     if (!fs.existsSync(cacheDir)) return null;
 
     // Prefer logo.png (transparent), then header.jpg, then any hash-named .jpg (small icon)
     const candidates = ["logo.png", "header.jpg"];
     for (const file of candidates) {
         const filePath = path.join(cacheDir, file);
-        if (fs.existsSync(filePath)) {
-            return readIconFile(filePath);
-        }
+        if (fs.existsSync(filePath)) return filePath;
     }
 
     // Fallback: find any .jpg file in the cache dir (hash-named icon files)
     try {
-        const files = fs.readdirSync(cacheDir);
-        const jpgFile = files.find(f => f.endsWith(".jpg"));
-        if (jpgFile) {
-            return readIconFile(path.join(cacheDir, jpgFile));
-        }
+        const jpgFile = fs.readdirSync(cacheDir).find(f => f.endsWith(".jpg"));
+        if (jpgFile) return path.join(cacheDir, jpgFile);
     } catch {
         // ignore
     }
 
     return null;
+}
+
+export async function getSteamGameIcon(appId, steamPath) {
+    const filePath = await steamIconPath(appId, steamPath);
+    return filePath ? readIconFile(filePath) : null;
 }
 
 function readIconFile(filePath) {

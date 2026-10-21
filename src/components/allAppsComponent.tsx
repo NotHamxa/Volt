@@ -13,6 +13,7 @@ import {
 import {Label} from "@/components/ui/label.tsx";
 import {isSameApp} from "@/utils/appUtils.ts";
 import {useEscapeBarrier} from "@/hooks/useEscape.ts";
+import {appLogo} from "@/utils/appLogos.ts";
 
 interface IAllAppsComponent {
     setStage: (n: number) => void;
@@ -35,7 +36,12 @@ function App({app,pinnedApps,pinApp,unPinApp}:IApp) {
     const [menuOpen, setMenuOpen] = useState(false);
     useEscapeBarrier(menuOpen);
     useEffect(() => {
-        getLogo()
+        let cancelled = false;
+        // Batched with every other tile mounting this tick — one IPC call.
+        appLogo(app).then(logo => {
+            if (logo && !cancelled) setLogo(logo);
+        });
+        return () => { cancelled = true; };
     }, [app]);
 
     const handleFocus = () => setIsFocused(true);
@@ -43,18 +49,6 @@ function App({app,pinnedApps,pinApp,unPinApp}:IApp) {
 
     const isAppPinned = (app: SearchQueryT): boolean => {
         return pinnedApps.some((a) => isSameApp(a, app));
-    };
-
-    const getLogo = async () => {
-        let appLogo: string | null = null;
-        if (app.source === "Steam" && app.appId) {
-            appLogo = await window.apps.getSteamGameLogo(app.appId);
-        } else if (app.source === "UWP") {
-            appLogo = await window.apps.getUwpAppLogo(app);
-        } else if (app.path) {
-            appLogo = await window.apps.getAppLogo(app);
-        }
-        if (appLogo) setLogo(appLogo);
     };
 
     return (
@@ -162,10 +156,10 @@ export default function AllApps({setStage, apps,pinnedApps,pinApp,unPinApp}:IAll
 
     return (
         <div className="h-full flex flex-col">
-            <div className="flex items-center justify-between pr-[10px]">
+            <div className="flex items-center justify-between pr-2.5">
                 <div className="flex items-center gap-2">
-                    <span className="mx-3 text-[11px] font-semibold tracking-[0.1em] uppercase text-tone-250">All Apps</span>
-                    <span className="text-[10px] text-tone-150">{apps.length}</span>
+                    <span className="mx-3 text-11 font-semibold tracking-widest uppercase text-tone-250">All Apps</span>
+                    <span className="text-10 text-tone-150">{apps.length}</span>
                 </div>
                 <Button
                     variant="ghost"
@@ -179,10 +173,10 @@ export default function AllApps({setStage, apps,pinnedApps,pinApp,unPinApp}:IAll
                 </Button>
             </div>
             <div className="flex flex-1 min-h-0">
-                <ScrollArea className="w-full px-4" ref={scrollRef}>
+                <ScrollArea className="flex-1 min-w-0 px-4" ref={scrollRef}>
                     {grouped.map(([letter, group]) => (
                         <div key={letter} className="mb-4" data-letter={letter}>
-                            <div className="font-semibold text-tone-200 text-[11px] tracking-[0.08em] uppercase mb-1.5 pl-2">
+                            <div className="font-semibold text-tone-200 text-11 tracking-[0.08em] uppercase mb-1.5 pl-2">
                                 {letter}
                             </div>
                             {group.map(app => (
@@ -203,7 +197,7 @@ export default function AllApps({setStage, apps,pinnedApps,pinApp,unPinApp}:IAll
                         <button
                             key={l}
                             onClick={() => scrollToLetter(l)}
-                            className="text-[9px] text-tone-200 hover:text-tone-600 w-4 h-3.5 flex items-center justify-center rounded transition-colors"
+                            className="text-9 text-tone-200 hover:text-tone-600 w-4 h-3.5 flex items-center justify-center rounded transition-colors"
                         >
                             {l}
                         </button>

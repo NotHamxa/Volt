@@ -13,10 +13,14 @@ const PDF_BOX = { width: 330, height: 236 };
 /** Result types whose details live on disk and are fetched from the main process. */
 const LOOKED_UP = new Set(["app", "file", "folder"]);
 
-// Arrowing through the list shouldn't re-ask for things just seen.
-const cache = new Map<string, ItemPreview>();
+// Arrowing through the list shouldn't re-ask for things just seen. Entries go
+// stale after a few seconds, so an edited file shows its new size, date and
+// PDF page the next time it's highlighted; failures are never kept.
+const cache = new Map<string, { preview: ItemPreview; at: number }>();
 const CACHE_LIMIT = 60;
+const CACHE_TTL_MS = 5000;
 const cacheKey = (item: SearchQueryT) => `${item.type}|${item.path ?? item.appId ?? item.name}`;
+const isFresh = (key: string) => Date.now() - (cache.get(key)?.at ?? -Infinity) < CACHE_TTL_MS;
 
 const KINDS: [RegExp, string][] = [
     [/^(png|jpe?g|gif|webp|bmp|svg|ico|heic|avif|tiff?)$/, "image"],
@@ -64,20 +68,20 @@ function formatWhen(ms: number): string {
     return new Date(ms).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 }
 
-const SOURCES: Record<string, string> = { StartMenu: "Start menu", UWP: "Microsoft Store", Steam: "Steam" };
+const SOURCES: Record<string, string> = { StartMenu: "Start menu", StartApps: "Start menu", UWP: "Microsoft Store", Steam: "Steam" };
 
 function Detail({ label, children }: { label: string; children: ReactNode }) {
     return (
         <div className="flex flex-col gap-0.5 min-w-0">
-            <span className="text-[11px] text-tone-250">{label}</span>
-            <span className="text-[12px] text-tone-600 break-all">{children}</span>
+            <span className="text-11 text-tone-250">{label}</span>
+            <span className="text-12 text-tone-600 break-all">{children}</span>
         </div>
     );
 }
 
 function Excerpt({ text, truncated }: { text: string; truncated?: boolean }) {
     return (
-        <pre className="text-[11px] leading-[1.45] font-mono text-tone-500 bg-fill-030 border border-line-060 rounded-lg p-2.5 whitespace-pre-wrap break-all">
+        <pre className="text-11 leading-[1.45] font-mono text-tone-500 bg-fill-030 border border-line-060 rounded-lg p-2.5 whitespace-pre-wrap break-all">
             {text}
             {truncated && <span className="text-tone-250">{"\n…"}</span>}
         </pre>
@@ -104,20 +108,25 @@ export default function PreviewPane({ item, logo, fileIcon, activeAction, onActi
     const [fetched, setFetched] = useState<{ key: string; preview: ItemPreview } | null>(null);
 
     useEffect(() => {
-        if (!item || !lookedUp || cache.has(key)) return;
+        if (!item || !lookedUp || isFresh(key)) return;
         let cancelled = false;
         // Arrowing quickly through the list shouldn't generate a thumbnail
-        // for every row it passes.
+        // for every row it passes. A stale entry stays on screen meanwhile.
         const timer = setTimeout(async () => {
             const preview = await window.file.getPreview(item);
-            if (cache.size >= CACHE_LIMIT) cache.delete(cache.keys().next().value!);
-            cache.set(key, preview);
+            cache.delete(key);
+            if (!preview.error) {
+                if (cache.size >= CACHE_LIMIT) cache.delete(cache.keys().next().value!);
+                cache.set(key, { preview, at: Date.now() });
+            }
             if (!cancelled) setFetched({ key, preview });
         }, 90);
         return () => { cancelled = true; clearTimeout(timer); };
     }, [item, key, lookedUp]);
 
-    const preview = cache.get(key) ?? (fetched?.key === key ? fetched.preview : null);
+    // The last fetch for this row is the newest; the cache covers rows
+    // revisited since.
+    const preview = (fetched?.key === key ? fetched.preview : null) ?? cache.get(key)?.preview ?? null;
 
     // PDFs have no shell thumbnail on most machines, so their first page is
     // drawn here instead. undefined while rendering, null if it can't be.
@@ -166,7 +175,7 @@ export default function PreviewPane({ item, logo, fileIcon, activeAction, onActi
         <aside className="w-[44%] shrink-0 border-l border-line-070 flex flex-col min-h-0">
             <ScrollArea className="flex-1 min-h-0">
                 <div className="p-4 flex flex-col gap-4">
-                    <div className={`${isPdf ? "h-[260px]" : "h-[170px]"} rounded-xl border border-line-070 bg-fill-030 flex items-center justify-center p-3 overflow-hidden`}>
+                    <div className={`${isPdf ? "h-65" : "h-42.5"} rounded-xl border border-line-070 bg-fill-030 flex items-center justify-center p-3 overflow-hidden`}>
                         {loading
                             ? <div className="w-10 h-10 rounded-lg bg-fill-100 animate-pulse" />
                             : pdfUrl === undefined
@@ -175,8 +184,8 @@ export default function PreviewPane({ item, logo, fileIcon, activeAction, onActi
                     </div>
 
                     <div className="min-w-0">
-                        <div className="text-[15px] font-medium text-tone-800 break-words line-clamp-3">{name}</div>
-                        {kindLabel && <div className="text-[12px] text-tone-300 mt-0.5">{kindLabel}</div>}
+                        <div className="text-15 font-medium text-tone-800 break-words line-clamp-3">{name}</div>
+                        {kindLabel && <div className="text-12 text-tone-300 mt-0.5">{kindLabel}</div>}
                     </div>
 
                     {actions.length > 0 && (
@@ -185,9 +194,9 @@ export default function PreviewPane({ item, logo, fileIcon, activeAction, onActi
                                 <button
                                     key={id}
                                     onClick={() => onAction(id, item)}
-                                    className={`flex items-center gap-2.5 h-8 px-2.5 rounded-lg text-[12px] text-left transition-colors ${
+                                    className={`flex items-center gap-2.5 h-8 px-2.5 rounded-lg text-12 text-left transition-colors ${
                                         activeAction === index
-                                            ? "bg-fill-100 text-tone-800 outline outline-[1px] outline-offset-[-1px] outline-ink/[0.18]"
+                                            ? "bg-fill-100 text-tone-800 outline -outline-offset-1 outline-ink/[0.18]"
                                             : "text-tone-600 hover:bg-fill-050"
                                     }`}
                                 >
@@ -198,7 +207,7 @@ export default function PreviewPane({ item, logo, fileIcon, activeAction, onActi
                         </div>
                     )}
 
-                    {preview?.error && <div className="text-[12px] text-tone-400">{preview.error}</div>}
+                    {preview?.error && <div className="text-12 text-tone-400">{preview.error}</div>}
 
                     <div className="flex flex-col gap-2.5">
                         {type === "app" && preview?.target && <Detail label="Target">{preview.target}</Detail>}

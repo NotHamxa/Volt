@@ -30,6 +30,14 @@ export function iconFilePath(appData) {
     return path.join(appDataPath, iconFileName(appData));
 }
 
+/**
+ * Key an app's icon is cached under. Identity rather than name: two different
+ * apps can share a display name (Google's and Samsung's "Quick Share").
+ */
+export function iconKey(appData) {
+    return String(appData?.appId || appData?.path || appData?.name || "").toLowerCase();
+}
+
 export function ensureIconDir() {
     if (!fs.existsSync(appDataPath)) fs.mkdirSync(appDataPath, { recursive: true });
     return appDataPath;
@@ -133,10 +141,13 @@ export async function normaliseIcon(filePath, size = ICON_SIZE) {
 }
 
 export async function cacheAppIcon(app, appIconsCache) {
-    if (!app.path)
+    // The shortcut when there is one (it may carry its own icon), else the exe
+    // behind a shortcut-less Start entry.
+    const source = app.path || app.target;
+    if (!source)
         return appIconsCache;
     try {
-        const appIcon = await extractAppLogo(app.path);
+        const appIcon = await extractAppLogo(source);
         if (!appIcon || !appIcon.startsWith('data:image')) {
             return appIconsCache;
         }
@@ -145,7 +156,7 @@ export async function cacheAppIcon(app, appIconsCache) {
         ensureIconDir();
         fs.writeFileSync(iconPath, Buffer.from(base64Data, 'base64'));
         await normaliseIcon(iconPath);
-        appIconsCache[app.name] = iconPath;
+        appIconsCache[iconKey(app)] = iconPath;
         return appIconsCache
     } catch (error) {
         console.log(error);
@@ -168,7 +179,9 @@ async function copyAppLogo(targetPath, endPath, width = 64) {
         return false;
     }
 }
-export async function cacheUwpIcon(installPath, name, appIconsCache) {
+export async function cacheUwpIcon(app, appIconsCache) {
+    const installPath = app.installLocation;
+    if (!installPath) return appIconsCache;
     const manifestPath = path.join(installPath, "AppxManifest.xml");
     if (!fs.existsSync(manifestPath)) {
         return appIconsCache
@@ -223,11 +236,11 @@ export async function cacheUwpIcon(installPath, name, appIconsCache) {
             scoredIcons.sort((a, b) => b.score - a.score);
             const iconPath = scoredIcons[0].file;
 
-            const targetPath = path.join(appDataPath, iconFileName({ name, appId: "", path: installPath }));
+            const targetPath = iconFilePath(app);
             ensureIconDir();
             if (await copyAppLogo(iconPath,targetPath)){
                 await normaliseIcon(targetPath);
-                appIconsCache[name] = targetPath;
+                appIconsCache[iconKey(app)] = targetPath;
                 return appIconsCache;
             }
             else{

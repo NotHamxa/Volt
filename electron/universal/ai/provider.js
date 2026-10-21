@@ -44,6 +44,8 @@
  * like command drafting that only want text back.
  */
 
+import Store from "electron-store";
+
 const registry = new Map();
 
 export function registerProvider(provider) {
@@ -205,10 +207,51 @@ export async function* withResumeFallback({ sessionId, prompt, history, run }) {
 export async function providerModels(id) {
     const provider = getProvider(id);
     if (!provider) return [];
+    const live = refreshModels(provider);
+    // Last launch's catalogue answers at once while this launch's is read;
+    // the CLI providers take seconds to say what they offer, and until they
+    // did the composer had no effort menu to show.
+    const saved = savedCatalogue(id);
+    return saved ?? await live;
+}
+
+// --- the catalogue, kept between launches ------------------------------------
+
+const CATALOGUE_KEY = "aiModelCatalogue";
+let _store = null;
+const store = () => (_store ??= new Store());
+
+function savedCatalogue(id) {
     try {
-        return await provider.models();
-    } catch (err) {
-        console.warn(`Could not read models for ${id}:`, err?.message ?? err);
-        return [];
+        const models = store().get(CATALOGUE_KEY)?.[id]?.models;
+        return Array.isArray(models) && models.length ? models : null;
+    } catch {
+        return null;
     }
+}
+
+/** One read per provider at a time; the saved copy is replaced when it lands. */
+const refreshing = new Map();
+function refreshModels(provider) {
+    if (!refreshing.has(provider.id)) {
+        const request = Promise.resolve()
+            .then(() => provider.models())
+            .then(models => {
+                // A stand-in list (the CLI couldn't be asked) is never saved
+                // over a real one.
+                if (Array.isArray(models) && models.length && !models.fallback) {
+                    try {
+                        store().set(`${CATALOGUE_KEY}.${provider.id}`, { savedAt: Date.now(), models });
+                    } catch { /* unsaved: read again next launch */ }
+                }
+                return models;
+            })
+            .catch(err => {
+                console.warn(`Could not read models for ${provider.id}:`, err?.message ?? err);
+                return [];
+            })
+            .finally(() => refreshing.delete(provider.id));
+        refreshing.set(provider.id, request);
+    }
+    return refreshing.get(provider.id);
 }

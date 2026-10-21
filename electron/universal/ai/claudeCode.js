@@ -115,6 +115,8 @@ const FALLBACK_MODELS = [
     { id: "sonnet", label: "Sonnet", controls: [...effortControl(["low", "medium", "high", "xhigh"]), MODE_CONTROL] },
     { id: "haiku", label: "Haiku", controls: [MODE_CONTROL] },
 ];
+// A stand-in, not the CLI's own list: the saved catalogue ignores it.
+FALLBACK_MODELS.fallback = true;
 
 function effortControl(levels) {
     if (!levels?.length) return [];
@@ -389,9 +391,12 @@ export const claudeCodeProvider = registerProvider({
         return claudeAuthMode();
     },
 
-    // Every model carries its own controls, so there is nothing provider-wide.
+    // Effort differs per model and comes with the catalogue; the mode applies
+    // to all of them, so it's offered before the catalogue has been read —
+    // the CLI takes a few seconds to answer, and the picker used to be
+    // missing until it did.
     controls() {
-        return [];
+        return [MODE_CONTROL];
     },
 
     async *send({ prompt, sessionId, history, model, settings, signal, toolless, requestPermission, trace }) {

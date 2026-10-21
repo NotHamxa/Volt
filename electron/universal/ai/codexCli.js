@@ -98,6 +98,8 @@ const DEFAULT_MODEL = "default";
 const FALLBACK_MODELS = [
     { id: DEFAULT_MODEL, label: "CLI default", controls: [MODE_CONTROL] },
 ];
+// A stand-in, not the CLI's own list: the saved catalogue ignores it.
+FALLBACK_MODELS.fallback = true;
 
 const titleCase = (value) => value.charAt(0).toUpperCase() + value.slice(1);
 

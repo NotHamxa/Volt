@@ -23,7 +23,7 @@ function ShellSelector({ value, onChange }: { value: ShellChoice; onChange: (v: 
                     key={o.id}
                     type="button"
                     onClick={() => onChange(o.id)}
-                    className={`px-2 h-6 text-[10.5px] rounded transition-colors ${
+                    className={`px-2 h-6 text-10.5 rounded transition-colors ${
                         value === o.id ? "bg-fill-080 text-tone-850" : "text-tone-450 hover:text-tone-700"
                     }`}
                 >
@@ -52,7 +52,7 @@ function ArgsEditor({ args, onChange }: { args: CommandArgDef[]; onChange: (next
                                 value={a.name}
                                 onChange={e => update(i, { name: e.target.value })}
                                 placeholder="argName"
-                                className={`flex-1 min-w-0 h-7 px-2 rounded bg-fill-040 border text-[11.5px] font-mono text-tone-800 focus:outline-none transition-colors ${
+                                className={`flex-1 min-w-0 h-7 px-2 rounded bg-fill-040 border text-11.5 font-mono text-tone-800 focus:outline-none transition-colors ${
                                     nameInvalid ? "border-red-500/40 focus:border-red-500/60" : "border-line-080 focus:border-ink/[0.18]"
                                 }`}
                             />
@@ -60,7 +60,7 @@ function ArgsEditor({ args, onChange }: { args: CommandArgDef[]; onChange: (next
                                 value={a.defaultValue ?? ""}
                                 onChange={e => update(i, { defaultValue: e.target.value || undefined })}
                                 placeholder="default (optional)"
-                                className="flex-1 min-w-0 h-7 px-2 rounded bg-fill-040 border border-line-080 text-[11.5px] text-tone-800 focus:outline-none focus:border-ink/[0.18] transition-colors"
+                                className="flex-1 min-w-0 h-7 px-2 rounded bg-fill-040 border border-line-080 text-11.5 text-tone-800 focus:outline-none focus:border-ink/[0.18] transition-colors"
                             />
                             <StyledCheckbox
                                 checked={!!a.required}
@@ -72,17 +72,17 @@ function ArgsEditor({ args, onChange }: { args: CommandArgDef[]; onChange: (next
                             </Button>
                         </div>
                         {nameInvalid && (
-                            <p className="text-[10px] text-red-400/80">Name must start with a letter/underscore and contain only letters, digits, underscore.</p>
+                            <p className="text-10 text-red-400/80">Name must start with a letter/underscore and contain only letters, digits, underscore.</p>
                         )}
                     </div>
                 );
             })}
-            <Button variant="outline" onClick={add} className="border-line-080 hover:bg-fill-050 hover:border-line-150 rounded-md px-2.5 h-7 text-[10.5px] font-medium transition-all text-tone-550 hover:text-tone-850 w-full">
+            <Button variant="outline" onClick={add} className="border-line-080 hover:bg-fill-050 hover:border-line-150 rounded-md px-2.5 h-7 text-10.5 font-medium transition-all text-tone-550 hover:text-tone-850 w-full">
                 <Plus size={11} className="mr-1.5" />
                 Add argument
             </Button>
             {args.length > 0 && (
-                <p className="text-[10px] text-tone-300 leading-relaxed pl-0.5">
+                <p className="text-10 text-tone-300 leading-relaxed pl-0.5">
                     Reference args in the script with <code className="text-tone-450 font-mono">{"{argName}"}</code>. Values are quoted for the target shell automatically.
                 </p>
             )}
@@ -105,6 +105,46 @@ function isConfirmType(t: string) {
     return t === "commandConfirm" || t === "commandConfirmOpen";
 }
 
+/** The readable part of an IPC rejection, without Electron's wrapper text. */
+function ipcErrorMessage(err: unknown) {
+    const raw = err instanceof Error ? err.message : String(err ?? "");
+    return raw.replace(/^Error invoking remote method '[^']+':\s*(?:\w*Error:\s*)?/, "") || "Something went wrong.";
+}
+
+/**
+ * Placeholders already inside quotes in the script. Mirrors the main
+ * process's review check: it runs fine (the value is escaped for that
+ * string), but the author should know the quotes aren't needed.
+ */
+function quotedPlaceholders(script: string) {
+    const found: string[] = [];
+    for (const line of script.split(/\r?\n/)) {
+        for (const match of line.matchAll(/\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g)) {
+            const before = line.slice(0, match.index);
+            const wrapped = /["'‘-„]$/.test(before);
+            const insideDouble = (before.match(/["“-„]/g) ?? []).length % 2 === 1;
+            if ((wrapped || insideDouble) && !found.includes(match[1])) found.push(match[1]);
+        }
+    }
+    return found;
+}
+
+function QuotedPlaceholderHint({ script }: { script: string }) {
+    const quoted = quotedPlaceholders(script);
+    if (!quoted.length) return null;
+    const list = quoted.map(n => `{${n}}`).join(", ");
+    return (
+        <p className="text-10 text-amber-400/80 leading-relaxed pl-0.5">
+            {list} {quoted.length === 1 ? "is" : "are"} already inside quotes. That works — the value is escaped for that string — but a bare placeholder is quoted for you.
+        </p>
+    );
+}
+
+function FieldError({ message }: { message: string | null }) {
+    if (!message) return null;
+    return <p className="text-10.5 text-red-400/85 pl-0.5">{message}</p>;
+}
+
 function ToggleSwitch({ checked, onChange, small = false }: { checked: boolean; onChange: () => void; small?: boolean }) {
     const wrap = small ? "h-4 w-7" : "h-5 w-9";
     const dot = small ? "h-2.5 w-2.5" : "h-3.5 w-3.5";
@@ -118,7 +158,7 @@ function ToggleSwitch({ checked, onChange, small = false }: { checked: boolean; 
             role="switch"
             aria-checked={checked}
         >
-            <span className={`pointer-events-none inline-block ${dot} transform rounded-full shadow transition duration-200 ease-in-out mt-[1px] ${
+            <span className={`pointer-events-none inline-block ${dot} transform rounded-full shadow transition duration-200 ease-in-out mt-px ${
                 checked ? `${trX} bg-surface` : "translate-x-0.5 bg-ink/40"
             }`} />
         </button>
@@ -155,7 +195,7 @@ function ExpandablePanel({ open, children }: { open: boolean; children: React.Re
 
 function StyledCheckbox({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
     return (
-        <label className="flex items-center gap-1.5 text-[10.5px] text-tone-450 cursor-pointer select-none shrink-0 group">
+        <label className="flex items-center gap-1.5 text-10.5 text-tone-450 cursor-pointer select-none shrink-0 group">
             <button
                 type="button"
                 onClick={() => onChange(!checked)}
@@ -178,7 +218,12 @@ function StyledCheckbox({ checked, onChange, label }: { checked: boolean; onChan
     );
 }
 
-export default function CommandsSection() {
+/**
+ * `onUnsavedChange` reports whether an add or edit form holds a draft that
+ * leaving the section would throw away — the same contract as KeysSection's
+ * `onRecordingChange`.
+ */
+export default function CommandsSection({ onUnsavedChange }: { onUnsavedChange?: (v: boolean) => void } = {}) {
     const [commands, setCommands] = useState<SearchQueryT[]>([]);
     const [loading, setLoading] = useState(true);
     const [showAddForm, setShowAddForm] = useState(false);
@@ -198,6 +243,26 @@ export default function CommandsSection() {
     const [editShell, setEditShell] = useState<ShellChoice>("auto");
     const [editArgs, setEditArgs] = useState<CommandArgDef[]>([]);
     const [showPresets, setShowPresets] = useState(false);
+    const [addError, setAddError] = useState<string | null>(null);
+    const [editError, setEditError] = useState<string | null>(null);
+    const [importCandidates, setImportCandidates] = useState<SearchQueryT[] | null>(null);
+
+    const editingOriginal = editingCmd === null ? undefined : commands.find(c => c.name === editingCmd);
+    const addDirty = showAddForm && (!!name.trim() || !!script.trim() || args.length > 0);
+    const editDirty = !!editingOriginal && (
+        editName !== editingOriginal.name
+        || editScript !== (editingOriginal.path || "")
+        || deriveCommandType(editConfirm, editOpen) !== editingOriginal.type
+        || editShell !== (editingOriginal.shell ?? "auto")
+        || JSON.stringify(editArgs) !== JSON.stringify(editingOriginal.args ?? [])
+    );
+    const hasUnsaved = addDirty || editDirty;
+
+    useEffect(() => {
+        onUnsavedChange?.(hasUnsaved);
+    }, [hasUnsaved, onUnsavedChange]);
+    // Unmounting discards the draft, so there's nothing left to guard.
+    useEffect(() => () => onUnsavedChange?.(false), [onUnsavedChange]);
 
     const loadCommands = async () => {
         const data = await window.apps.getCustomCommands();
@@ -260,7 +325,14 @@ export default function CommandsSection() {
             shell,
             args: sanitizeArgs(args),
         };
-        await window.apps.addCustomCommand(command);
+        try {
+            await window.apps.addCustomCommand(command);
+        } catch (err) {
+            // Duplicate names and the like: keep the form so it can be fixed.
+            setAddError(ipcErrorMessage(err));
+            return;
+        }
+        setAddError(null);
         setName("");
         setScript("");
         setRequireConfirm(false);
@@ -287,18 +359,49 @@ export default function CommandsSection() {
         setShowAddForm(true);
     };
 
+    // The file is only parsed here; nothing is saved until the review dialog
+    // is confirmed.
     const handleImportJson = async () => {
-        const imported = await window.apps.importCommandsFile();
-        if (imported) {
-            await loadCommands();
-            window.electron.notify("Commands Imported", `${imported.length} command(s) imported.`);
+        let candidates: SearchQueryT[] | null;
+        try {
+            candidates = await window.apps.importCommandsFile();
+        } catch (err) {
+            window.electron.notify("Import failed", ipcErrorMessage(err));
+            return;
         }
+        if (!candidates) return;
+        if (!candidates.length) {
+            window.electron.notify("Nothing to import", "Every command in that file already exists.");
+            return;
+        }
+        setImportCandidates(candidates);
+    };
+
+    const confirmImport = async (selected: SearchQueryT[]) => {
+        setImportCandidates(null);
+        let added = 0;
+        for (const cmd of selected) {
+            try {
+                await window.apps.addCustomCommand(cmd);
+                added++;
+            } catch {
+                // Rejected (e.g. the name was taken meanwhile); counted below.
+            }
+        }
+        await loadCommands();
+        const skipped = selected.length - added;
+        window.electron.notify(
+            "Commands Imported",
+            `${added} command(s) imported.${skipped ? ` ${skipped} skipped — the name already exists.` : ""}`,
+        );
     };
 
     const handleExport = async () => {
-        const success = await window.apps.exportCommandsFile();
-        if (success) {
-            window.electron.notify("Exported", "Commands saved to file.");
+        try {
+            const success = await window.apps.exportCommandsFile();
+            if (success) window.electron.notify("Exported", "Commands saved to file.");
+        } catch (err) {
+            window.electron.notify("Export failed", ipcErrorMessage(err));
         }
     };
 
@@ -310,10 +413,12 @@ export default function CommandsSection() {
         setEditOpen(isOpenType(cmd.type));
         setEditShell(cmd.shell ?? "auto");
         setEditArgs(cmd.args ? cmd.args.map(a => ({ ...a })) : []);
+        setEditError(null);
     };
 
     const cancelEdit = () => {
         setEditingCmd(null);
+        setEditError(null);
     };
 
     const saveEdit = async () => {
@@ -331,8 +436,14 @@ export default function CommandsSection() {
             shell: editShell,
             args: sanitizeArgs(editArgs),
         };
-        await window.apps.updateCustomCommand(editingCmd!, updated);
+        try {
+            await window.apps.updateCustomCommand(editingCmd!, updated);
+        } catch (err) {
+            setEditError(ipcErrorMessage(err));
+            return;
+        }
         setEditingCmd(null);
+        setEditError(null);
         await loadCommands();
     };
 
@@ -344,28 +455,28 @@ export default function CommandsSection() {
         <div className="space-y-5 min-w-0 overflow-hidden">
             <div>
                 <div className="flex items-start justify-between gap-4 mb-3">
-                    <p className="text-[12px] text-tone-400 leading-relaxed">Add custom shell commands and scripts that appear in search results.</p>
-                    <Button onClick={() => setShowAddForm(!showAddForm)} className="bg-ink text-surface hover:bg-ink/90 rounded-md px-3 h-8 text-[12px] font-medium transition-all active:scale-95 shrink-0">
+                    <p className="text-12 text-tone-400 leading-relaxed">Add custom shell commands and scripts that appear in search results.</p>
+                    <Button onClick={() => setShowAddForm(!showAddForm)} className="bg-ink text-surface hover:bg-ink/90 rounded-md px-3 h-8 text-12 font-medium transition-all active:scale-95 shrink-0">
                         <Plus size={14} className="mr-1.5" />
                         Add Command
                     </Button>
                 </div>
                 <div className="flex gap-1.5">
-                    <Button onClick={handleImportScript} variant="outline" className="border-line-080 hover:bg-fill-050 hover:border-line-150 rounded-md px-3 h-8 text-[11px] font-medium transition-all active:scale-95 text-tone-550 hover:text-tone-850">
+                    <Button onClick={handleImportScript} variant="outline" className="border-line-080 hover:bg-fill-050 hover:border-line-150 rounded-md px-3 h-8 text-11 font-medium transition-all active:scale-95 text-tone-550 hover:text-tone-850">
                         <FileUp size={12} className="mr-1.5" />
                         Import Script
                     </Button>
-                    <Button onClick={handleImportJson} variant="outline" className="border-line-080 hover:bg-fill-050 hover:border-line-150 rounded-md px-3 h-8 text-[11px] font-medium transition-all active:scale-95 text-tone-550 hover:text-tone-850">
+                    <Button onClick={handleImportJson} variant="outline" className="border-line-080 hover:bg-fill-050 hover:border-line-150 rounded-md px-3 h-8 text-11 font-medium transition-all active:scale-95 text-tone-550 hover:text-tone-850">
                         <FileJson size={12} className="mr-1.5" />
                         Import JSON
                     </Button>
                     {commands.length > 0 && (
-                        <Button onClick={handleExport} variant="outline" className="border-line-080 hover:bg-fill-050 hover:border-line-150 rounded-md px-3 h-8 text-[11px] font-medium transition-all active:scale-95 text-tone-550 hover:text-tone-850">
+                        <Button onClick={handleExport} variant="outline" className="border-line-080 hover:bg-fill-050 hover:border-line-150 rounded-md px-3 h-8 text-11 font-medium transition-all active:scale-95 text-tone-550 hover:text-tone-850">
                             <FileDown size={12} className="mr-1.5" />
                             Export
                         </Button>
                     )}
-                    <Button onClick={() => setShowPresets(true)} variant="outline" className="border-line-080 hover:bg-fill-050 hover:border-line-150 rounded-md px-3 h-8 text-[11px] font-medium transition-all active:scale-95 text-tone-550 hover:text-tone-850 ml-auto">
+                    <Button onClick={() => setShowPresets(true)} variant="outline" className="border-line-080 hover:bg-fill-050 hover:border-line-150 rounded-md px-3 h-8 text-11 font-medium transition-all active:scale-95 text-tone-550 hover:text-tone-850 ml-auto">
                         <BookOpen size={12} className="mr-1.5" />
                         Built-in
                     </Button>
@@ -375,53 +486,57 @@ export default function CommandsSection() {
             <ExpandablePanel open={showAddForm}>
                 <div className="p-4 rounded-lg bg-fill-025 border border-line-060 space-y-3">
                     <div className="space-y-1.5 pb-3 border-b border-line-060">
-                        <label className="text-[10px] font-semibold text-tone-450 uppercase tracking-[0.18em]">Draft with AI</label>
+                        <label className="text-10 font-semibold text-tone-450 uppercase tracking-[0.18em]">Draft with AI</label>
                         <AiCommandComposer onDraft={applyDraft} />
                     </div>
                     <div className="space-y-1.5">
-                        <label className="text-[10px] font-semibold text-tone-450 uppercase tracking-[0.18em]">Name</label>
+                        <label className="text-10 font-semibold text-tone-450 uppercase tracking-[0.18em]">Name</label>
                         <input
                             type="text"
                             value={name}
-                            onChange={e => setName(e.target.value)}
+                            onChange={e => { setName(e.target.value); setAddError(null); }}
                             placeholder="e.g. Clear Temp Files"
-                            className="w-full h-8 px-2.5 rounded-md bg-fill-040 border border-line-080 text-[12px] text-tone-800 placeholder:text-tone-200 focus:outline-none focus:border-ink/[0.18] transition-colors"
+                            className={`w-full h-8 px-2.5 rounded-md bg-fill-040 border text-12 text-tone-800 placeholder:text-tone-200 focus:outline-none transition-colors ${
+                                addError ? "border-red-500/40 focus:border-red-500/60" : "border-line-080 focus:border-ink/[0.18]"
+                            }`}
                         />
+                        <FieldError message={addError} />
                     </div>
                     <div className="space-y-1.5">
-                        <label className="text-[10px] font-semibold text-tone-450 uppercase tracking-[0.18em]">Script / Command</label>
+                        <label className="text-10 font-semibold text-tone-450 uppercase tracking-[0.18em]">Script / Command</label>
                         <textarea
                             value={script}
                             onChange={e => setScript(e.target.value)}
                             placeholder={'e.g. del /q /f %temp%\\*\n\nOr import a .ps1 / .bat file to paste its content here'}
                             rows={5}
-                            className="w-full px-2.5 py-2 rounded-md bg-fill-040 border border-line-080 text-[12px] text-tone-800 font-mono placeholder:text-tone-200 focus:outline-none focus:border-ink/[0.18] transition-colors resize-none leading-relaxed [scrollbar-width:thin] [scrollbar-color:var(--ink-soft)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-fill-150 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-ink/25"
+                            className="w-full px-2.5 py-2 rounded-md bg-fill-040 border border-line-080 text-12 text-tone-800 font-mono placeholder:text-tone-200 focus:outline-none focus:border-ink/[0.18] transition-colors resize-none leading-relaxed [scrollbar-width:thin] [scrollbar-color:var(--ink-soft)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-fill-150 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-ink/25"
                         />
+                        <QuotedPlaceholderHint script={script} />
                     </div>
                     <div className="flex items-center justify-between gap-3">
-                        <span className="text-[10px] font-semibold text-tone-450 uppercase tracking-[0.18em]">Shell</span>
+                        <span className="text-10 font-semibold text-tone-450 uppercase tracking-[0.18em]">Shell</span>
                         <ShellSelector value={shell} onChange={setShell} />
                     </div>
                     <div className="space-y-1.5">
-                        <label className="text-[10px] font-semibold text-tone-450 uppercase tracking-[0.18em]">Arguments</label>
+                        <label className="text-10 font-semibold text-tone-450 uppercase tracking-[0.18em]">Arguments</label>
                         <ArgsEditor args={args} onChange={setArgs} />
                     </div>
                     <div className="flex items-center justify-between pt-1 gap-4 flex-wrap">
                         <div className="flex flex-col gap-2">
                             <label className="flex items-center gap-2 cursor-pointer">
                                 <ToggleSwitch checked={requireConfirm} onChange={() => setRequireConfirm(!requireConfirm)} small />
-                                <span className="text-[11.5px] text-tone-550">Require confirmation before running</span>
+                                <span className="text-11.5 text-tone-550">Require confirmation before running</span>
                             </label>
                             <label className="flex items-center gap-2 cursor-pointer">
                                 <ToggleSwitch checked={openInTerminal} onChange={() => setOpenInTerminal(!openInTerminal)} small />
-                                <span className="text-[11.5px] text-tone-550">Open in a new terminal window <span className="text-tone-300">(visible output)</span></span>
+                                <span className="text-11.5 text-tone-550">Open in a new terminal window <span className="text-tone-300">(visible output)</span></span>
                             </label>
                         </div>
                         <div className="flex gap-1.5">
-                            <Button variant="ghost" onClick={() => setShowAddForm(false)} className="h-8 rounded-md text-[11.5px] text-tone-400 hover:text-tone-650">
+                            <Button variant="ghost" onClick={() => setShowAddForm(false)} className="h-8 rounded-md text-11.5 text-tone-400 hover:text-tone-650">
                                 Cancel
                             </Button>
-                            <Button onClick={handleAdd} className="bg-ink text-surface hover:bg-ink/90 rounded-md px-4 h-8 text-[11.5px] font-medium">
+                            <Button onClick={handleAdd} className="bg-ink text-surface hover:bg-ink/90 rounded-md px-4 h-8 text-11.5 font-medium">
                                 Save
                             </Button>
                         </div>
@@ -438,7 +553,7 @@ export default function CommandsSection() {
                         value={filter}
                         onChange={e => setFilter(e.target.value)}
                         placeholder="Filter commands..."
-                        className="w-full h-8 pl-9 pr-3 rounded-md bg-fill-030 border border-line-060 text-[12px] text-tone-750 placeholder:text-tone-200 focus:outline-none focus:border-line-120 transition-colors"
+                        className="w-full h-8 pl-9 pr-3 rounded-md bg-fill-030 border border-line-060 text-12 text-tone-750 placeholder:text-tone-200 focus:outline-none focus:border-line-120 transition-colors"
                     />
                     {filter && (
                         <button onClick={() => setFilter("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-tone-250 hover:text-tone-550">
@@ -454,8 +569,8 @@ export default function CommandsSection() {
                 ) : commands.length === 0 && !showAddForm ? (
                     <div className="py-10 text-center rounded-lg border border-dashed border-line-060">
                         <Terminal className="mx-auto text-tone-150 mb-3" size={28} strokeWidth={1.2} />
-                        <p className="text-tone-300 text-[12px]">No custom commands yet.</p>
-                        <p className="text-tone-200 text-[11px] mt-0.5">Add commands or import a script file.</p>
+                        <p className="text-tone-300 text-12">No custom commands yet.</p>
+                        <p className="text-tone-200 text-11 mt-0.5">Add commands or import a script file.</p>
                     </div>
                 ) : (
                     filtered.map((cmd, index) => (
@@ -473,34 +588,38 @@ export default function CommandsSection() {
                                 <input
                                     type="text"
                                     value={editName}
-                                    onChange={e => setEditName(e.target.value)}
-                                    className="w-full h-8 px-2.5 rounded-md bg-fill-050 border border-line-080 text-[12px] text-tone-850 focus:outline-none focus:border-ink/[0.18] transition-colors"
+                                    onChange={e => { setEditName(e.target.value); setEditError(null); }}
+                                    className={`w-full h-8 px-2.5 rounded-md bg-fill-050 border text-12 text-tone-850 focus:outline-none transition-colors ${
+                                        editError ? "border-red-500/40 focus:border-red-500/60" : "border-line-080 focus:border-ink/[0.18]"
+                                    }`}
                                     placeholder="Name"
                                 />
+                                <FieldError message={editError} />
                                 <textarea
                                     value={editScript}
                                     onChange={e => setEditScript(e.target.value)}
-                                    className="w-full px-2.5 py-2 rounded-md bg-fill-050 border border-line-080 text-[12px] text-tone-850 font-mono focus:outline-none focus:border-ink/[0.18] transition-colors resize-none leading-relaxed [scrollbar-width:thin] [scrollbar-color:var(--ink-soft)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-fill-150 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-ink/25"
+                                    className="w-full px-2.5 py-2 rounded-md bg-fill-050 border border-line-080 text-12 text-tone-850 font-mono focus:outline-none focus:border-ink/[0.18] transition-colors resize-none leading-relaxed [scrollbar-width:thin] [scrollbar-color:var(--ink-soft)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-fill-150 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-ink/25"
                                     placeholder="Script / Command"
                                     rows={4}
                                 />
+                                <QuotedPlaceholderHint script={editScript} />
                                 <div className="flex items-center justify-between gap-3">
-                                    <span className="text-[10px] font-semibold text-tone-450 uppercase tracking-[0.18em]">Shell</span>
+                                    <span className="text-10 font-semibold text-tone-450 uppercase tracking-[0.18em]">Shell</span>
                                     <ShellSelector value={editShell} onChange={setEditShell} />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <label className="text-[10px] font-semibold text-tone-450 uppercase tracking-[0.18em]">Arguments</label>
+                                    <label className="text-10 font-semibold text-tone-450 uppercase tracking-[0.18em]">Arguments</label>
                                     <ArgsEditor args={editArgs} onChange={setEditArgs} />
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                         <label className="flex items-center gap-1.5 cursor-pointer">
                                             <ToggleSwitch checked={editConfirm} onChange={() => setEditConfirm(!editConfirm)} small />
-                                            <span className="text-[11px] text-tone-400">Confirm</span>
+                                            <span className="text-11 text-tone-400">Confirm</span>
                                         </label>
                                         <label className="flex items-center gap-1.5 cursor-pointer">
                                             <ToggleSwitch checked={editOpen} onChange={() => setEditOpen(!editOpen)} small />
-                                            <span className="text-[11px] text-tone-400">Open terminal</span>
+                                            <span className="text-11 text-tone-400">Open terminal</span>
                                         </label>
                                     </div>
                                     <div className="flex gap-1">
@@ -521,23 +640,23 @@ export default function CommandsSection() {
                                     </div>
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-1.5 min-w-0">
-                                            <span className="text-[12px] text-tone-750 font-medium truncate min-w-0">{cmd.name}</span>
+                                            <span className="text-12 text-tone-750 font-medium truncate min-w-0">{cmd.name}</span>
                                             {cmd.shell && cmd.shell !== "auto" && (
-                                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-fill-060 text-tone-550 font-medium uppercase tracking-wider shrink-0">{cmd.shell === "powershell" ? "ps" : "cmd"}</span>
+                                                <span className="text-9 px-1.5 py-0.5 rounded bg-fill-060 text-tone-550 font-medium uppercase tracking-wider shrink-0">{cmd.shell === "powershell" ? "ps" : "cmd"}</span>
                                             )}
                                             {cmd.args && cmd.args.length > 0 && (
-                                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-300/80 font-medium uppercase tracking-wider shrink-0">{cmd.args.length} arg{cmd.args.length === 1 ? "" : "s"}</span>
+                                                <span className="text-9 px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-300/80 font-medium uppercase tracking-wider shrink-0">{cmd.args.length} arg{cmd.args.length === 1 ? "" : "s"}</span>
                                             )}
                                             {isConfirmType(cmd.type) && (
-                                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400/75 font-medium uppercase tracking-wider shrink-0">confirm</span>
+                                                <span className="text-9 px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400/75 font-medium uppercase tracking-wider shrink-0">confirm</span>
                                             )}
                                             {isOpenType(cmd.type) && (
-                                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400/75 font-medium uppercase tracking-wider inline-flex items-center gap-1 shrink-0">
+                                                <span className="text-9 px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400/75 font-medium uppercase tracking-wider inline-flex items-center gap-1 shrink-0">
                                                     <SquareTerminal size={9} /> terminal
                                                 </span>
                                             )}
                                         </div>
-                                        <span className="text-[10.5px] text-tone-250 font-mono truncate block mt-0.5 max-w-full">{(cmd.path || "").split("\n")[0]}{(cmd.path || "").includes("\n") ? " …" : ""}</span>
+                                        <span className="text-10.5 text-tone-250 font-mono truncate block mt-0.5 max-w-full">{(cmd.path || "").split("\n")[0]}{(cmd.path || "").includes("\n") ? " …" : ""}</span>
                                     </div>
                                 </div>
                                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
@@ -553,18 +672,109 @@ export default function CommandsSection() {
                     ))
                 )}
                 {!loading && commands.length > 0 && filtered.length === 0 && filter && (
-                    <div className="py-7 text-center text-tone-250 text-[12px]">No commands match "{filter}"</div>
+                    <div className="py-7 text-center text-tone-250 text-12">No commands match "{filter}"</div>
                 )}
             </div>
 
             <div className="pt-3 border-t border-line-040">
-                <p className="text-[10.5px] text-tone-250 leading-relaxed">
+                <p className="text-10.5 text-tone-250 leading-relaxed">
                     Import a <code className="text-tone-400 font-mono">.ps1</code>, <code className="text-tone-400 font-mono">.bat</code>, or <code className="text-tone-400 font-mono">.cmd</code> file to auto-fill the script content.
                     Multi-line scripts are fully supported.
                 </p>
             </div>
 
             <PresetCommandsModal open={showPresets} onClose={() => setShowPresets(false)} />
+            {importCandidates && (
+                <ImportReviewModal
+                    candidates={importCandidates}
+                    onCancel={() => setImportCandidates(null)}
+                    onConfirm={confirmImport}
+                />
+            )}
+        </div>
+    );
+}
+
+/**
+ * Everything an import file would add, shown before any of it is saved —
+ * a shared commands file is a script someone else wrote.
+ */
+function ImportReviewModal({ candidates, onCancel, onConfirm }: {
+    candidates: SearchQueryT[];
+    onCancel: () => void;
+    onConfirm: (selected: SearchQueryT[]) => void;
+}) {
+    const [selected, setSelected] = useState<Set<number>>(() => new Set(candidates.map((_, i) => i)));
+    useEscape(onCancel, true);
+
+    const toggle = (i: number, on: boolean) => {
+        setSelected(prev => {
+            const next = new Set(prev);
+            if (on) next.add(i);
+            else next.delete(i);
+            return next;
+        });
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--scrim-strong)] backdrop-blur-[6px]" onClick={onCancel}>
+            <div
+                onClick={e => e.stopPropagation()}
+                className="w-160 max-h-135 flex flex-col rounded-2xl bg-surface-modal/[0.98] border border-line-070 shadow-[0_40px_90px_var(--shadow-3),inset_0_1px_0_var(--edge-hi)] overflow-hidden"
+            >
+                <header className="flex items-center gap-2 px-5 pt-4 pb-3 border-b border-line-050">
+                    <div className="p-1.5 rounded-md bg-fill-040 border border-line-070">
+                        <FileJson size={13} className="text-tone-550" strokeWidth={1.8} />
+                    </div>
+                    <div className="min-w-0">
+                        <h3 className="text-13 font-semibold text-tone-850 tracking-[-0.01em]">Review imported commands</h3>
+                        <p className="text-10.5 text-tone-350">Read each script before importing — they run on your PC exactly as written.</p>
+                    </div>
+                </header>
+
+                <ScrollArea className="flex-1 min-h-0">
+                    <div className="space-y-1.5 px-5 py-3">
+                        {candidates.map((c, i) => (
+                            <div key={`${c.name}-${i}`} className="px-3 py-2 rounded-md bg-fill-020 border border-line-050">
+                                <div className="flex items-center gap-2 mb-1 min-w-0">
+                                    <StyledCheckbox checked={selected.has(i)} onChange={v => toggle(i, v)} label="" />
+                                    <span className="text-12 font-medium text-tone-800 truncate min-w-0">{c.name}</span>
+                                    {c.shell && c.shell !== "auto" && (
+                                        <span className="text-9 px-1.5 py-0.5 rounded bg-fill-060 text-tone-550 font-medium uppercase tracking-wider shrink-0">{c.shell === "powershell" ? "ps" : "cmd"}</span>
+                                    )}
+                                    {isConfirmType(c.type) && (
+                                        <span className="text-9 px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400/75 font-medium uppercase tracking-wider shrink-0">confirm</span>
+                                    )}
+                                    {isOpenType(c.type) && (
+                                        <span className="text-9 px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400/75 font-medium uppercase tracking-wider inline-flex items-center gap-1 shrink-0">
+                                            <SquareTerminal size={9} /> terminal
+                                        </span>
+                                    )}
+                                </div>
+                                <code className="block text-10.5 font-mono text-tone-400 leading-relaxed whitespace-pre-wrap break-all pl-5.5 max-h-40 overflow-y-auto">
+                                    {c.path}
+                                </code>
+                            </div>
+                        ))}
+                    </div>
+                </ScrollArea>
+
+                <footer className="flex items-center justify-between gap-3 px-5 py-3 border-t border-line-050">
+                    <span className="text-10.5 text-tone-300">{selected.size} of {candidates.length} selected</span>
+                    <div className="flex gap-1.5">
+                        <Button variant="ghost" onClick={onCancel} className="h-8 rounded-md text-11.5 text-tone-400 hover:text-tone-650">
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={() => onConfirm(candidates.filter((_, i) => selected.has(i)))}
+                            disabled={selected.size === 0}
+                            className="bg-ink text-surface hover:bg-ink/90 rounded-md px-4 h-8 text-11.5 font-medium"
+                        >
+                            Import {selected.size}
+                        </Button>
+                    </div>
+                </footer>
+            </div>
         </div>
     );
 }
@@ -595,7 +805,7 @@ function PresetCommandsModal({ open, onClose }: { open: boolean; onClose: () => 
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--scrim-strong)] backdrop-blur-[6px]" onClick={onClose}>
             <div
                 onClick={e => e.stopPropagation()}
-                className="w-[640px] h-[540px] flex flex-col rounded-2xl bg-surface-modal/[0.98] border border-line-070 shadow-[0_40px_90px_var(--shadow-3),inset_0_1px_0_var(--edge-hi)] overflow-hidden"
+                className="w-160 h-135 flex flex-col rounded-2xl bg-surface-modal/[0.98] border border-line-070 shadow-[0_40px_90px_var(--shadow-3),inset_0_1px_0_var(--edge-hi)] overflow-hidden"
             >
                 <header className="flex items-center justify-between gap-3 px-5 pt-4 pb-3 border-b border-line-050">
                     <div className="flex items-center gap-2 min-w-0">
@@ -603,8 +813,8 @@ function PresetCommandsModal({ open, onClose }: { open: boolean; onClose: () => 
                             <BookOpen size={13} className="text-tone-550" strokeWidth={1.8} />
                         </div>
                         <div className="min-w-0">
-                            <h3 className="text-[13px] font-semibold text-tone-850 tracking-[-0.01em]">Built-in Commands</h3>
-                            <p className="text-[10.5px] text-tone-350">Reference for the commands shipped with Volt.</p>
+                            <h3 className="text-13 font-semibold text-tone-850 tracking-[-0.01em]">Built-in Commands</h3>
+                            <p className="text-10.5 text-tone-350">Reference for the commands shipped with Volt.</p>
                         </div>
                     </div>
                     <button
@@ -624,7 +834,7 @@ function PresetCommandsModal({ open, onClose }: { open: boolean; onClose: () => 
                             onChange={e => setQ(e.target.value)}
                             placeholder="Filter built-in commands..."
                             autoFocus
-                            className="w-full h-8 pl-9 pr-3 text-[12px] rounded-md bg-fill-030 border border-line-060 text-tone-750 placeholder:text-tone-200 focus:outline-none focus:border-line-120 transition-colors"
+                            className="w-full h-8 pl-9 pr-3 text-12 rounded-md bg-fill-030 border border-line-060 text-tone-750 placeholder:text-tone-200 focus:outline-none focus:border-line-120 transition-colors"
                         />
                     </div>
                 </div>
@@ -635,7 +845,7 @@ function PresetCommandsModal({ open, onClose }: { open: boolean; onClose: () => 
                             <div className="py-10 flex justify-center"><Spinner /></div>
                         )}
                         {!loading && filtered.length === 0 && (
-                            <div className="py-10 text-center text-tone-250 text-[12px]">
+                            <div className="py-10 text-center text-tone-250 text-12">
                                 {q ? `No built-in commands match "${q}".` : "No built-in commands available."}
                             </div>
                         )}
@@ -646,17 +856,17 @@ function PresetCommandsModal({ open, onClose }: { open: boolean; onClose: () => 
                             >
                                 <div className="flex items-center gap-2 mb-1">
                                     <Terminal size={11} className="text-tone-400 shrink-0" strokeWidth={1.8} />
-                                    <span className="text-[12px] font-medium text-tone-800">{p.name}</span>
+                                    <span className="text-12 font-medium text-tone-800">{p.name}</span>
                                     {isConfirmType(p.type) && (
-                                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400/75 font-medium uppercase tracking-wider">confirm</span>
+                                        <span className="text-9 px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400/75 font-medium uppercase tracking-wider">confirm</span>
                                     )}
                                     {isOpenType(p.type) && (
-                                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400/75 font-medium uppercase tracking-wider inline-flex items-center gap-1">
+                                        <span className="text-9 px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400/75 font-medium uppercase tracking-wider inline-flex items-center gap-1">
                                             <SquareTerminal size={9} /> terminal
                                         </span>
                                     )}
                                 </div>
-                                <code className="block text-[10.5px] font-mono text-tone-400 leading-relaxed whitespace-pre-wrap break-all pl-[18px]">
+                                <code className="block text-10.5 font-mono text-tone-400 leading-relaxed whitespace-pre-wrap break-all pl-4.5">
                                     {p.path}
                                 </code>
                             </div>
@@ -665,10 +875,10 @@ function PresetCommandsModal({ open, onClose }: { open: boolean; onClose: () => 
                 </ScrollArea>
 
                 <footer className="flex items-center justify-between gap-3 px-5 py-3 border-t border-line-050">
-                    <span className="text-[10.5px] text-tone-300">{filtered.length} of {presets.length} commands</span>
+                    <span className="text-10.5 text-tone-300">{filtered.length} of {presets.length} commands</span>
                     <button
                         onClick={onClose}
-                        className="text-[11px] text-tone-500 hover:text-tone-850 px-3 py-1.5 rounded-md hover:bg-fill-050 transition-colors"
+                        className="text-11 text-tone-500 hover:text-tone-850 px-3 py-1.5 rounded-md hover:bg-fill-050 transition-colors"
                     >
                         Close <span className="text-tone-250 ml-1 font-mono">Esc</span>
                     </button>

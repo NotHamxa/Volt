@@ -60,6 +60,30 @@ export function placeholdersIn(script) {
     return found;
 }
 
+/** Case- and whitespace-insensitive key, so "Flush DNS" and "flush dns " collide. */
+export function commandNameKey(name) {
+    return String(name ?? "").trim().toLowerCase();
+}
+
+/**
+ * Placeholders the author already wrapped in quotes — `"{x}"`, `'{x}'`, or
+ * anywhere inside a "…" string on its line. The runner escapes the value for
+ * that string rather than quoting it again, so this works; it's still worth
+ * knowing that elsewhere the quotes are added for you.
+ */
+export function quotedPlaceholdersIn(script) {
+    const found = [];
+    for (const line of String(script ?? "").split(/\r?\n/)) {
+        for (const match of line.matchAll(/\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g)) {
+            const before = line.slice(0, match.index);
+            const wrapped = /["'‘-„]$/.test(before);
+            const insideDouble = (before.match(/["“-„]/g) ?? []).length % 2 === 1;
+            if ((wrapped || insideDouble) && !found.includes(match[1])) found.push(match[1]);
+        }
+    }
+    return found;
+}
+
 /**
  * Complaints a human should see before saving, rather than reasons to reject.
  * A declared-but-unused argument is untidy; a placeholder with no argument
@@ -79,6 +103,9 @@ export function reviewCommand(command) {
         if (!used.includes(name)) {
             notes.push(`Argument "${name}" is declared but never used in the script.`);
         }
+    }
+    for (const name of quotedPlaceholdersIn(command.path)) {
+        notes.push(`{${name}} is already inside quotes. That works — the value is escaped for that string — but a bare {${name}} is quoted for you.`);
     }
     return notes;
 }

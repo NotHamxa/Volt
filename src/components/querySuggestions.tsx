@@ -1,5 +1,5 @@
 import { Label } from "@/components/ui/label.tsx";
-import { useEffect, useState, useMemo, useCallback, memo, useRef } from "react";
+import { useEffect, useLayoutEffect, useState, useMemo, useCallback, memo, useRef } from "react";
 import {
     Folder,
     File,
@@ -67,12 +67,12 @@ import {
 } from "@/components/ui/dialog.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Google } from "@/components/icons/google.tsx";
-import { useEscapeBarrier } from "@/hooks/useEscape.ts";
-import { tokenize } from "@/utils/tokenize.ts";
+import { useEscape, useEscapeBarrier } from "@/hooks/useEscape.ts";
+import { positionalArgs } from "@/utils/commandArgs.ts";
 import { matchesCombo } from "@/data/keybindings.ts";
 import { getBinding } from "@/hooks/useKeybindings.ts";
 import PreviewPane from "@/components/previewPane.tsx";
-import { previewActions, type PreviewActionId } from "@/components/previewActions.ts";
+import { COMMAND_TYPES, previewActions, type PreviewActionId } from "@/components/previewActions.ts";
 import { useFileIcons } from "@/hooks/useFileIcons.ts";
 import { useOutletContext, useNavigate } from "react-router";
 import type { MainLayoutContext } from "@/pages/mainPage.tsx";
@@ -93,13 +93,22 @@ type QueryComponentProps = {
     logo?: string;
     /** Windows file-type icon for files and folders. */
     fileIcon?: string;
-    triggerAction?: boolean;
     triggerContextMenu?: boolean;
     onContextMenuOpenChange?: (open: boolean) => void;
+    /** Runs a command the way Enter does: argument entry and confirmation included. */
     onRequestRunCommand?: (item: SearchQueryT) => void;
-    onExecuteCommand?: (item: SearchQueryT) => Promise<void>;
     onChosen?: (item: SearchQueryT) => void;
 };
+
+/**
+ * A callback that keeps one identity for the component's lifetime but always
+ * runs the latest render's version, so memoised rows never hold a stale one.
+ */
+function useStableCallback<A extends unknown[], R>(fn: (...args: A) => R): (...args: A) => R {
+    const ref = useRef(fn);
+    useLayoutEffect(() => { ref.current = fn; });
+    return useCallback((...args: A) => ref.current(...args), []);
+}
 
 const getFileIcon = (path: string) => {
     const extension = path.split(".").pop()?.toLowerCase() || "";
@@ -194,32 +203,21 @@ const QueryComponent = memo(({
                                  fileIcon,
                                  pinApp = () => { },
                                  unPinApp = () => { },
-                                 triggerAction = false,
                                  triggerContextMenu = false,
                                  onContextMenuOpenChange,
                                  onRequestRunCommand,
-                                 onExecuteCommand,
                                  onChosen,
                              }: QueryComponentProps) => {
     const { name, type, path } = item;
 
     const [isFocused, setIsFocused] = useState(false);
-    const [showConfirmation, setShowConfirmation] = useState(false);
 
     const triggerRef = useRef<HTMLSpanElement>(null);
 
     const handleFocus = useCallback(() => setIsFocused(true), []);
     const handleBlur = useCallback(() => setIsFocused(false), []);
 
-    const isCommandType = type === "command" || type === "commandOpen" || type === "commandConfirm" || type === "commandConfirmOpen";
-    const hasArgs = !!item.args && item.args.length > 0;
-
-    useEffect(() => {
-        if (triggerAction && (type === "commandConfirm" || type === "commandConfirmOpen") && !hasArgs) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
-            setShowConfirmation(true);
-        }
-    }, [triggerAction, type, hasArgs]);
+    const isCommandType = COMMAND_TYPES.has(type);
 
     useEffect(() => {
         if (triggerContextMenu && triggerRef.current) {
@@ -236,14 +234,10 @@ const QueryComponent = memo(({
     }, [triggerContextMenu]);
 
     const handleClick = useCallback(async () => {
-        if (isCommandType && hasArgs && onRequestRunCommand) {
-            onRequestRunCommand(item);
-            return;
-        }
-        if (type === "command" || type === "commandOpen") {
-            await onExecuteCommand?.(item);
-        } else if (type === "commandConfirm" || type === "commandConfirmOpen") {
-            setShowConfirmation(true);
+        // The list owns argument entry and the confirmation dialog, so a
+        // click can't skip either.
+        if (isCommandType) {
+            onRequestRunCommand?.(item);
         } else if (type === "app") {
             onChosen?.(item);
             await window.apps.openApp(item);
@@ -251,16 +245,7 @@ const QueryComponent = memo(({
             onChosen?.(item);
             window.file.openPath(path);
         }
-    }, [type, item, path, isCommandType, hasArgs, onRequestRunCommand, onExecuteCommand, onChosen]);
-
-    const handleConfirm = useCallback(async () => {
-        await onExecuteCommand?.(item);
-        setShowConfirmation(false);
-    }, [item, onExecuteCommand]);
-
-    const handleCancel = useCallback(() => {
-        setShowConfirmation(false);
-    }, []);
+    }, [type, item, path, isCommandType, onRequestRunCommand, onChosen]);
 
     const handlePinToggle = useCallback(() => {
         if (isAppPinned) {
@@ -289,22 +274,6 @@ const QueryComponent = memo(({
     const handleCopyFile = useCallback(() => {
         if (path) window.file.copyFileToClipboard(path);
     }, [path]);
-
-    useEffect(() => {
-        if (showConfirmation && highlighted) {
-            const handleEnter = (e: KeyboardEvent) => {
-                if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleConfirm();
-                } else if (e.key === "Escape") {
-                    e.preventDefault();
-                    handleCancel();
-                }
-            };
-            window.addEventListener("keydown", handleEnter);
-            return () => window.removeEventListener("keydown", handleEnter);
-        }
-    }, [showConfirmation, highlighted, handleConfirm, handleCancel]);
 
     const icon = useMemo(() => {
         if (type === "app") {
@@ -347,7 +316,7 @@ const QueryComponent = memo(({
             tabIndex={0}
             className={`cursor-pointer flex items-center justify-between py-2 px-3 rounded-lg select-none transition-colors duration-150 gap-3 w-full hover:bg-fill-100 ${
                 (highlighted || isFocused) ? "bg-fill-100" : "bg-transparent"
-            } ${isFocused ? "outline outline-[1px] outline-offset-[-1px] outline-ink/[0.18]" : "outline-none"}`}
+            } ${isFocused ? "outline -outline-offset-1 outline-ink/[0.18]" : "outline-none"}`}
         >
             {/* min-w-0 lets the name shrink; without it the flex item keeps its
                 content width and a long file name wraps to a second line,
@@ -361,7 +330,7 @@ const QueryComponent = memo(({
                     nothing in layout. */}
                 <Label className="block truncate min-w-0 leading-normal">{name}</Label>
             </div>
-            <Label className="shrink-0 ml-auto max-w-[38%] block truncate opacity-70 text-[12px] leading-normal cursor-default">
+            <Label className="shrink-0 ml-auto max-w-[38%] block truncate opacity-70 text-12 leading-normal cursor-default">
                 {labelText}
             </Label>
         </button>
@@ -378,10 +347,10 @@ const QueryComponent = memo(({
                         {/* Now that names are cut off, the tooltip carries the
                             whole one — it used to show the path for files only,
                             which left a long app name unreadable anywhere. */}
-                        <TooltipContent side="top" className="max-w-[540px]">
+                        <TooltipContent side="top" className="max-w-135">
                             <span className="block break-all">{name}</span>
                             {path && type !== "setting" && path !== name && (
-                                <span className="block break-all opacity-60 text-[11px] mt-0.5">{path}</span>
+                                <span className="block break-all opacity-60 text-11 mt-0.5">{path}</span>
                             )}
                         </TooltipContent>
                     </Tooltip>
@@ -432,59 +401,95 @@ const QueryComponent = memo(({
                     )}
                 </ContextMenuContent>
             </ContextMenu>
-
-            {(type === "commandConfirm" || type === "commandConfirmOpen") && (
-                <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
-                    <DialogContent className="sm:max-w-106.25 bg-surface">
-                        <DialogHeader>
-                            <DialogTitle>Confirm Command</DialogTitle>
-                            <DialogDescription className="text-tone-400">
-                                Are you sure you want to run this command?
-                            </DialogDescription>
-                        </DialogHeader>
-                        <div className="py-2">
-                            <code className="block w-full p-3 rounded-lg text-sm font-mono break-all bg-fill-040 border border-line-070 text-tone-700">
-                                {name}
-                            </code>
-                        </div>
-                        <DialogFooter>
-                            <Button
-                                variant="outline"
-                                onClick={handleCancel}
-                                className="border-line-100 text-tone-450 hover:text-tone-650"
-                            >
-                                Cancel (Esc)
-                            </Button>
-                            <Button
-                                onClick={handleConfirm}
-                                variant="destructive"
-                            >
-                                Run Command (Enter)
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-            )}
         </>
     );
 }, (prevProps, nextProps) => {
+    // The callbacks are stable in practice (see useStableCallback), so
+    // comparing them costs nothing and a changed one is never missed.
     return (
         prevProps.highlighted === nextProps.highlighted &&
         isSameApp(prevProps.item, nextProps.item) &&
         prevProps.isAppPinned === nextProps.isAppPinned &&
         prevProps.logo === nextProps.logo &&
         prevProps.fileIcon === nextProps.fileIcon &&
-        prevProps.triggerAction === nextProps.triggerAction &&
-        prevProps.triggerContextMenu === nextProps.triggerContextMenu
+        prevProps.triggerContextMenu === nextProps.triggerContextMenu &&
+        prevProps.pinApp === nextProps.pinApp &&
+        prevProps.unPinApp === nextProps.unPinApp &&
+        prevProps.onContextMenuOpenChange === nextProps.onContextMenuOpenChange &&
+        prevProps.onRequestRunCommand === nextProps.onRequestRunCommand &&
+        prevProps.onChosen === nextProps.onChosen
     );
 });
+
+/** Asks before running a command marked as needing confirmation. */
+function ConfirmCommandDialog({ pending, onConfirm, onCancel }: {
+    pending: PendingCommand | null;
+    onConfirm: () => void;
+    onCancel: () => void;
+}) {
+    // Keeps showing the last command while the dialog animates closed.
+    const [shown, setShown] = useState(pending);
+    if (pending && pending !== shown) setShown(pending);
+    const values = Object.entries(shown?.argValues ?? {});
+    return (
+        <Dialog open={!!pending} onOpenChange={open => { if (!open) onCancel(); }}>
+            <DialogContent className="sm:max-w-106.25 bg-surface">
+                <DialogHeader>
+                    <DialogTitle>Confirm Command</DialogTitle>
+                    <DialogDescription className="text-tone-400">
+                        Are you sure you want to run this command?
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-2">
+                    <code className="block w-full p-3 rounded-lg text-sm font-mono break-all bg-fill-040 border border-line-070 text-tone-700">
+                        {shown?.item.name}
+                        {values.map(([key, value]) => (
+                            <span key={key} className="block text-tone-450 mt-1">{key} = {value}</span>
+                        ))}
+                    </code>
+                </div>
+                <DialogFooter>
+                    <Button
+                        variant="outline"
+                        onClick={onCancel}
+                        className="border-line-100 text-tone-450 hover:text-tone-650"
+                    >
+                        Cancel (Esc)
+                    </Button>
+                    <Button
+                        onClick={onConfirm}
+                        variant="destructive"
+                    >
+                        Run Command (Enter)
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+type PendingCommand = { item: SearchQueryT; argValues?: Record<string, string> };
+
+// Leading edge after a pause, then at most one search per this many ms while typing.
+const SEARCH_DEBOUNCE_MS = 80;
+
+// Stable per result, so rows keep their state across keystrokes instead of
+// remounting whenever their position shifts.
+const rowKey = (item: SearchQueryT) => `${item.type}|${item.path ?? ""}|${item.appId ?? ""}|${item.name}`;
 
 export default function QuerySuggestions({ query, searchFilters, clearQuery, logoMap }: IQuerySuggestions) {
     const [pinnedApps, setPinnedApps] = useState<SearchQueryT[]>([])
     const [isCmdCommand, setIsCmdCommand] = useState<boolean>(false)
     const [cmdCommand, setCmdCommand] = useState<string>("")
     const [focusedIndex, setFocusedIndex] = useState<number>(0);
-    const [triggeredIndex, setTriggeredIndex] = useState<number>(-1);
+    // A new query starts from its top result, not wherever the last one's
+    // highlight was. Adjusted during render so no frame shows the old index.
+    const [focusedQuery, setFocusedQuery] = useState(query);
+    if (focusedQuery !== query) {
+        setFocusedQuery(query);
+        setFocusedIndex(0);
+    }
+    const [pendingCommand, setPendingCommand] = useState<PendingCommand | null>(null);
     const [triggeredContextMenuIndex, setTriggeredContextMenuIndex] = useState<number>(-1);
     const [isContextMenuOpen, setIsContextMenuOpen] = useState<boolean>(false);
     const blockNextEnterRef = useRef(false);
@@ -503,16 +508,33 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
         clearQuery();
     }, [navigate, clearQuery]);
 
+    // Pin and unpin read the list from here, so two in a row before a
+    // re-render don't each start from the same old list.
+    const pinnedAppsRef = useRef<SearchQueryT[]>([]);
+    const updatePinnedApps = useCallback((list: SearchQueryT[]) => {
+        pinnedAppsRef.current = list;
+        setPinnedApps(list);
+    }, []);
+
     useEffect(() => {
         const reloadPinnedApps = async () => {
             const pApps = await window.electronStore.get("pinnedApps")
-            setPinnedApps(pApps ? JSON.parse(pApps) : []);
+            let list: SearchQueryT[] = [];
+            try { list = pApps ? JSON.parse(pApps) : []; } catch { /* corrupt value: treat as none */ }
+            updatePinnedApps(Array.isArray(list) ? list : []);
         }
         reloadPinnedApps();
         window.addEventListener("pinnedAppsChanged", reloadPinnedApps);
-        return () => window.removeEventListener("pinnedAppsChanged", reloadPinnedApps);
-    }, []);
+        // A catalog pass rewrites pins to match the current apps; without this,
+        // the next pin/unpin here would save the old list back over it.
+        const offCacheReload = window.electron.onCacheReload(reloadPinnedApps);
+        return () => {
+            window.removeEventListener("pinnedAppsChanged", reloadPinnedApps);
+            offCacheReload();
+        };
+    }, [updatePinnedApps]);
 
+    const lastSearchAtRef = useRef(0);
     useEffect(() => {
         let cancelled = false;
 
@@ -530,27 +552,29 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
 
 
         const getData = async () => {
+            lastSearchAtRef.current = performance.now();
             const result: ProcessedQueryResult | null = await getQueryData(query.trim(), searchFilters);
             if (cancelled) return;
 
             // Marked resolved even on failure, or a search that errored would
             // leave the list blank forever instead of falling back to the web
-            // and AI rows.
+            // and AI rows. The old query's results must not pass for this one's.
             setResolvedFor(query.trim());
-            if (!result) return;
-
-            setResults(result.results);
+            setResults(result?.results ?? []);
 
             // Keep the highlight in range as results shrink.
-            const localCount = result.results.length;
+            const localCount = result?.results.length ?? 0;
             // Read the live suggestion count from a ref rather than a dep, so
             // suggestions arriving don't re-trigger the search IPC.
             // Web row + AI row + however many suggestions are showing.
             const webCount = query.trim() ? 2 + suggestionCountRef.current : 0;
-            if (focusedIndex >= localCount + webCount) setFocusedIndex(0);
+            setFocusedIndex(index => (index >= localCount + webCount ? 0 : index));
         };
 
-        const timer = setTimeout(getData, 80);
+        // A search costs a few ms, so the first keystroke after a pause runs
+        // one at once; a burst of typing still coalesces into a trailing one.
+        const idle = performance.now() - lastSearchAtRef.current > SEARCH_DEBOUNCE_MS;
+        const timer = setTimeout(getData, idle ? 0 : SEARCH_DEBOUNCE_MS);
 
         return () => {
             cancelled = true;
@@ -662,6 +686,18 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
 
     const iconFor = useFileIcons(results);
 
+    // Two results can share every identifying field (two settings with one
+    // name and page); the repeat gets a suffix so keys stay unique.
+    const rowKeys = useMemo(() => {
+        const seen = new Map<string, number>();
+        return results.map(item => {
+            const key = rowKey(item);
+            const n = seen.get(key) ?? 0;
+            seen.set(key, n + 1);
+            return n ? `${key}#${n}` : key;
+        });
+    }, [results]);
+
     const handleContextMenuOpenChange = useCallback((open: boolean) => {
         setIsContextMenuOpen(open);
         if (!open) {
@@ -673,10 +709,6 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
     // also navigate the page back.
     useEscapeBarrier(isContextMenuOpen);
 
-    // Hybrid arg flow: parse positional values from `query` tokens (everything
-    // after the first whitespace-separated token, with quote support). If all
-    // required args are covered, run directly; otherwise transition into the
-    // inline arg-entry bar pre-filled with whatever was parsed.
     // A history row reopens its own recorded URL; a suggestion row runs against
     // whichever bang is currently active.
     const openBlockEntry = useCallback((item: SearchQueryT) => {
@@ -697,37 +729,63 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
     }, []);
 
     const runningRef = useRef(false);
-    const runCommand = useCallback((item: SearchQueryT, argValues?: Record<string, string>) => {
+    const runCommand = useCallback(async (item: SearchQueryT, argValues?: Record<string, string>) => {
         if (runningRef.current) return;
         runningRef.current = true;
-        recordChoice(item);
+        // The guard is only there to swallow a double Enter. A command that
+        // never settles must not lock out every later one.
+        const release = setTimeout(() => { runningRef.current = false; }, 1000);
+        try {
+            recordChoice(item);
 
-        // Dismiss first. Waiting for the command to finish held the launcher
-        // open for as long as the work took, which for anything slow read as a
-        // hang. Any confirmation dialog has already been answered by here.
-        clearQuery();
-        window.electron.hideWindow();
+            // Dismiss first. Waiting for the command to finish held the launcher
+            // open for as long as the work took, which for anything slow read as a
+            // hang. Any confirmation dialog has already been answered by here.
+            clearQuery();
+            window.electron.hideWindow();
 
-        // The window is hidden, not destroyed, so this still resolves and can
-        // report a failure that would otherwise vanish with the dismissal.
-        window.apps.executeCommand(item, argValues)
-            .then(result => {
-                if (!result?.ok) {
-                    window.electron.notify(`${item.name} failed`, result?.detail ?? "The command did not run.");
-                }
-            })
-            .catch(err => {
-                window.electron.notify(`${item.name} failed`, err?.message ?? "The command did not run.");
-            })
-            .finally(() => { runningRef.current = false; });
+            // The window is hidden, not destroyed, so this still resolves and can
+            // report a failure that would otherwise vanish with the dismissal.
+            const result = await window.apps.executeCommand(item, argValues);
+            if (!result?.ok) {
+                window.electron.notify(`${item.name} failed`, result?.detail ?? "The command did not run.");
+            }
+        } catch (err) {
+            window.electron.notify(`${item.name} failed`, (err as Error)?.message ?? "The command did not run.");
+        } finally {
+            clearTimeout(release);
+            runningRef.current = false;
+        }
     }, [clearQuery, recordChoice]);
 
+    // Commands marked as needing confirmation ask first, however they were
+    // started: Enter, a click, or the preview pane.
+    const runOrConfirm = useCallback((item: SearchQueryT, argValues?: Record<string, string>) => {
+        if (item.type === "commandConfirm" || item.type === "commandConfirmOpen") {
+            setPendingCommand({ item, argValues });
+        } else {
+            runCommand(item, argValues);
+        }
+    }, [runCommand]);
+
+    const confirmPending = useCallback(() => {
+        if (!pendingCommand) return;
+        setPendingCommand(null);
+        runCommand(pendingCommand.item, pendingCommand.argValues);
+    }, [pendingCommand, runCommand]);
+    const cancelPending = useCallback(() => setPendingCommand(null), []);
+    useEscape(cancelPending, !!pendingCommand);
+
+    // Hybrid arg flow: positional values are whatever follows the command's
+    // name in the query (quotes supported). If all required args are covered,
+    // run directly; otherwise transition into the inline arg-entry bar
+    // pre-filled with whatever was parsed.
     const runCommandRequest = useCallback((item: SearchQueryT) => {
         if (!item.args || item.args.length === 0) {
-            runCommand(item);
+            runOrConfirm(item);
             return;
         }
-        const tokens = tokenize(query).slice(1);
+        const tokens = positionalArgs(query, item.name);
         const initial: Record<string, string> = {};
         item.args.forEach((a, i) => {
             const fromQuery = tokens[i];
@@ -739,22 +797,16 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
             return a.required && !has;
         });
         if (!missingRequired && tokens.length >= item.args.length) {
-            runCommand(item, initial);
+            runOrConfirm(item, initial);
             return;
         }
         enterArgMode(item, initial);
-    }, [query, enterArgMode, runCommand]);
+    }, [query, enterArgMode, runOrConfirm]);
 
     /** Runs a result the way Enter does. Shared with the preview pane's Open button. */
-    const activate = useCallback(async (item: SearchQueryT, index: number) => {
-        const isCommand = item.type === "command" || item.type === "commandOpen" || item.type === "commandConfirm" || item.type === "commandConfirmOpen";
-        if (isCommand && item.args && item.args.length > 0) {
+    const activate = useCallback(async (item: SearchQueryT) => {
+        if (COMMAND_TYPES.has(item.type)) {
             runCommandRequest(item);
-        } else if (item.type === "command" || item.type === "commandOpen") {
-            await runCommand(item);
-        } else if (item.type === "commandConfirm" || item.type === "commandConfirmOpen") {
-            setTriggeredIndex(index);
-            setTimeout(() => setTriggeredIndex(-1), 100);
         } else if (item.type === "webSearch" && webEntry) {
             await openSearch(toHistoryEntry(webEntry.resolved));
         } else if (item.type === "askAi") {
@@ -768,11 +820,12 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
             recordChoice(item);
             window.file.openPath(item.path);
         }
-    }, [runCommandRequest, runCommand, webEntry, openAi, openBlockEntry, recordChoice]);
+    }, [runCommandRequest, webEntry, openAi, openBlockEntry, recordChoice]);
 
     const [showPreview, setShowPreview] = useState(false);
     useEffect(() => {
-        window.electronStore.get("previewPane").then(saved => setShowPreview(saved === true || saved === "true"));
+        // Stored as a boolean, though the store's typing says string.
+        window.electronStore.get("previewPane").then((saved: unknown) => setShowPreview(saved === true || saved === "true"));
     }, []);
     const togglePreview = useCallback(() => {
         setShowPreview(open => {
@@ -790,17 +843,26 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
     const runPreviewAction = useCallback((id: PreviewActionId, item: SearchQueryT) => {
         const path = item.path ?? "";
         switch (id) {
-            case "open": activate(item, allResults.indexOf(item)); break;
+            case "open": activate(item); break;
             case "admin": recordChoice(item); window.apps.openApp(item, true); break;
             case "openWith": window.file.openFileWith(path); break;
             case "location": window.file.openInExplorer(path); break;
             case "copyPath": navigator.clipboard.writeText(path); break;
             case "copyFile": window.file.copyFileToClipboard(path); break;
         }
-    }, [activate, allResults, recordChoice]);
+    }, [activate, recordChoice]);
 
     const handleKeyDown = useCallback(async (e: KeyboardEvent) => {
         if (isContextMenuOpen) return;
+        // The confirmation dialog has the keyboard: Enter runs (whichever of
+        // its buttons has focus), Esc is handled by useEscape.
+        if (pendingCommand) {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                confirmPending();
+            }
+            return;
+        }
         if (matchesCombo(e, getBinding("toggle-preview"))) {
             e.preventDefault();
             togglePreview();
@@ -853,16 +915,29 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
         } else if (e.key === "Enter" && isCmdCommand) {
             window.electron.executeCmd(cmdCommand);
             clearQuery();
+        } else if (e.key === "Enter" && query.trim() && resolvedFor !== query.trim()) {
+            // The list on screen belongs to an older query — or to none yet,
+            // right after the window opens and the user types fast. Running
+            // its highlighted row would open the wrong thing and teach ranking
+            // that it was meant, so act on the top result for what's typed.
+            e.preventDefault();
+            const q = query.trim();
+            const fresh = await getQueryData(q, searchFilters);
+            if (!fresh || queryRef.current.trim() !== q) return;
+            setResults(fresh.results);
+            setResolvedFor(q);
+            setFocusedIndex(0);
+            const top = (promoteWeb ? webEntry?.entry : fresh.results[0]) ?? webEntry?.entry ?? aiEntry;
+            if (top) await activate(top);
         } else if (e.key === "Enter" && allResults[focusedIndex]) {
             const item = allResults[focusedIndex];
-            // Commands that take arguments or ask for confirmation open their
-            // own UI; the Enter must not also reach it.
-            if (item.type.startsWith("command") && ((item.args?.length ?? 0) > 0 || item.type.startsWith("commandConfirm"))) {
-                e.preventDefault();
-            }
-            await activate(item, focusedIndex);
+            // Commands open their own UI (argument entry, confirmation) or
+            // dismiss the window; the Enter must not also reach it.
+            if (COMMAND_TYPES.has(item.type)) e.preventDefault();
+            await activate(item);
         }
-    }, [isContextMenuOpen, togglePreview, focusedIndex, allResults, isCmdCommand, cmdCommand, clearQuery, activate,
+    }, [isContextMenuOpen, pendingCommand, confirmPending, togglePreview, focusedIndex, allResults, isCmdCommand, cmdCommand,
+        clearQuery, activate, query, resolvedFor, searchFilters, promoteWeb, webEntry, aiEntry,
         showPreview, previewFocused, previewFocus, focusKey, runPreviewAction]);
 
     useEffect(() => {
@@ -872,26 +947,30 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
         };
     }, [handleKeyDown]);
 
-    const pinApp = useCallback(async (app: SearchQueryT) => {
-        if (pinnedApps.length === 21) {
+    const pinApp = useStableCallback((app: SearchQueryT) => {
+        const current = pinnedAppsRef.current;
+        if (current.length === 21) {
             window.electron.notify("Maximum Pins Reached", "You can pin up to 21 apps only.");
             return;
         }
-        if (!pinnedApps.find((a) => isSameApp(a, app))) {
-            const updated = [...pinnedApps, app];
+        if (!current.find((a) => isSameApp(a, app))) {
+            const updated = [...current, app];
             window.electronStore.set("pinnedApps", JSON.stringify(updated));
-            setPinnedApps(updated);
+            updatePinnedApps(updated);
             window.dispatchEvent(new CustomEvent("pinnedAppsChanged"));
             clearQuery();
         }
-    }, [pinnedApps, clearQuery]);
+    });
 
-    const unPinApp = useCallback(async (app: SearchQueryT) => {
-        const updated = pinnedApps.filter((a) => !isSameApp(a, app));
+    const unPinApp = useStableCallback((app: SearchQueryT) => {
+        const updated = pinnedAppsRef.current.filter((a) => !isSameApp(a, app));
         window.electronStore.set("pinnedApps", JSON.stringify(updated));
-        setPinnedApps(updated);
+        updatePinnedApps(updated);
         window.dispatchEvent(new CustomEvent("pinnedAppsChanged"));
-    }, [pinnedApps]);
+    });
+
+    // Changes with the query; rows get one identity for their whole life.
+    const requestRunCommand = useStableCallback(runCommandRequest);
 
     const pinnedAppKeys = useMemo(() => {
         const set = new Set<string>();
@@ -935,10 +1014,10 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                             <button
                                 onClick={() => openBlockEntry(item)}
                                 tabIndex={0}
-                                className={`cursor-pointer flex items-center py-1.5 pl-11 pr-3 rounded-lg select-none transition-colors duration-150 gap-2 w-full hover:bg-fill-100 ${focused ? "bg-fill-100 outline outline-[1px] outline-offset-[-1px] outline-ink/[0.18]" : "bg-transparent"}`}
+                                className={`cursor-pointer flex items-center py-1.5 pl-11 pr-3 rounded-lg select-none transition-colors duration-150 gap-2 w-full hover:bg-fill-100 ${focused ? "bg-fill-100 outline -outline-offset-1 outline-ink/[0.18]" : "bg-transparent"}`}
                             >
                                 <Search className="w-3.5 h-3.5 shrink-0 text-tone-300" />
-                                <span className="text-[12px] text-tone-600 truncate">{item.name}</span>
+                                <span className="text-12 text-tone-600 truncate">{item.name}</span>
                             </button>
                         </div>
                     );
@@ -988,13 +1067,13 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                 <button
                     onClick={() => openSearch(toHistoryEntry(resolved))}
                     tabIndex={0}
-                    className={`cursor-pointer flex items-center justify-between py-2 px-3 rounded-lg select-none transition-colors duration-150 gap-3 w-full hover:bg-fill-100 ${focused ? "bg-fill-100 outline outline-[1px] outline-offset-[-1px] outline-ink/[0.18]" : "bg-transparent"}`}
+                    className={`cursor-pointer flex items-center justify-between py-2 px-3 rounded-lg select-none transition-colors duration-150 gap-3 w-full hover:bg-fill-100 ${focused ? "bg-fill-100 outline -outline-offset-1 outline-ink/[0.18]" : "bg-transparent"}`}
                 >
                     <div className="flex items-center gap-2 min-w-0">
                         <FaviconOrIcon key={faviconUrl ?? "none"} src={faviconUrl}>
                             {fallbackIcon}
                         </FaviconOrIcon>
-                        <span className="text-[13px] text-tone-800 truncate">
+                        <span className="text-13 text-tone-800 truncate">
                             {resolved.isDirectUrl ? (
                                 <>Go to <span className="text-ink font-medium">{resolved.searchTerm}</span></>
                             ) : resolved.searchTerm ? (
@@ -1007,7 +1086,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                             )}
                         </span>
                     </div>
-                    <span className="ml-auto opacity-70 text-[12px] cursor-default text-tone-500 shrink-0">
+                    <span className="ml-auto opacity-70 text-12 cursor-default text-tone-500 shrink-0">
                         {resolved.isDirectUrl ? "Link" : "Web"}
                     </span>
                 </button>
@@ -1031,15 +1110,15 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                 <button
                     onClick={() => openAi(aiEntry.name)}
                     tabIndex={0}
-                    className={`cursor-pointer flex items-center justify-between py-2 px-3 rounded-lg select-none transition-colors duration-150 gap-3 w-full hover:bg-fill-100 ${focused ? "bg-fill-100 outline outline-[1px] outline-offset-[-1px] outline-ink/[0.18]" : "bg-transparent"}`}
+                    className={`cursor-pointer flex items-center justify-between py-2 px-3 rounded-lg select-none transition-colors duration-150 gap-3 w-full hover:bg-fill-100 ${focused ? "bg-fill-100 outline -outline-offset-1 outline-ink/[0.18]" : "bg-transparent"}`}
                 >
                     <div className="flex items-center gap-2 min-w-0">
                         <Sparkles className="w-5 h-5 shrink-0 text-tone-400" />
-                        <span className="text-[13px] text-tone-800 truncate">
+                        <span className="text-13 text-tone-800 truncate">
                             Ask AI about <span className="text-ink font-medium">"{aiEntry.name}"</span>
                         </span>
                     </div>
-                    <span className="ml-auto opacity-70 text-[12px] cursor-default text-tone-500 shrink-0">AI</span>
+                    <span className="ml-auto opacity-70 text-12 cursor-default text-tone-500 shrink-0">AI</span>
                 </button>
             </div>
         );
@@ -1053,7 +1132,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
         <ScrollArea ref={scrollAreaRef} className={`flex-1 min-w-0 ${showPreview ? "pl-5 pr-3" : "px-5"}`}>
             {isCmdCommand ? (
                 <div>
-                    <div className="text-center text-[11px] font-semibold tracking-[0.1em] uppercase text-tone-250 mb-2">CMD Command</div>
+                    <div className="text-center text-11 font-semibold tracking-widest uppercase text-tone-250 mb-2">CMD Command</div>
                     <div className="p-2 rounded-lg bg-fill-050">
                         {cmdCommand}
                     </div>
@@ -1062,18 +1141,18 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                 // Nothing has come back for this query yet. Rendering now would
                 // show the web and AI fallbacks on their own for a frame, which
                 // reads as "no results" right before the real list lands.
-                <div className="h-[380px]" aria-hidden />
+                <div className="h-95" aria-hidden />
             ) : (
                 allResults.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-[380px] select-none">
+                    <div className="flex flex-col items-center justify-center h-95 select-none">
                         <div className="relative mb-4">
                             <div className="absolute inset-0 blur-xl bg-fill-030 rounded-full" />
                             <div className="relative w-16 h-16 rounded-xl bg-fill-030 border border-line-060 flex items-center justify-center">
                                 <SearchX className="w-7 h-7 text-tone-300" strokeWidth={1.5} />
                             </div>
                         </div>
-                        <div className="text-[13px] font-medium text-tone-500">Nothing here</div>
-                        <div className="text-[11px] text-tone-200 mt-1">Try a different search</div>
+                        <div className="text-13 font-medium text-tone-500">Nothing here</div>
+                        <div className="text-11 text-tone-200 mt-1">Try a different search</div>
                     </div>
                 ) : (
                     <>
@@ -1084,7 +1163,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                             const isApp = item.type === "app";
                             return (
                                 <div
-                                    key={`${item.type}-${item.name}-${item.path ?? ""}-${index}`}
+                                    key={rowKeys[index]}
                                     ref={el => { itemRefs.current[itemIndex] = el; }}
                                 >
                                     <QueryComponent
@@ -1095,11 +1174,9 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                                         isAppPinned={isApp ? isAppPinned(item) : false}
                                         logo={isApp ? logoMap.get(getLogoKey(item)) : undefined}
                                         fileIcon={iconFor(item)}
-                                        triggerAction={triggeredIndex === itemIndex}
                                         triggerContextMenu={triggeredContextMenuIndex === itemIndex}
                                         onContextMenuOpenChange={handleContextMenuOpenChange}
-                                        onRequestRunCommand={runCommandRequest}
-                                        onExecuteCommand={runCommand}
+                                        onRequestRunCommand={requestRunCommand}
                                         onChosen={recordChoice}
                                     />
                                 </div>
@@ -1124,6 +1201,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
             />
         )}
         </div>
+        <ConfirmCommandDialog pending={pendingCommand} onConfirm={confirmPending} onCancel={cancelPending} />
         </TooltipProvider>
     );
 }

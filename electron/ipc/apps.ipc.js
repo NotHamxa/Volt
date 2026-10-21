@@ -3,7 +3,7 @@ import { sanitiseCommand } from "../universal/commandSchema.js";
 import { openExternalSafely } from "./electron.ipc.js";
 import {searchApps, searchCommands, searchSettings} from "../universal/search.js";
 import {fetchFavicon} from "../universal/linkFavicon.js";
-import {addCustomCommand, removeCustomCommand, getCustomCommands, importCustomCommands} from "../universal/startup.js";
+import {addCustomCommand, updateCustomCommand, removeCustomCommand, getCustomCommands, newCommandsFrom} from "../universal/startup.js";
 import {launchApp, getAppLogo, getUwpAppIcon, getSteamGameIcon, executeCommand} from "../platform.js";
 import fs from "fs";
 
@@ -13,6 +13,7 @@ export function registerAppsIpc({
                                     appStates,
                                     hideMainWindow,
                                     store,
+                                    launchHotkeys,
                                 }) {
     ipcMain.handle("search-apps", (_, query) => {
         return searchApps(cache.appCache, query);
@@ -37,29 +38,46 @@ export function registerAppsIpc({
             .map(({ _normalized, ...rest }) => rest);
     });
 
+    // Both reject with a readable message (duplicate name, missing fields)
+    // that the settings page shows as-is.
     ipcMain.handle("add-custom-command", (_, command) => {
         return addCustomCommand(cache, store, command);
+    });
+
+    ipcMain.handle("update-custom-command", (_, originalName, updatedCommand) => {
+        return updateCustomCommand(cache, store, originalName, updatedCommand);
     });
 
     ipcMain.handle("remove-custom-command", (_, commandName) => {
         return removeCustomCommand(cache, store, commandName);
     });
 
-    ipcMain.handle("import-script-file", async () => {
+    /**
+     * Holds the launcher open and un-pinned while a native dialog is up, and
+     * always puts it back — left set, the window could never hide again.
+     */
+    const withDialog = async (show) => {
         appStates.fixWindowOpen = true;
         appStates.dialogOpen = true;
         mainWindow.setAlwaysOnTop(false);
-        const result = await dialog.showOpenDialog({
+        try {
+            return await show();
+        } finally {
+            mainWindow.setAlwaysOnTop(true);
+            mainWindow.focus();
+            appStates.dialogOpen = false;
+            appStates.fixWindowOpen = false;
+        }
+    };
+
+    ipcMain.handle("import-script-file", async () => {
+        const result = await withDialog(() => dialog.showOpenDialog({
             properties: ["openFile"],
             filters: [
                 { name: "Scripts", extensions: ["ps1", "bat", "cmd", "sh", "vbs"] },
                 { name: "All Files", extensions: ["*"] }
             ]
-        });
-        mainWindow.setAlwaysOnTop(true);
-        mainWindow.focus();
-        appStates.dialogOpen = false;
-        appStates.fixWindowOpen = false;
+        }));
         if (result.canceled || !result.filePaths.length) return null;
         try {
             const filePath = result.filePaths[0];
@@ -71,55 +89,44 @@ export function registerAppsIpc({
         }
     });
 
+    // Parses and validates only. The renderer shows the result for review and
+    // saves what the person confirms through add-custom-command, so an import
+    // file can't put anything in the list unseen. null means cancelled; a bad
+    // file rejects with the reason.
     ipcMain.handle("import-commands-file", async () => {
-        appStates.fixWindowOpen = true;
-        appStates.dialogOpen = true;
-        mainWindow.setAlwaysOnTop(false);
-        const result = await dialog.showOpenDialog({
+        const result = await withDialog(() => dialog.showOpenDialog({
             properties: ["openFile"],
             filters: [{ name: "JSON Files", extensions: ["json"] }]
-        });
-        mainWindow.setAlwaysOnTop(true);
-        mainWindow.focus();
-        appStates.dialogOpen = false;
-        appStates.fixWindowOpen = false;
+        }));
         if (result.canceled || !result.filePaths.length) return null;
+        let parsed;
         try {
-            const content = fs.readFileSync(result.filePaths[0], "utf-8");
-            const parsed = JSON.parse(content);
-            const commands = Array.isArray(parsed) ? parsed : [parsed];
-            // Same validator the AI drafting path uses — one way in.
-            const validated = commands.map(sanitiseCommand).filter(Boolean);
-            if (!validated.length) return null;
-            importCustomCommands(cache, store, validated);
-            return validated;
-        } catch {
-            return null;
+            parsed = JSON.parse(fs.readFileSync(result.filePaths[0], "utf-8"));
+        } catch (err) {
+            throw new Error(`Couldn't read that file: ${err?.message ?? err}`);
         }
+        const commands = Array.isArray(parsed) ? parsed : [parsed];
+        // Same validator the AI drafting path uses — one way in.
+        if (!commands.some(c => sanitiseCommand(c))) {
+            throw new Error("The file doesn't contain any valid commands.");
+        }
+        return newCommandsFrom(store, commands);
     });
 
     ipcMain.handle("export-commands-file", async () => {
         const customCommands = getCustomCommands(store);
         if (!customCommands.length) return false;
-        const result = await dialog.showSaveDialog({
+        const result = await withDialog(() => dialog.showSaveDialog({
             defaultPath: "commands.json",
             filters: [{ name: "JSON Files", extensions: ["json"] }]
-        });
+        }));
         if (result.canceled || !result.filePath) return false;
-        const exportData = customCommands.map(({ _normalized, ...rest }) => rest);
-        fs.writeFileSync(result.filePath, JSON.stringify(exportData, null, 2), "utf-8");
+        try {
+            fs.writeFileSync(result.filePath, JSON.stringify(customCommands, null, 2), "utf-8");
+        } catch (err) {
+            throw new Error(`Couldn't save the file: ${err?.message ?? err}`);
+        }
         return true;
-    });
-
-    ipcMain.handle("update-custom-command", (_, originalName, updatedCommand) => {
-        let customCommands = JSON.parse(store.get("customCommands") ?? "[]");
-        const idx = customCommands.findIndex(c => c.name === originalName);
-        if (idx === -1) return null;
-        customCommands[idx] = updatedCommand;
-        store.set("customCommands", JSON.stringify(customCommands));
-        const defaultCmds = JSON.parse(JSON.stringify(cache.commandsCache.filter(c => c.source !== "custom")));
-        cache.commandsCache = [...defaultCmds, ...customCommands];
-        return cache.commandsCache;
     });
 
     ipcMain.handle("launch-app", async (_, app, admin = false) => {
@@ -136,10 +143,34 @@ export function registerAppsIpc({
 
     // `handle`, not `on`: the renderer needs the outcome so it can report it and
     // avoid re-running. Dismissing on success mirrors launching an app.
-    ipcMain.handle("execute-command", async (_, command, argValues) => {
-        const result = await executeCommand(command, argValues);
+    //
+    // Only the name is taken from the renderer. The script that runs is the
+    // one in the command list, so nothing the renderer sends can be executed
+    // unless it was already saved there.
+    ipcMain.handle("execute-command", async (_, requested, argValues) => {
+        const all = cache.commandsCache ?? [];
+        const command = all.find(c => c.name === requested?.name && c.source === requested?.source)
+            ?? all.find(c => c.name === requested?.name);
+        if (!command) {
+            return { ok: false, detail: `No command named "${requested?.name ?? ""}" exists.` };
+        }
+        const values = {};
+        if (argValues && typeof argValues === "object") {
+            for (const arg of command.args ?? []) {
+                if (argValues[arg.name] != null) values[arg.name] = String(argValues[arg.name]);
+            }
+        }
+        const result = await executeCommand(command, values);
         if (result?.ok) hideMainWindow();
         return result ?? { ok: false, detail: "No result" };
+    });
+
+    ipcMain.handle("get-launch-hotkeys", () => launchHotkeys.list());
+
+    // Answers null when the hotkey took, otherwise a message the settings row
+    // shows as-is. An empty combo clears it.
+    ipcMain.handle("set-launch-hotkey", (_, target, combo) => {
+        return launchHotkeys.set(target, typeof combo === "string" ? combo : "");
     });
 
     ipcMain.handle("get-app-logo", (_, app) => {

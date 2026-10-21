@@ -2,6 +2,7 @@ import { cacheFolder } from "./folderCache.js";
 import { app } from "electron";
 import Store from "electron-store";
 import defaultCommands from "../data/commands.json" with { type: 'json' };
+import { sanitiseCommand, commandNameKey } from "./commandSchema.js";
 
 const store = new Store();
 
@@ -50,36 +51,86 @@ export async function loadFolderCache(cache) {
 }
 
 export function loadCommandsData(cache, store) {
-    const customCommands = JSON.parse(store.get("customCommands") ?? "[]");
+    const customCommands = getCustomCommands(store);
     cache.commandsCache = [...defaultCommands, ...customCommands];
 }
 
-export function addCustomCommand(cache, store, command) {
-    const customCommands = JSON.parse(store.get("customCommands") ?? "[]");
-    customCommands.push(command);
+function saveCustomCommands(cache, store, customCommands) {
     store.set("customCommands", JSON.stringify(customCommands));
     cache.commandsCache = [...defaultCommands, ...customCommands];
     return cache.commandsCache;
+}
+
+/**
+ * Names are how commands are found, run and edited, so two that differ only
+ * in case would be indistinguishable. Built-ins count too.
+ */
+function assertNameFree(customCommands, name, ignoreIndex = -1) {
+    const key = commandNameKey(name);
+    const builtIn = defaultCommands.find(c => commandNameKey(c.name) === key);
+    if (builtIn) throw new Error(`"${builtIn.name}" is a built-in command. Choose another name.`);
+    const clash = customCommands.find((c, i) => i !== ignoreIndex && commandNameKey(c.name) === key);
+    if (clash) throw new Error(`A command named "${clash.name}" already exists.`);
+}
+
+// Throws with a message meant for the person saving: the IPC layer passes it
+// to the renderer as the rejection.
+export function addCustomCommand(cache, store, raw) {
+    const command = sanitiseCommand(raw);
+    if (!command) throw new Error("A command needs a name and a script.");
+    const customCommands = getCustomCommands(store);
+    assertNameFree(customCommands, command.name);
+    customCommands.push(command);
+    return saveCustomCommands(cache, store, customCommands);
+}
+
+/** null when there's no custom command by that name to update. */
+export function updateCustomCommand(cache, store, originalName, raw) {
+    const customCommands = getCustomCommands(store);
+    const idx = customCommands.findIndex(c => c.name === originalName);
+    if (idx === -1) return null;
+    const command = sanitiseCommand(raw);
+    if (!command) throw new Error("A command needs a name and a script.");
+    // Only a rename is checked: a clash saved before names had to be unique
+    // shouldn't stop someone fixing the script.
+    if (commandNameKey(command.name) !== commandNameKey(originalName)) {
+        assertNameFree(customCommands, command.name, idx);
+    }
+    customCommands[idx] = command;
+    return saveCustomCommands(cache, store, customCommands);
 }
 
 export function removeCustomCommand(cache, store, commandName) {
-    let customCommands = JSON.parse(store.get("customCommands") ?? "[]");
-    customCommands = customCommands.filter(c => c.name !== commandName);
-    store.set("customCommands", JSON.stringify(customCommands));
-    cache.commandsCache = [...defaultCommands, ...customCommands];
-    return cache.commandsCache;
+    const customCommands = getCustomCommands(store).filter(c => c.name !== commandName);
+    return saveCustomCommands(cache, store, customCommands);
 }
 
+// Stored before sanitising existed, or edited by hand — either way, only
+// well-formed commands make it into the running list.
 export function getCustomCommands(store) {
-    return JSON.parse(store.get("customCommands") ?? "[]");
+    let stored;
+    try {
+        stored = JSON.parse(store.get("customCommands") ?? "[]");
+    } catch {
+        stored = [];
+    }
+    return Array.isArray(stored) ? stored.map(sanitiseCommand).filter(Boolean) : [];
 }
 
-export function importCustomCommands(cache, store, commands) {
-    const customCommands = JSON.parse(store.get("customCommands") ?? "[]");
-    const existingNames = new Set(customCommands.map(c => c.name));
-    const newCommands = commands.filter(c => !existingNames.has(c.name));
-    customCommands.push(...newCommands);
-    store.set("customCommands", JSON.stringify(customCommands));
-    cache.commandsCache = [...defaultCommands, ...customCommands];
-    return cache.commandsCache;
+/**
+ * The commands from an import file that would actually be new: valid, first
+ * of their name within the file, and not clashing with a built-in or an
+ * existing custom command. Nothing is saved here — the renderer shows these
+ * for review and adds the ones the person confirms.
+ */
+export function newCommandsFrom(store, rawCommands) {
+    const taken = new Set([...defaultCommands, ...getCustomCommands(store)].map(c => commandNameKey(c.name)));
+    const fresh = [];
+    for (const command of rawCommands.map(sanitiseCommand).filter(Boolean)) {
+        const key = commandNameKey(command.name);
+        if (taken.has(key)) continue;
+        taken.add(key);
+        fresh.push(command);
+    }
+    return fresh;
 }

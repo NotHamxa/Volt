@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Terminal, X } from "lucide-react";
 import { SearchQueryT } from "@/interfaces/searchQuery.ts";
 import { useEscape } from "@/hooks/useEscape.ts";
@@ -37,12 +37,45 @@ export default function ArgEntryBar({ command, initialValues, onRun, onCancel }:
         return () => clearTimeout(t);
     }, [args, initialValues]);
 
-    useEscape(onCancel, true);
+    // Confirm-type commands ask once more before running, same as they do
+    // when picked without arguments. Enter confirms, Esc steps back to editing.
+    const needsConfirm = command.type === "commandConfirm" || command.type === "commandConfirmOpen";
+    const [confirming, setConfirming] = useState(false);
+    const confirmRef = useRef<HTMLButtonElement | null>(null);
+    const lastFocusedRef = useRef(0);
+
+    const backToEditing = useCallback(() => {
+        setConfirming(false);
+        setTimeout(() => inputRefs.current[lastFocusedRef.current]?.focus(), 0);
+    }, []);
+    const handleEscape = useCallback(() => {
+        if (confirming) backToEditing();
+        else onCancel();
+    }, [confirming, backToEditing, onCancel]);
+    useEscape(handleEscape, true);
+
+    useEffect(() => {
+        if (confirming) confirmRef.current?.focus();
+    }, [confirming]);
 
     const missingRequired = args.some(a => a.required && !(values[a.name] ?? "").trim());
 
     const runIfReady = () => {
         if (missingRequired) return;
+        if (needsConfirm && !confirming) {
+            setConfirming(true);
+            return;
+        }
+        onRun(values);
+    };
+
+    const handleConfirmKey = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+        if (e.key !== "Enter") return;
+        // Same reason as the inputs: this Enter must not reach a window-level
+        // listener and re-fire whatever result sits under the bar.
+        e.preventDefault();
+        e.stopPropagation();
+        (e.nativeEvent as Event).stopImmediatePropagation?.();
         onRun(values);
     };
 
@@ -80,10 +113,10 @@ export default function ArgEntryBar({ command, initialValues, onRun, onCancel }:
     };
 
     return (
-        <div className="flex flex-row gap-2.5 items-center px-5 border-b border-line-070 mb-[5px] min-h-[44px] py-1.5">
+        <div className="flex flex-row gap-2.5 items-center px-5 border-b border-line-070 mb-1.25 min-h-11 py-1.5">
             <Terminal size={18} className="text-tone-400 shrink-0" />
-            <span className="inline-flex items-center gap-1.5 pl-2 pr-1 py-1 rounded-md bg-fill-070 border border-line-120 text-[11.5px] text-tone-800 font-medium shrink-0">
-                <span className="truncate max-w-[140px]">{command.name}</span>
+            <span className="inline-flex items-center gap-1.5 pl-2 pr-1 py-1 rounded-md bg-fill-070 border border-line-120 text-11.5 text-tone-800 font-medium shrink-0">
+                <span className="truncate max-w-35">{command.name}</span>
                 <button
                     onClick={onCancel}
                     className="p-0.5 rounded text-tone-350 hover:text-tone-850 hover:bg-fill-080 transition-colors"
@@ -99,7 +132,7 @@ export default function ArgEntryBar({ command, initialValues, onRun, onCancel }:
                     const isMissing = arg.required && !value.trim();
                     return (
                         <div key={arg.name} className="flex items-center gap-1.5 shrink-0">
-                            <span className={`text-[10px] font-semibold uppercase tracking-[0.12em] ${isMissing ? "text-red-400/75" : "text-tone-350"}`}>
+                            <span className={`text-10 font-semibold uppercase tracking-[0.12em] ${isMissing ? "text-red-400/75" : "text-tone-350"}`}>
                                 {arg.label || arg.name}
                                 {arg.required && <span className="ml-0.5 text-red-400/70">*</span>}
                             </span>
@@ -108,8 +141,10 @@ export default function ArgEntryBar({ command, initialValues, onRun, onCancel }:
                                 value={value}
                                 onChange={e => setValues(v => ({ ...v, [arg.name]: e.target.value }))}
                                 onKeyDown={e => handleKey(e, i)}
+                                onFocus={() => { lastFocusedRef.current = i; }}
+                                readOnly={confirming}
                                 placeholder={arg.defaultValue || "—"}
-                                className={`bg-transparent border-b outline-none text-[13px] text-tone-850 placeholder:text-tone-200 transition-colors min-w-[80px] max-w-[180px] py-1 ${
+                                className={`bg-transparent border-b outline-none text-13 text-tone-850 placeholder:text-tone-200 transition-colors min-w-20 max-w-45 py-1 ${
                                     isMissing ? "border-red-500/40 focus:border-red-500/70" : "border-line-100 focus:border-ink/[0.4]"
                                 }`}
                             />
@@ -117,12 +152,33 @@ export default function ArgEntryBar({ command, initialValues, onRun, onCancel }:
                     );
                 })}
             </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-                <span className="text-[10px] text-tone-300">
-                    {missingRequired ? "Fill required" : "Run"}
-                </span>
-                <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded-md bg-fill-050 border border-line-080 text-tone-400 font-mono">↵</span>
-            </div>
+            {confirming ? (
+                <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-11 text-amber-400/85 font-medium">Run this command?</span>
+                    <button
+                        onClick={backToEditing}
+                        tabIndex={-1}
+                        className="px-2 py-1 text-10.5 rounded-md text-tone-400 hover:text-tone-750 hover:bg-fill-050 transition-colors"
+                    >
+                        Cancel <span className="font-mono text-tone-250">Esc</span>
+                    </button>
+                    <button
+                        ref={confirmRef}
+                        onClick={() => onRun(values)}
+                        onKeyDown={handleConfirmKey}
+                        className="px-2 py-1 text-10.5 rounded-md bg-red-500/15 text-red-400 hover:bg-red-500/25 outline-none focus-visible:ring-1 focus-visible:ring-red-400/50 transition-colors"
+                    >
+                        Run <span className="font-mono">↵</span>
+                    </button>
+                </div>
+            ) : (
+                <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-10 text-tone-300">
+                        {missingRequired ? "Fill required" : "Run"}
+                    </span>
+                    <span className="inline-flex items-center px-1.5 py-0.5 text-10 rounded-md bg-fill-050 border border-line-080 text-tone-400 font-mono">↵</span>
+                </div>
+            )}
         </div>
     );
 }

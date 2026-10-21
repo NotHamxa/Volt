@@ -4,6 +4,7 @@
     "type": "commandConfirm",
     "appId": null,
     "path": "shutdown /s /t 0",
+    "shell": "cmd",
     "source": "predefined"
   },
   {
@@ -11,13 +12,15 @@
     "type": "commandConfirm",
     "appId": null,
     "path": "shutdown /r /t 0",
+    "shell": "cmd",
     "source": "predefined"
   },
   {
     "name": "Sleep",
     "type": "commandConfirm",
     "appId": null,
-    "path": "rundll32.exe powrprof.dll,SetSuspendState 0,1,0",
+    "path": "# SetSuspendState returns only after the PC wakes, so hand it off rather than wait on it.\n# Unlike rundll32 powrprof.dll,SetSuspendState, this sleeps even when hibernation is on.\nStart-Process powershell.exe -WindowStyle Hidden -ArgumentList '-NoProfile', '-NonInteractive', '-Command', 'Add-Type -AssemblyName System.Windows.Forms; [void][System.Windows.Forms.Application]::SetSuspendState(''Suspend'', $false, $false)'",
+    "shell": "powershell",
     "source": "predefined"
   },
   {
@@ -25,6 +28,7 @@
     "type": "commandConfirm",
     "appId": null,
     "path": "shutdown /h",
+    "shell": "cmd",
     "source": "predefined"
   },
   {
@@ -32,6 +36,7 @@
     "type": "command",
     "appId": null,
     "path": "rundll32.exe user32.dll,LockWorkStation",
+    "shell": "cmd",
     "source": "predefined"
   },
   {
@@ -39,6 +44,7 @@
     "type": "commandConfirm",
     "appId": null,
     "path": "shutdown /l",
+    "shell": "cmd",
     "source": "predefined"
   },
   {
@@ -46,13 +52,15 @@
     "type": "command",
     "appId": null,
     "path": "start shell:RecycleBinFolder",
+    "shell": "cmd",
     "source": "predefined"
   },
   {
     "name": "Empty Recycle Bin",
     "type": "commandConfirm",
     "appId": null,
-    "path": "PowerShell.exe -Command \"Clear-RecycleBin -Force\"",
+    "path": "Clear-RecycleBin -Force -ErrorAction SilentlyContinue\n# Clear-RecycleBin errors on an already-empty bin, so judge by what's left.\nif ((New-Object -ComObject Shell.Application).Namespace(10).Items().Count -gt 0) {\n    throw 'Some items could not be removed from the Recycle Bin.'\n}",
+    "shell": "powershell",
     "source": "predefined"
   },
   {
@@ -60,6 +68,7 @@
     "type": "command",
     "appId": null,
     "path": "DisplaySwitch.exe /internal",
+    "shell": "cmd",
     "source": "predefined"
   },
   {
@@ -67,6 +76,7 @@
     "type": "command",
     "appId": null,
     "path": "DisplaySwitch.exe /clone",
+    "shell": "cmd",
     "source": "predefined"
   },
   {
@@ -74,6 +84,7 @@
     "type": "command",
     "appId": null,
     "path": "DisplaySwitch.exe /extend",
+    "shell": "cmd",
     "source": "predefined"
   },
   {
@@ -81,20 +92,23 @@
     "type": "command",
     "appId": null,
     "path": "DisplaySwitch.exe /external",
+    "shell": "cmd",
     "source": "predefined"
   },
   {
     "name": "Minimize All Windows",
     "type": "command",
     "appId": null,
-    "path": "PowerShell.exe -Command \"(New-Object -ComObject Shell.Application).MinimizeAll()\"",
+    "path": "(New-Object -ComObject Shell.Application).MinimizeAll()",
+    "shell": "powershell",
     "source": "predefined"
   },
   {
     "name": "Restart Windows Explorer",
     "type": "commandConfirm",
     "appId": null,
-    "path": "taskkill /F /IM explorer.exe && start explorer.exe",
+    "path": "Stop-Process -Name explorer -Force\n# Windows usually restarts the shell by itself; only start it if it didn't.\nStart-Sleep -Seconds 2\nif (-not (Get-Process -Name explorer -ErrorAction SilentlyContinue)) { Start-Process explorer.exe }",
+    "shell": "powershell",
     "source": "predefined"
   },
   {
@@ -102,6 +116,7 @@
     "type": "command",
     "appId": null,
     "path": "ipconfig /flushdns",
+    "shell": "cmd",
     "source": "predefined"
   },
   {
@@ -109,13 +124,15 @@
     "type": "commandOpen",
     "appId": null,
     "path": "ipconfig /all",
+    "shell": "cmd",
     "source": "predefined"
   },
   {
     "name": "Copy Public IP to Clipboard",
     "type": "command",
     "appId": null,
-    "path": "PowerShell.exe -Command \"(Invoke-RestMethod -Uri 'https://api.ipify.org').Trim() | Set-Clipboard\"",
+    "path": "(Invoke-RestMethod -Uri 'https://api.ipify.org' -UseBasicParsing -TimeoutSec 15).Trim() | Set-Clipboard",
+    "shell": "powershell",
     "source": "predefined"
   },
   {
@@ -123,20 +140,23 @@
     "type": "commandOpen",
     "appId": null,
     "path": "netsh wlan show profiles",
+    "shell": "cmd",
     "source": "predefined"
   },
   {
     "name": "Show Saved WiFi Passwords",
     "type": "commandConfirmOpen",
     "appId": null,
-    "path": "powershell -NoProfile -Command \"(netsh wlan show profiles) | Select-String '\\:(.+)$' | %{ $name=$_.Matches.Groups[1].Value.Trim(); $info=(netsh wlan show profile name=\\\"$name\\\" key=clear); $key=($info | Select-String 'Key Content\\W+\\:(.+)$').Matches.Groups[1].Value.Trim(); [pscustomobject]@{ SSID=$name; Password=$key } } | Format-Table -AutoSize\"",
+    "path": "netsh wlan show profiles | Select-String ':\\s*(.+)$' | ForEach-Object {\n    $name = $_.Matches.Groups[1].Value.Trim()\n    $key = netsh wlan show profile name=\"$name\" key=clear | Select-String 'Key Content\\W+:\\s*(.+)$'\n    [pscustomobject]@{ SSID = $name; Password = if ($key) { $key.Matches.Groups[1].Value.Trim() } else { '' } }\n} | Format-Table -AutoSize",
+    "shell": "powershell",
     "source": "predefined"
   },
   {
     "name": "Open Windows Terminal",
     "type": "command",
     "appId": null,
-    "path": "wt",
+    "path": "start \"\" wt",
+    "shell": "cmd",
     "source": "predefined"
   },
   {
@@ -144,13 +164,15 @@
     "type": "command",
     "appId": null,
     "path": "sysdm.cpl",
+    "shell": "cmd",
     "source": "predefined"
   },
   {
     "name": "Open System Restore",
     "type": "command",
     "appId": null,
-    "path": "%windir%\\system32\\restore\\rstrui.exe",
+    "path": "start \"\" \"%windir%\\System32\\rstrui.exe\"",
+    "shell": "cmd",
     "source": "predefined"
   },
   {
@@ -158,13 +180,15 @@
     "type": "commandOpen",
     "appId": null,
     "path": "systeminfo",
+    "shell": "cmd",
     "source": "predefined"
   },
   {
     "name": "List Startup Programs",
     "type": "commandOpen",
     "appId": null,
-    "path": "wmic startup get caption,command",
+    "path": "Get-CimInstance -ClassName Win32_StartupCommand | Select-Object Name, Command, Location, User | Format-Table -AutoSize -Wrap",
+    "shell": "powershell",
     "source": "predefined"
   },
   {
@@ -172,13 +196,15 @@
     "type": "commandOpen",
     "appId": null,
     "path": "tasklist",
+    "shell": "cmd",
     "source": "predefined"
   },
   {
     "name": "Open Hosts File",
     "type": "command",
     "appId": null,
-    "path": "notepad %windir%\\System32\\drivers\\etc\\hosts",
+    "path": "start \"\" notepad \"%windir%\\System32\\drivers\\etc\\hosts\"",
+    "shell": "cmd",
     "source": "predefined"
   },
   {
@@ -186,6 +212,7 @@
     "type": "command",
     "appId": null,
     "path": "start shell:startup",
+    "shell": "cmd",
     "source": "predefined"
   },
   {
@@ -193,34 +220,39 @@
     "type": "command",
     "appId": null,
     "path": "start ms-screenclip:",
+    "shell": "cmd",
     "source": "predefined"
   },
   {
     "name": "Generate Battery Report",
     "type": "commandConfirm",
     "appId": null,
-    "path": "PowerShell.exe -Command \"powercfg /batteryreport /output $env:USERPROFILE\\battery-report.html; Start-Process $env:USERPROFILE\\battery-report.html\"",
+    "path": "$report = Join-Path $env:USERPROFILE 'battery-report.html'\npowercfg /batteryreport /output \"$report\"\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\nStart-Process $report",
+    "shell": "powershell",
     "source": "predefined"
   },
   {
     "name": "Clear Temp Files",
     "type": "commandConfirm",
     "appId": null,
-    "path": "PowerShell.exe -Command \"Remove-Item -Path $env:TEMP\\* -Recurse -Force -ErrorAction SilentlyContinue\"",
+    "path": "# Files in use can't be deleted and are skipped; that isn't a failure.\nGet-ChildItem -LiteralPath $env:TEMP -Force -ErrorAction SilentlyContinue |\n    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue\nexit 0",
+    "shell": "powershell",
     "source": "predefined"
   },
   {
     "name": "Reset Windows Audio",
     "type": "commandConfirm",
     "appId": null,
-    "path": "net stop audiosrv && net start audiosrv",
+    "path": "# Restarting a service needs admin, so ask for it (a UAC prompt).\n$p = Start-Process powershell.exe -Verb RunAs -WindowStyle Hidden -Wait -PassThru -ArgumentList '-NoProfile -NonInteractive -Command \"Restart-Service -Name Audiosrv -Force\"'\nexit $p.ExitCode",
+    "shell": "powershell",
     "source": "predefined"
   },
   {
     "name": "GodMode (All Settings)",
     "type": "command",
     "appId": null,
-    "path": "explorer shell:::{ED7BA470-8E54-465E-825C-99712043E01C}",
+    "path": "start \"\" \"shell:::{ED7BA470-8E54-465E-825C-99712043E01C}\"",
+    "shell": "cmd",
     "source": "predefined"
   }
 ]

@@ -1,13 +1,25 @@
-import os from "os";
+import { randomUUID } from "node:crypto";
+import Store from "electron-store";
 
 const TELEMETRY_URL = "https://www.hamzahmed.com/api/telemetry";
 const PROJECT_NAME = "volt";
 
-export async function sendTelemetry(event, detail) {
+// A random per-install id. The computer's name used to be sent instead, and
+// that is often the user's real name.
+function deviceId(store) {
+    let id = store.get("telemetryDeviceId");
+    if (!id) {
+        id = randomUUID();
+        store.set("telemetryDeviceId", id);
+    }
+    return id;
+}
+
+export async function sendTelemetry(event, detail, store = new Store()) {
     try {
         const payload = {
             projectName: PROJECT_NAME,
-            deviceId: os.hostname(),
+            deviceId: deviceId(store),
             event,
             ...(detail ? { detail } : {}),
         };
@@ -32,6 +44,6 @@ export async function sendInstallTelemetryIfNeeded(store) {
         store.set("installedAt", installedAt);
     }
 
-    const ok = await sendTelemetry("install", `Installed at ${installedAt}`);
+    const ok = await sendTelemetry("install", `Installed at ${installedAt}`, store);
     if (ok) store.set("installTelemetrySent", true);
 }

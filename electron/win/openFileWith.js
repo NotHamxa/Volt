@@ -1,5 +1,4 @@
 import fs from "fs";
-import {shell} from "electron";
 import {spawn} from "node:child_process";
 
 export function openFileWith(filePath) {
@@ -7,9 +6,10 @@ export function openFileWith(filePath) {
         return;
     }
     const normalizedPath = filePath.replaceAll('/', '\\');
-    const command = 'powershell';
-    const args = ['-Command', `rundll32.exe shell32.dll,OpenAs_RunDLL "${normalizedPath}"`];
-    const childProcess = spawn(command, args, { stdio: 'ignore' });
+    // rundll32 directly, with the path as its own argument. Going through
+    // PowerShell put the path inside a double-quoted string, where $(...) and
+    // $vars expand — a file named "$(Start-Process calc).txt" ran calc.
+    const childProcess = spawn("rundll32.exe", ["shell32.dll,OpenAs_RunDLL", normalizedPath], { stdio: 'ignore' });
     childProcess.on('error', (error) => {
         console.error('Failed to start process:', error);
     });

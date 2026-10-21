@@ -5,15 +5,18 @@ import { execFile } from "child_process";
 // Set-Clipboard -LiteralPath, which places a real file drop on the clipboard.
 export function copyFileToClipboard(filePath) {
     if (!filePath) return;
-    const escaped = filePath.replace(/'/g, "''");
     execFile(
         "powershell.exe",
         [
             "-NoProfile",
             "-WindowStyle", "Hidden",
             "-Command",
-            `Set-Clipboard -LiteralPath '${escaped}'`,
+            // The path travels in an environment variable, never inside the
+            // script text: PowerShell ends a quoted string at curly quotes too,
+            // so escaping only ' let a file named a’;calc;’.pdf run code.
+            "Set-Clipboard -LiteralPath $env:VOLT_CLIPBOARD_PATH",
         ],
+        { env: { ...process.env, VOLT_CLIPBOARD_PATH: filePath }, windowsHide: true },
         (err) => {
             if (err) console.error("copy-file-clipboard failed:", err);
         }

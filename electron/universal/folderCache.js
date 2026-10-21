@@ -1,9 +1,15 @@
 import path from "path";
 import fsp, { readdir } from "fs/promises";
+import { app } from "electron";
 import Store from "electron-store";
-import { normaliseString } from "./search.js";
+import { normaliseString, setKnownFolders } from "./search.js";
 
 const store = new Store();
+
+// Search's suggested Downloads/Documents/Desktop rows use the real known
+// folders, which OneDrive backup moves out of the home folder. Resolved on
+// the first search, well after the app is ready.
+setKnownFolders(key => app.getPath(key));
 
 const excludedExtensions = [
     // --- OS & system ---
@@ -61,9 +67,12 @@ export const excludedFolders = [
     ".docker", ".vagrant", ".terraform"
 ];
 
+const excludedExtensionSet = new Set(excludedExtensions);
+
 function isIndexableFile(fileName) {
-    const ext = path.extname(fileName).replace(".", "");
-    return ext !== "" && !excludedExtensions.includes(ext);
+    // Lowercased: Windows extensions are case-insensitive, so a.DLL is a dll.
+    const ext = path.extname(fileName).slice(1).toLowerCase();
+    return ext !== "" && !excludedExtensionSet.has(ext);
 }
 
 // Lets the folder watcher drop events under excluded folders before stat'ing them.
@@ -77,7 +86,10 @@ function entryFor(fullPath, type) {
 }
 
 async function readDirRecursive(currentPath, out) {
-    const entries = await readdir(currentPath, { withFileTypes: true });
+    let entries;
+    // One unreadable subfolder (EPERM) or a folder deleted mid-walk only
+    // costs that folder, not the whole root.
+    try { entries = await readdir(currentPath, { withFileTypes: true }); } catch { return; }
     for (const entry of entries) {
         const fullPath = path.join(currentPath, entry.name);
         if (entry.isDirectory()) {
@@ -100,15 +112,19 @@ export async function indexPath(fullPath) {
     if (stat.isFile()) return isIndexableFile(fullPath) ? [entryFor(fullPath, "file")] : [];
     if (!stat.isDirectory() || excludedFolders.includes(path.basename(fullPath))) return [];
     const out = [entryFor(fullPath, "folder")];
-    try { await readDirRecursive(fullPath, out); } catch { /* vanished or unreadable mid-walk */ }
+    await readDirRecursive(fullPath, out);
     return out;
 }
 
+// Never rejects: unreadable parts of the tree are skipped by the walk.
 export async function cacheFolder(dirPath,cache,newFolder=true) {
     const filesArray = [];
     await readDirRecursive(dirPath, filesArray);
+    // Removed while it was being walked (startup load): writing now would
+    // make it searchable again with no way to remove it.
+    if (!newFolder && !cache.cachedFolders.includes(dirPath)) return false;
     cache.cachedFoldersData[dirPath] = filesArray;
-    if (newFolder) {
+    if (newFolder && !cache.cachedFolders.includes(dirPath)) {
         cache.cachedFolders.push(dirPath);
         store.set("cachedFolders",JSON.stringify(cache.cachedFolders))
     }
@@ -117,9 +133,8 @@ export async function cacheFolder(dirPath,cache,newFolder=true) {
 
 export async function deleteFolder(dirPath,cache) {
     if (!cache.cachedFolders.includes(dirPath)) return false;
-    const normalPath=dirPath.replace("\\\\","//");
-    cache.cachedFoldersData[normalPath] = null;
-    delete cache.cachedFoldersData[normalPath];
+    // Keyed by the exact root path, UNC shares included.
+    delete cache.cachedFoldersData[dirPath];
 
     cache.cachedFolders = cache.cachedFolders.filter(folder => folder !== dirPath);
     store.set("cachedFolders", JSON.stringify(cache.cachedFolders));

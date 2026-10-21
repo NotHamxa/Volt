@@ -171,6 +171,18 @@ export function lastUsed(item, now = Date.now()) {
     return entry?.t ?? null;
 }
 
+/**
+ * Forgets every use and pick ("Clear History"). The in-memory copy goes too —
+ * it's what search reads, so clearing only the store would change nothing
+ * until a restart. The older formats are dropped so migrate() can't bring
+ * them back.
+ */
+export function clearUsage() {
+    store().delete(V1_KEY);
+    store().delete(LEGACY_KEY);
+    save({ items: {}, choices: {} });
+}
+
 /** Drops app history for apps that are no longer installed; other types keep theirs. */
 export function pruneUsage(appCache, now = Date.now()) {
     const usage = loadUsage(now);

@@ -25,30 +25,31 @@ function PinnedLinks({ link, removeLink, setEditLink, index }: IPinnedLinks) {
             setFavicon(await window.apps.getLinkFavicon(shortcut));
         };
         onLoad();
-        let ctrlPressed = false;
+        // Ctrl is read off each keydown rather than tracked between events:
+        // hiding Volt with Ctrl+Space sends the Ctrl keyup to another window,
+        // and a remembered "held" flag then turned typing "7zip" into link 7.
         const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === "Control") {
-                ctrlPressed = true;
-                setShowKbd(true);
-            }
-            if (ctrlPressed && event.key === (index + 1).toString()) {
+            if (event.key === "Control") setShowKbd(true);
+            if (event.ctrlKey && !event.altKey && !event.shiftKey && !event.metaKey
+                && event.key === (index + 1).toString()) {
+                event.preventDefault();
                 window.electron.openExternal(shortcut);
             }
         };
 
         const handleKeyUp = (event: KeyboardEvent) => {
-            if (event.key === "Control") {
-                ctrlPressed = false;
-                setShowKbd(false);
-            }
+            if (event.key === "Control") setShowKbd(false);
         };
+        const hideKbd = () => setShowKbd(false);
 
         window.addEventListener("keydown", handleKeyDown);
         window.addEventListener("keyup", handleKeyUp);
+        window.addEventListener("blur", hideKbd);
 
         return () => {
             window.removeEventListener("keydown", handleKeyDown);
             window.removeEventListener("keyup", handleKeyUp);
+            window.removeEventListener("blur", hideKbd);
         };
     }, [shortcut, index]);
 
@@ -56,7 +57,7 @@ function PinnedLinks({ link, removeLink, setEditLink, index }: IPinnedLinks) {
     return (
         <ContextMenu onOpenChange={setMenuOpen}>
             <ContextMenuTrigger asChild>
-                <div className="relative group flex items-center justify-center w-[100px] h-20">
+                <div className="relative group flex items-center justify-center w-25 h-20">
                     {showKbd && (
                         <div className="absolute top-1 right-1.5 shadow-md transition">
                             <Kbd className="text-xs">{index + 1}</Kbd>
@@ -81,7 +82,7 @@ function PinnedLinks({ link, removeLink, setEditLink, index }: IPinnedLinks) {
                                     <span className="text-sm">{name}</span>
                                 </button>
                             </TooltipTrigger>
-                            <TooltipContent side="bottom" className="bg-surface/[0.98] border border-line-100 text-tone-700 text-[11px]">
+                            <TooltipContent side="bottom" className="bg-surface/[0.98] border border-line-100 text-tone-700 text-11">
                                 {shortcut}
                             </TooltipContent>
                         </Tooltip>

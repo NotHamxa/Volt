@@ -1,7 +1,7 @@
 import { app, ipcMain, shell } from "electron";
 import { getGoogleSuggestions } from "../universal/autoSuggestion.js";
 import { processSearchQuery, normaliseString } from "../universal/search.js";
-import { loadUsage, recordChoice, recordUse } from "../universal/usage.js";
+import { clearUsage, loadUsage, recordChoice, recordUse } from "../universal/usage.js";
 import { showNotification } from "../universal/notification.js";
 import { checkForUpdates } from "../universal/updater.js";
 import { executeUserCommand } from "../platform.js";
@@ -57,6 +57,13 @@ export function registerElectronIpc({ hideMainWindow, cache, store }) {
         if (item?.type !== "app") recordUse(item);
     });
 
+    // Clear History: what ranking has learned from use, alongside the query
+    // list the renderer clears itself.
+    ipcMain.handle("clear-usage", () => {
+        clearUsage();
+        return true;
+    });
+
     ipcMain.handle("get-google-suggestions", (_, query) => {
         return getGoogleSuggestions(query);
     });
@@ -100,10 +107,9 @@ export function registerElectronIpc({ hideMainWindow, cache, store }) {
         return true;
     });
 
-    ipcMain.handle("check-for-updates", () => {
-        checkForUpdates();
-        return true;
-    });
+    // Resolves { ok, message? } — ok false means no check is running, so the
+    // renderer mustn't wait for an event that isn't coming.
+    ipcMain.handle("check-for-updates", () => checkForUpdates());
 
     ipcMain.handle("get-update-modal-info", () => {
         if (cache.showUpdateModal) {

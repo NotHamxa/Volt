@@ -5,11 +5,15 @@ import { usageSignals, usageKey } from "./usage.js";
 
 const SEPARATORS = /[\s\-_.()[\]{}'"!?,:;/\\|]+/;
 
-export const normaliseString = (str) => String(str ?? "").toLowerCase().replace(/[\s\-_.()[\]{}'"!?,:;/\\|]+/g, "");
+// Folds accents so "resume" finds Résumé.pdf. Most names are plain ASCII, so
+// they skip the decomposition.
+const foldAccents = (str) => (/[\u0080-￿]/.test(str) ? str.normalize("NFD").replace(/\p{M}/gu, "") : str);
+
+export const normaliseString = (str) => foldAccents(String(str ?? "").toLowerCase()).replace(/[\s\-_.()[\]{}'"!?,:;/\\|]+/g, "");
 
 /** Word pieces of a name, used for word-boundary and acronym matching. */
 export const tokenise = (str) =>
-    String(str ?? "").split(SEPARATORS).filter(Boolean).map(t => t.toLowerCase());
+    String(str ?? "").split(SEPARATORS).filter(Boolean).map(t => foldAccents(t.toLowerCase()));
 
 // ─── match tiers ─────────────────────────────────────────────────────────────
 // Ordered so a better kind of match always outranks a worse one, whatever the
@@ -117,12 +121,27 @@ function scoreItem(item, nq) {
     return 0;
 }
 
-const userHome = os.homedir();
-const SUGGESTED_FOLDERS = [
-    { name: "Downloads", type: "folder", path: path.join(userHome, "Downloads"), source: "PreDefined" },
-    { name: "Documents", type: "folder", path: path.join(userHome, "Documents"), source: "PreDefined" },
-    { name: "Desktop",   type: "folder", path: path.join(userHome, "Desktop"),   source: "PreDefined" },
-];
+// OneDrive backup (and a user moving them) relocates these folders, so the
+// main process supplies the real known-folder paths via setKnownFolders. The
+// home-folder guess is only a fallback, which also keeps this module
+// importable from plain node.
+const SUGGESTED_NAMES = { downloads: "Downloads", documents: "Documents", desktop: "Desktop" };
+let resolveKnownFolder = (key) => path.join(os.homedir(), SUGGESTED_NAMES[key]);
+let suggestedFolders = null;
+
+/** `resolve(key)` returns the path of "downloads", "documents" or "desktop"; it's called on first search. */
+export function setKnownFolders(resolve) {
+    resolveKnownFolder = resolve;
+    suggestedFolders = null;
+}
+
+function getSuggestedFolders() {
+    return (suggestedFolders ??= Object.entries(SUGGESTED_NAMES).map(([key, name]) => {
+        let folderPath;
+        try { folderPath = resolveKnownFolder(key); } catch { /* fall back below */ }
+        return { name, type: "folder", path: folderPath || path.join(os.homedir(), name), source: "PreDefined" };
+    }));
+}
 
 const settingsIndex = settings.map(s => index({ ...s }));
 
@@ -154,7 +173,7 @@ export function searchFilesAndFolders(query, cachedFolderData) {
     const nq = normaliseString(query);
     if (!nq) return [];
     const results = [];
-    for (const folder of SUGGESTED_FOLDERS) {
+    for (const folder of getSuggestedFolders()) {
         if (scoreItem(folder, nq) > 0) results.push(folder);
     }
     for (const list of Object.values(cachedFolderData ?? {})) {
@@ -179,6 +198,9 @@ const rank = (a, b) =>
     compareNames(String(a.item.name), String(b.item.name)) ||
     a.seq - b.seq;
 
+// Windows paths are case-insensitive.
+const samePath = (a, b) => !!a && a.length === b?.length && (a === b || a.toLowerCase() === b.toLowerCase());
+
 /**
  * Keeps only each bucket's best TYPE_CAP entries while scoring. Nothing below
  * that could ever be shown, so a one-letter query over a large folder index no
@@ -193,7 +215,7 @@ class TopPerBucket {
         this.maxBoost = usageBoost(signals.maxFrecency, signals.maxShare);
     }
 
-    offer(item, bucket, base) {
+    offer(item, bucket, base, dedupe = false) {
         const typeWeight = TYPE_WEIGHT[item.type] ?? 0.85;
         const top = (this.buckets[bucket] ??= []);
         const full = top.length === TYPE_CAP;
@@ -209,6 +231,10 @@ class TopPerBucket {
         const entry = { item, bucket, score: base * typeWeight * usageBoost(frecency, share), seq: this.seq++ };
 
         if (full && rank(entry, top[TYPE_CAP - 1]) >= 0) return;
+        // Overlapping indexed folders (or a suggested folder that is also
+        // indexed) list the same path twice. Copies score identically, so the
+        // first one is already here if either could be shown.
+        if (dedupe && top.some(e => samePath(e.item.path, item.path))) return;
         let at = top.length;
         while (at > 0 && rank(entry, top[at - 1]) < 0) at--;
         top.splice(at, 0, entry);
@@ -237,23 +263,47 @@ export function processSearchQuery(appCache, commandsCache, cachedFolderData, us
     const q = normaliseString(query).trim();
     if (!q) return { results: [] };
 
-    // A command may be followed by positional arguments, so it is matched on
-    // the first word only — otherwise typing arguments loses the command.
-    const rawTokens = String(query).trim().split(/\s+/);
-    const qCmd = rawTokens.length > 1 ? normaliseString(rawTokens[0]).trim() : q;
-
     const top = new TopPerBucket(usageSignals(usage, q, now));
     if (filters[0]) collect(top, appCache, q, "apps");
     if (filters[3]) collect(top, settingsIndex, q, "settings");
-    if (filters[4] && qCmd) collect(top, commandsCache, qCmd, "commands");
+    if (filters[4]) collectCommands(top, commandsCache, q, query);
 
     if (filters[1] || filters[2]) {
-        for (const list of [SUGGESTED_FOLDERS, ...Object.values(cachedFolderData ?? {})]) {
+        for (const list of [getSuggestedFolders(), ...Object.values(cachedFolderData ?? {})]) {
             collectFiles(top, list, q, filters);
         }
     }
 
     return { results: top.results() };
+}
+
+/** "kill port 3000" → ["killport", "kill"]: the query with trailing words dropped. */
+function leadingWordForms(query) {
+    const words = String(query).trim().split(/\s+/);
+    const forms = [];
+    for (let n = words.length - 1; n >= 1; n--) {
+        const form = normaliseString(words.slice(0, n).join(" "));
+        if (form) forms.push(form);
+    }
+    return forms;
+}
+
+/**
+ * Commands are scored on the whole query, so "restart windows explorer" can't
+ * land on "Restart" through its first word. Only a command that takes
+ * arguments may be followed by them, so those also match on the leading
+ * words — "kill 3000" still finds "Kill Port {port}".
+ */
+function collectCommands(top, commands, q, query) {
+    let heads = null;
+    for (const cmd of commands ?? []) {
+        let base = scoreItem(cmd, q);
+        if (cmd.args?.length) {
+            heads ??= leadingWordForms(query);
+            for (const head of heads) base = Math.max(base, scoreItem(cmd, head));
+        }
+        if (base > 0) top.offer(cmd, "commands", base);
+    }
 }
 
 // The hot loop: runs over the whole folder index on every keystroke.
@@ -263,6 +313,6 @@ function collectFiles(top, items, nq, filters) {
         const base = scoreItem(item, nq);
         if (base <= 0) continue;
         const isFolder = item.type === "folder";
-        if (filters[isFolder ? 2 : 1]) top.offer(item, isFolder ? "folders" : "files", base);
+        if (filters[isFolder ? 2 : 1]) top.offer(item, isFolder ? "folders" : "files", base, true);
     }
 }

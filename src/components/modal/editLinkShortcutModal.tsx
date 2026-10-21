@@ -57,6 +57,13 @@ export default function EditLinkShortcutModal({
             return false;
         }
 
+        // Links are keyed by URL — React keys, drag ids, and Remove all use it —
+        // so a second link to the same place would be one link twice.
+        if (linkShortcuts.some(link => link.shortcut === normalizedShortcut && link.shortcut !== editLink?.shortcut)) {
+            setError("Link already exists");
+            return false;
+        }
+
         const updatedShortcuts = linkShortcuts.map((link) =>
             link.shortcut === editLink?.shortcut
                 ? { ...link, name: editName.trim(), shortcut: normalizedShortcut }
@@ -72,13 +79,15 @@ export default function EditLinkShortcutModal({
         return true;
     };
 
+    // On every open, not only when a different link is picked: reopening the
+    // same one after Cancel would otherwise show the text you discarded.
     useEffect(() => {
-        if (editLink) {
+        if (open && editLink) {
             setEditName(editLink.name);
             setEditShortcut(editLink.shortcut);
             setError("");
         }
-    }, [editLink]);
+    }, [open, editLink]);
 
     const handleSave = async () => {
         const success = await onEdit();

@@ -1,4 +1,5 @@
 import { ipcMain, shell, dialog } from "electron";
+import path from "path";
 import {searchFilesAndFolders} from "../universal/search.js";
 import {cacheFolder, deleteFolder} from "../universal/folderCache.js";
 import {openFileWith, copyFileToClipboard} from "../platform.js";
@@ -59,18 +60,32 @@ export function registerFilesIpc({
         appStates.fixWindowOpen = true;
         appStates.dialogOpen = true;
         mainWindow.setAlwaysOnTop(false);
-        const result = await dialog.showOpenDialog({ properties: ["openDirectory"] });
-        mainWindow.setAlwaysOnTop(true);
-        mainWindow.focus();
-        appStates.dialogOpen = false;
-        appStates.fixWindowOpen = false;
-        return result.canceled ? null : result.filePaths[0];
+        try {
+            const result = await dialog.showOpenDialog({ properties: ["openDirectory"] });
+            return result.canceled ? null : result.filePaths[0];
+        } finally {
+            // Always undone: left set, the window could never hide again.
+            mainWindow.setAlwaysOnTop(true);
+            mainWindow.focus();
+            appStates.dialogOpen = false;
+            appStates.fixWindowOpen = false;
+        }
     });
 
     ipcMain.handle("cache-folder", async (_, folderPath) => {
-        const ok = await cacheFolder(folderPath, cache);
-        if (ok) folderWatcher.add(folderPath);
-        return ok;
+        // A folder inside (or around) an indexed one would list every file
+        // twice. The settings UI checks too; this is the backstop.
+        const norm = p => path.resolve(String(p)).toLowerCase().replace(/[\\/]+$/, "") + path.sep;
+        const target = norm(folderPath);
+        if (cache.cachedFolders.some(root => target.startsWith(norm(root)) || norm(root).startsWith(target))) return false;
+        try {
+            const ok = await cacheFolder(folderPath, cache);
+            if (ok) folderWatcher.add(folderPath);
+            return ok;
+        } catch (err) {
+            console.warn("Could not index folder:", folderPath, err?.message);
+            return false;
+        }
     });
 
     ipcMain.handle("delete-folder", (_, folderPath) => {

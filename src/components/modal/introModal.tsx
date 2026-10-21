@@ -42,7 +42,7 @@ export function IntroModal({ open, setOpen, onStartTour }: IntroModalProps) {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--shadow-3)] backdrop-blur-[8px]"
+                className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--shadow-3)] backdrop-blur-sm"
             >
                 <motion.div
                     initial={{ scale: 0.93, opacity: 0, y: 16 }}
@@ -57,10 +57,10 @@ export function IntroModal({ open, setOpen, onStartTour }: IntroModalProps) {
                         transition={{ delay: 0.08, duration: 0.4 }}
                         className="text-center"
                     >
-                        <h1 className="text-[42px] font-semibold text-ink leading-none mb-2.5 tracking-[-0.04em]">
+                        <h1 className="text-42 font-semibold text-ink leading-none mb-2.5 tracking-[-0.04em]">
                             Volt
                         </h1>
-                        <p className="text-[13px] text-tone-350 tracking-wide">
+                        <p className="text-13 text-tone-350 tracking-wide">
                             Your system, at your fingertips.
                         </p>
                     </motion.div>
@@ -82,13 +82,13 @@ export function IntroModal({ open, setOpen, onStartTour }: IntroModalProps) {
                     >
                         <button
                             onClick={() => close(true)}
-                            className="w-full py-2.5 rounded-xl text-[13px] font-medium text-surface transition-all duration-150 hover:opacity-90 active:scale-[0.98] bg-ink"
+                            className="w-full py-2.5 rounded-xl text-13 font-medium text-surface transition-all duration-150 hover:opacity-90 active:scale-[0.98] bg-ink"
                         >
                             Take the tour [Enter]
                         </button>
                         <button
                             onClick={() => close(false)}
-                            className="text-[11px] text-tone-200 hover:text-tone-450 transition-colors duration-150 py-1"
+                            className="text-11 text-tone-200 hover:text-tone-450 transition-colors duration-150 py-1"
                         >
                             Skip
                         </button>

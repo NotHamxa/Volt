@@ -281,6 +281,30 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 
+  /*
+   * Type scale. The step name is the size in px, the way the fill and line
+   * ladders name their alpha, so `text-11` is 11px. Font size only — no
+   * line-height, unlike Tailwind's `text-xs`/`text-sm`, which would change
+   * the leading of every line they were swapped onto. Spacing needs no
+   * tokens of its own: Tailwind's scale already reaches any whole pixel
+   * (`h-81.25` is 325px).
+   */
+  --text-9: 9px;
+  --text-9\.5: 9.5px;
+  --text-10: 10px;
+  --text-10\.5: 10.5px;
+  --text-11: 11px;
+  --text-11\.5: 11.5px;
+  --text-12: 12px;
+  --text-12\.5: 12.5px;
+  --text-13: 13px;
+  --text-13\.5: 13.5px;
+  --text-14: 14px;
+  --text-15: 15px;
+  --text-17: 17px;
+  --text-18: 18px;
+  --text-42: 42px;
+
   --color-ink: var(--ink);
   --color-surface: var(--surface);
   --color-surface-menu: var(--surface-menu);

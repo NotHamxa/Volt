@@ -21,7 +21,7 @@ function ScrollArea({
         // stretch it instead of truncating, and anything after them is pushed
         // out of sight. There is no horizontal scrollbar here, so that width is
         // unreachable. `!block` (needed to beat the inline style) restores it.
-        className="focus-visible:ring-ring/50 size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:outline-1 [&>div]:!block"
+        className="focus-visible:ring-ring/50 size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-3 focus-visible:outline-1 [&>div]:!block"
       >
         {children}
       </ScrollAreaPrimitive.Viewport>

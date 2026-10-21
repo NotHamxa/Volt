@@ -21,7 +21,7 @@ function ThemePicker() {
                         key={id}
                         onClick={() => setChoice(id)}
                         aria-pressed={active}
-                        className={`flex items-center gap-1.5 px-2.5 h-6 rounded-md text-[11px] font-medium transition-colors duration-150 cursor-pointer ${
+                        className={`flex items-center gap-1.5 px-2.5 h-6 rounded-md text-11 font-medium transition-colors duration-150 cursor-pointer ${
                             active
                                 ? "bg-fill-100 text-tone-850"
                                 : "text-tone-400 hover:text-tone-700 hover:bg-fill-040"

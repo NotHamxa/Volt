@@ -52,14 +52,14 @@ export default function TipsSection() {
 
     return (
         <div className="space-y-5">
-            <p className="text-[12px] text-tone-400 leading-relaxed">
+            <p className="text-12 text-tone-400 leading-relaxed">
                 Hidden tricks to get the most out of Volt.
             </p>
 
             <div className="flex items-center justify-between px-4 py-3 rounded-lg bg-fill-025 border border-line-050">
                 <div className="min-w-0">
-                    <p className="text-[12.5px] font-medium text-tone-800">Show tip on home view</p>
-                    <p className="text-[11px] text-tone-350 mt-0.5 leading-relaxed">A small "Did you know?" banner cycles through these tips on the home screen.</p>
+                    <p className="text-12.5 font-medium text-tone-800">Show tip on home view</p>
+                    <p className="text-11 text-tone-350 mt-0.5 leading-relaxed">A small "Did you know?" banner cycles through these tips on the home screen.</p>
                 </div>
                 <Toggle checked={tipsEnabled} onChange={toggleTips} />
             </div>
@@ -70,21 +70,21 @@ export default function TipsSection() {
                     value={q}
                     placeholder="Search tips, shortcuts, keys..."
                     onChange={(e) => setQ(e.target.value)}
-                    className="w-full h-9 pl-9 pr-3 text-[12px] rounded-md bg-fill-030 border border-line-060 text-tone-750 placeholder:text-tone-200 focus:outline-none focus:border-line-120 transition-colors"
+                    className="w-full h-9 pl-9 pr-3 text-12 rounded-md bg-fill-030 border border-line-060 text-tone-750 placeholder:text-tone-200 focus:outline-none focus:border-line-120 transition-colors"
                 />
             </div>
 
-            <ScrollArea className="max-h-[480px] pr-1">
+            <ScrollArea className="max-h-120 pr-1">
                 <div className="space-y-5">
                     {grouped.length === 0 && (
-                        <div className="text-center text-tone-300 text-[12px] py-10">
+                        <div className="text-center text-tone-300 text-12 py-10">
                             No tips match "{q}".
                         </div>
                     )}
                     {grouped.map(([category, list]) => (
                         <div key={category}>
                             <div className="px-1 mb-1.5">
-                                <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-tone-220">{category}</span>
+                                <span className="text-10 font-semibold uppercase tracking-[0.2em] text-tone-220">{category}</span>
                             </div>
                             <div className="space-y-1">
                                 {list.map(t => (
@@ -93,15 +93,15 @@ export default function TipsSection() {
                                         className="flex items-start justify-between gap-4 px-3.5 py-2.5 rounded-md bg-fill-020 border border-line-050 hover:border-line-090 transition-colors"
                                     >
                                         <div className="min-w-0 flex-1">
-                                            <p className="text-[12px] font-medium text-tone-850 mb-0.5">{t.title}</p>
-                                            <p className="text-[11px] text-tone-450 leading-relaxed">{t.body}</p>
+                                            <p className="text-12 font-medium text-tone-850 mb-0.5">{t.title}</p>
+                                            <p className="text-11 text-tone-450 leading-relaxed">{t.body}</p>
                                         </div>
                                         {t.keys && (
                                             <div className="flex items-center gap-1 shrink-0 pt-0.5">
                                                 {t.keys.map((k, i) => (
                                                     <span
                                                         key={i}
-                                                        className="inline-flex items-center px-1.5 py-0.5 text-[10px] rounded bg-fill-060 border border-line-090 text-tone-550 font-mono"
+                                                        className="inline-flex items-center px-1.5 py-0.5 text-10 rounded bg-fill-060 border border-line-090 text-tone-550 font-mono"
                                                     >
                                                         {k}
                                                     </span>

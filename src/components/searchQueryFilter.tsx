@@ -50,7 +50,7 @@ function SearchQueryFilter({filters,setFilters}:SearchQueryFilterT) {
                     <div className="flex items-center gap-1.5 px-2 py-1 hover:bg-fill-100 rounded-lg cursor-pointer transition-colors text-tone-500 hover:text-tone-700">
                         <SlidersHorizontal size={15}/>
                         {activeCount < totalCount && (
-                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-fill-100 text-tone-500">{activeCount}</span>
+                            <span className="text-10 font-medium px-1.5 py-0.5 rounded bg-fill-100 text-tone-500">{activeCount}</span>
                         )}
                     </div>
                 </DropdownMenuTrigger>

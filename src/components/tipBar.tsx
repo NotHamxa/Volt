@@ -63,18 +63,18 @@ export default function TipBar() {
             <div
                 className={`flex items-center gap-2 overflow-hidden whitespace-nowrap rounded-md bg-surface-menu/[0.92] backdrop-blur-sm transition-all duration-200 ease-out ${
                     open
-                        ? "max-w-[560px] opacity-100 px-2.5 py-1.5"
+                        ? "max-w-140 opacity-100 px-2.5 py-1.5"
                         : "max-w-0 opacity-0 px-0 py-1.5"
                 }`}
             >
-                <p className="text-[11px] text-tone-450 truncate min-w-0">{tip.title}</p>
+                <p className="text-11 text-tone-450 truncate min-w-0">{tip.title}</p>
 
                 {tip.keys && (
                     <div className="flex items-center gap-1 shrink-0">
                         {tip.keys.map((k, i) => (
                             <span
                                 key={i}
-                                className="inline-flex items-center px-1.5 py-[1px] text-[9px] rounded-md bg-fill-050 border border-line-080 text-tone-400 font-mono"
+                                className="inline-flex items-center px-1.5 py-px text-9 rounded-md bg-fill-050 border border-line-080 text-tone-400 font-mono"
                             >
                                 {k}
                             </span>

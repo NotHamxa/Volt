@@ -30,15 +30,15 @@ export default class ErrorBoundary extends Component<Props, State> {
             return (
                 <div className="flex flex-col items-center justify-center h-full gap-4 p-8">
                     <AlertTriangle size={32} className="text-tone-200" strokeWidth={1.5} />
-                    <p className="text-[13px] text-tone-400 text-center">Something went wrong.</p>
+                    <p className="text-13 text-tone-400 text-center">Something went wrong.</p>
                     {import.meta.env.DEV && this.state.error && (
-                        <pre className="max-h-40 w-full overflow-auto rounded-lg bg-[var(--code-bg)] border border-line-080 p-2 text-[10px] leading-relaxed text-red-300/70 whitespace-pre-wrap">
+                        <pre className="max-h-40 w-full overflow-auto rounded-lg bg-[var(--code-bg)] border border-line-080 p-2 text-10 leading-relaxed text-red-300/70 whitespace-pre-wrap">
                             {this.state.error.message}
                         </pre>
                     )}
                     <button
                         onClick={() => this.setState({ hasError: false, error: null })}
-                        className="flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] text-tone-500 hover:text-tone-700 bg-fill-060 border border-line-100 hover:bg-fill-080 transition-colors"
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg text-12 text-tone-500 hover:text-tone-700 bg-fill-060 border border-line-100 hover:bg-fill-080 transition-colors"
                     >
                         <RefreshCw size={13} />
                         Try again

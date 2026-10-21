@@ -2,13 +2,13 @@ import { ReactNode } from "react";
 
 export function SectionLead({ children }: { children: ReactNode }) {
     return (
-        <p className="text-[12px] text-tone-400 leading-relaxed">{children}</p>
+        <p className="text-12 text-tone-400 leading-relaxed">{children}</p>
     );
 }
 
 export function GroupLabel({ children, accent = "default" }: { children: ReactNode; accent?: "default" | "danger" }) {
     return (
-        <div className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${
+        <div className={`text-10 font-semibold uppercase tracking-[0.2em] ${
             accent === "danger" ? "text-red-400/55" : "text-tone-220"
         }`}>
             {children}
@@ -28,7 +28,7 @@ export function Toggle({ checked, onChange, ariaLabel }: { checked: boolean; onC
             }`}
         >
             <span
-                className={`pointer-events-none inline-block h-2.5 w-2.5 transform rounded-full shadow transition duration-200 ease-in-out mt-[1px] ${
+                className={`pointer-events-none inline-block h-2.5 w-2.5 transform rounded-full shadow transition duration-200 ease-in-out mt-px ${
                     checked ? "translate-x-2.5 bg-surface" : "translate-x-0.5 bg-ink/40"
                 }`}
             />

@@ -59,7 +59,7 @@ export default function KeysSection({ onRecordingChange }: { onRecordingChange?:
         } catch { /* treated as a refusal */ }
         if (!ok) {
             await readGlobalCombo();
-            return { message: "Windows wouldn't grant that combination — something else has it.", revert: true };
+            return { message: "Windows wouldn't grant that combination. Something else is using it.", revert: true };
         }
         setGlobalCombo(accelerator);
         return null;
@@ -99,7 +99,7 @@ export default function KeysSection({ onRecordingChange }: { onRecordingChange?:
         <div className="space-y-7">
             <SectionLead>
                 Every shortcut Volt responds to. The ones without a Change button are
-                structural — remapping Enter or Escape would leave no way to accept or
+                structural: remapping Enter or Escape would leave no way to accept or
                 back out of anything.
             </SectionLead>
 

@@ -7,7 +7,7 @@ import { execFile, execFileSync } from "child_process";
  * Finding and stopping the CLIs the subscription providers drive.
  *
  * Discovery: a fixed list of install folders missed the most common install of
- * all — `npm i -g` puts only .cmd/.ps1 shims in %APPDATA%\npm, never an .exe —
+ * all, `npm i -g` puts only .cmd/.ps1 shims in %APPDATA%\npm, never an .exe,
  * and nothing searched PATH. A .cmd can't be spawned without a shell, and with
  * one the prompt's quoting becomes a command-injection problem, so a shim is
  * read for the script it launches and that is run with node directly.
@@ -51,7 +51,7 @@ function findOnPath(name, exts) {
 /**
  * The script or executable an npm .cmd shim launches. Both shim generations
  * write it as a quoted path under the shim's own folder: `"%dp0%\…"` (current)
- * or `"%~dp0\…"` (older). The last such path on the line is the target — the
+ * or `"%~dp0\…"` (older). The last such path on the line is the target, the
  * first is the node.exe check.
  */
 function shimTarget(shim) {
@@ -70,7 +70,7 @@ function shimTarget(shim) {
     return isFile(target) ? target : null;
 }
 
-/** node to run a shimmed script with — the shim's own, then PATH's, then ours. */
+/** node to run a shimmed script with, the shim's own, then PATH's, then ours. */
 function nodeFor(shim) {
     const beside = path.join(path.dirname(shim), "node.exe");
     if (isFile(beside)) return { command: beside, env: {} };
@@ -100,7 +100,7 @@ const cache = new Map();
  * null. `candidates` are known install locations, checked before PATH.
  *
  * Only a hit is cached, and re-checked on use. Caching the miss meant a CLI
- * installed while Volt was running was never seen — "Re-check" asked again
+ * installed while Volt was running was never seen, "Re-check" asked again
  * and got the remembered answer.
  */
 export function resolveCli(name, candidates = []) {
@@ -158,7 +158,7 @@ export function killTree(child) {
     });
 }
 
-/** Synchronous, for app quit — an async kill would never get to run. */
+/** Synchronous, for app quit, an async kill would never get to run. */
 export function killAllTrees() {
     for (const child of live) {
         if (!running(child)) continue;

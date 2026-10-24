@@ -18,7 +18,7 @@ export default class ErrorBoundary extends Component<Props, State> {
     }
 
     // Swallowing the error entirely left "Something went wrong" as the only
-    // clue. Log it, and in development show it — the renderer console isn't
+    // clue. Log it, and in development show it, the renderer console isn't
     // visible unless DevTools happens to be open.
     componentDidCatch(error: Error, info: { componentStack?: string | null }) {
         console.error("Render error:", error, info.componentStack);

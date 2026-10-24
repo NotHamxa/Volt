@@ -8,7 +8,7 @@ export function openFileWith(filePath) {
     const normalizedPath = filePath.replaceAll('/', '\\');
     // rundll32 directly, with the path as its own argument. Going through
     // PowerShell put the path inside a double-quoted string, where $(...) and
-    // $vars expand — a file named "$(Start-Process calc).txt" ran calc.
+    // $vars expand, a file named "$(Start-Process calc).txt" ran calc.
     const childProcess = spawn("rundll32.exe", ["shell32.dll,OpenAs_RunDLL", normalizedPath], { stdio: 'ignore' });
     childProcess.on('error', (error) => {
         console.error('Failed to start process:', error);

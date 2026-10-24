@@ -5,7 +5,7 @@
  * one vendor happened to send: lines may end in \n, \r\n or a bare \r; an event
  * ends at a blank line; several `data:` lines in one event join with "\n"; and
  * a stream that closes without a trailing blank line still delivers its last
- * event. Splitting on "\n\n" alone got all three wrong — a CRLF stream yielded
+ * event. Splitting on "\n\n" alone got all three wrong, a CRLF stream yielded
  * nothing at all.
  *
  * Payloads are yielded as-is; sentinels like OpenAI's "[DONE]" are the
@@ -65,7 +65,7 @@ export async function* sseEvents(response) {
         }
     } finally {
         // Also reached when the caller stops early ([DONE], an in-band error,
-        // an abort) — the connection is released either way.
+        // an abort), the connection is released either way.
         if (!finished) reader.cancel().catch(() => {});
         try { reader.releaseLock(); } catch { /* already released */ }
     }

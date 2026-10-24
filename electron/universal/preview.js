@@ -30,7 +30,7 @@ async function thumbnail(fullPath) {
 
 /**
  * Text from the start of a file, or null if it looks binary. UTF-16 is common
- * on Windows — PowerShell's `>` writes it — and is full of zero bytes, so its
+ * on Windows, PowerShell's `>` writes it, and is full of zero bytes, so its
  * byte-order mark is checked before the binary test.
  */
 function decodeText(chunk) {

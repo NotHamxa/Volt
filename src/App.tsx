@@ -49,7 +49,7 @@ function leaveSettingsThen(path: string, go: () => void, quiet = false) {
 
 export default function App() {
     // null until the main process has answered. Starting at false rendered the
-    // whole app for a frame, then swapped it for the loader — a false start that
+    // whole app for a frame, then swapped it for the loader, a false start that
     // also mounted and tore down every page underneath.
     const [cacheLoadingStatus, setCacheLoadingStatus] = useState<boolean | null>(null);
     const [cacheProgress, setCacheProgress] = useState<{current:number; total:number}>({current:0, total:0});
@@ -91,7 +91,7 @@ export default function App() {
         setArgCommand(null);
         setArgInitialValues(undefined);
         // Clear the trailing query and route home so the remounted result
-        // list has nothing under focus — prevents a stray Enter from
+        // list has nothing under focus, prevents a stray Enter from
         // re-firing the Google fallback that the arg-bearing command name
         // would otherwise fall back to.
         setQuery("");
@@ -130,7 +130,7 @@ export default function App() {
         // Read from the URL, not the router's state. The router applies
         // navigations inside a transition, so "navigate to /ai, then clear the
         // query" (Ask AI, the open-ai shortcut) renders the cleared query while
-        // the router still reports the old page — and this would then send it
+        // the router still reports the old page, and this would then send it
         // home, cancelling the jump. The hash itself is updated immediately.
         const path = new URL(window.location.hash.slice(1) || '/', 'volt://app').pathname;
         if (path === '/settings' || path === '/ai') return;
@@ -196,7 +196,7 @@ export default function App() {
                 return;
             }
 
-            // Nothing below fires from under an overlay — the intro, update
+            // Nothing below fires from under an overlay, the intro, update
             // and walkthrough cards, or any open dialog or menu.
             if (overlayOpenRef.current || document.querySelector('[role="dialog"], [role="alertdialog"], [role="menu"]')) return;
 
@@ -209,7 +209,7 @@ export default function App() {
             const usableHere = (combo: string) => !typingElsewhere || hasCommandModifier(combo);
 
             // Switches into the AI view, carrying whatever has been typed. Only
-            // from the search box — its default is plain Tab — or, on the AI
+            // from the search box, its default is plain Tab, or, on the AI
             // view, from its composer to switch back.
             const openAi = getBinding("open-ai");
             if (matchesCombo(e, openAi) && !argCommandRef.current) {
@@ -432,7 +432,7 @@ export default function App() {
                 <button
                     aria-label="GitHub"
                     // The mark carries its own colour now, so a text-colour
-                    // hover has nothing to act on — fade it instead.
+                    // hover has nothing to act on, fade it instead.
                     className="opacity-40 hover:opacity-100 transition-opacity duration-150 cursor-pointer"
                     onClick={async () => {
                         window.electron.openExternal("https://github.com/NotHamxa");

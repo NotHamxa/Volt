@@ -8,7 +8,7 @@ import { getPrefs } from "./prefs.js";
  *
  * Without this they inherit process.cwd(): the repo during development, and
  * whatever directory the executable happened to be launched from once packaged
- * — neither of which the user chose. Claude reads freely inside this folder
+ *, neither of which the user chose. Claude reads freely inside this folder
  * (and can be set to run tools unasked), and Codex can be switched to
  * workspace-write, so an unintended root is a real hazard, not just untidy.
  *

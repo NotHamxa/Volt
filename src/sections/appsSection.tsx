@@ -13,7 +13,7 @@ function AppLogo({ app }: { app: SearchQueryT }) {
     const [logo, setLogo] = useState<string | null>(null);
     useEffect(() => {
         let cancelled = false;
-        // Batched with every other row mounting this tick — one IPC call.
+        // Batched with every other row mounting this tick, one IPC call.
         appLogo(app).then(l => { if (!cancelled) setLogo(l); });
         return () => { cancelled = true; };
     }, [app]);
@@ -44,7 +44,7 @@ export default function AppsSection({ onRecordingChange }: { onRecordingChange?:
 
     const hotkeys = useMemo(() => new Map(list.filter(h => h.kind === "app").map(h => [h.id, h])), [list]);
 
-    // Assigned apps first, including ones since uninstalled — their hotkey
+    // Assigned apps first, including ones since uninstalled, their hotkey
     // still holds the combination until it's cleared.
     const { assigned, rest } = useMemo(() => {
         const needle = q.trim().toLowerCase();
@@ -93,7 +93,7 @@ export default function AppsSection({ onRecordingChange }: { onRecordingChange?:
     return (
         <div className="space-y-6">
             <SectionLead>
-                Give an app a hotkey and it opens from anywhere in Windows — Volt
+                Give an app a hotkey and it opens from anywhere in Windows, and Volt
                 doesn't need to be showing. Use a combination other programs
                 don't, like Ctrl + Alt + a letter.
             </SectionLead>
@@ -124,7 +124,7 @@ export default function AppsSection({ onRecordingChange }: { onRecordingChange?:
                         {rest.length > 0
                             ? rest.map(row)
                             : <p className="text-11.5 text-tone-300">
-                                {q.trim() ? `No apps match “${q.trim()}”.` : "No apps found yet — they appear once Volt finishes loading them."}
+                                {q.trim() ? `No apps match “${q.trim()}”.` : "No apps found yet. They appear once Volt finishes loading them."}
                               </p>}
                     </div>
                 </>

@@ -143,7 +143,7 @@ export default function ArgEntryBar({ command, initialValues, onRun, onCancel }:
                                 onKeyDown={e => handleKey(e, i)}
                                 onFocus={() => { lastFocusedRef.current = i; }}
                                 readOnly={confirming}
-                                placeholder={arg.defaultValue || "—"}
+                                placeholder={arg.defaultValue || "…"}
                                 className={`bg-transparent border-b outline-none text-13 text-tone-850 placeholder:text-tone-200 transition-colors min-w-20 max-w-45 py-1 ${
                                     isMissing ? "border-red-500/40 focus:border-red-500/70" : "border-line-100 focus:border-ink/[0.4]"
                                 }`}

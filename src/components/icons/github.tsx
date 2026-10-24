@@ -1,7 +1,7 @@
 import type { SVGProps } from "react";
 
 /**
- * GitHub's mark, from svgl, in its own colours — which for this brand means
+ * GitHub's mark, from svgl, in its own colours, which for this brand means
  * two: `#1b1f23` on a light background, white on a dark one. `--gh-mark`
  * picks the right one per theme.
  *

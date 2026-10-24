@@ -67,7 +67,7 @@ export function resetBinding(id: string) {
 /**
  * Which other binding a combo would collide with, if any. Two commands on one
  * combo means whichever handler runs first wins, silently. Structural rows are
- * expanded first — "Up / Down" has to clash with Up.
+ * expanded first, "Up / Down" has to clash with Up.
  */
 export function conflictWith(id: string, combo: string): string | null {
     if (!combo) return null;
@@ -83,7 +83,7 @@ export function conflictWith(id: string, combo: string): string | null {
  * would fire every time it's typed into a field.
  */
 export function comboProblem(combo: string): string | null {
-    if (isTypingCombo(combo)) return "Add Ctrl, Alt or Win — on its own that key is needed for typing.";
+    if (isTypingCombo(combo)) return "Add Ctrl, Alt or Win. On its own, that key is needed for typing.";
     return null;
 }
 

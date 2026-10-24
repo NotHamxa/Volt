@@ -8,12 +8,12 @@ const store = () => (_store ??= new Store());
 
 const ITEMS_KEY = "searchUsage";     // { [itemKey]: { score, t } }
 const CHOICES_KEY = "queryChoices";  // { [queryPrefix]: { [itemKey]: { score, t } } }
-const V1_KEY = "appUsage";           // { "name|id": { count, last } } — apps only
+const V1_KEY = "appUsage";           // { "name|id": { count, last } }, apps only
 const LEGACY_KEY = "appLaunchStack"; // most-recent-first name list
 
 const DAY_MS = 86_400_000;
 const HALF_LIFE_DAYS = 30;
-const MAX_PREFIX = 10;      // "c" … "chromebeta" — longer queries learn under their first 10 chars
+const MAX_PREFIX = 10;      // "c" … "chromebeta", longer queries learn under their first 10 chars
 const MAX_PER_PREFIX = 8;   // choices remembered per prefix
 const FORGET_BELOW = 0.05;  // a single use, ~4 months untouched
 
@@ -141,8 +141,8 @@ export function recordChoice(normalisedQuery, item, now = Date.now()) {
 
 /**
  * Per-query usage signals, resolved once per search:
- *   frecency — decayed use count of the item (any query)
- *   share    — fraction of past picks for this query that were this item,
+ *   frecency, decayed use count of the item (any query)
+ *   share   , fraction of past picks for this query that were this item,
  *              smoothed so a single pick doesn't claim full confidence
  */
 export function usageSignals(usage, normalisedQuery, now = Date.now()) {
@@ -172,7 +172,7 @@ export function lastUsed(item, now = Date.now()) {
 }
 
 /**
- * Forgets every use and pick ("Clear History"). The in-memory copy goes too —
+ * Forgets every use and pick ("Clear History"). The in-memory copy goes too,
  * it's what search reads, so clearing only the store would change nothing
  * until a restart. The older formats are dropped so migrate() can't bring
  * them back.

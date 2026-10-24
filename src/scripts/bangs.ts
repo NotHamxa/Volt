@@ -7,7 +7,7 @@ const HISTORY_LIMIT = 20;
 const DEFAULT_BANG_TOKEN = "g";
 
 export type ResolvedSearch = {
-    /** The bang that will be used — falls back to the default when none was typed. */
+    /** The bang that will be used, falls back to the default when none was typed. */
     bang: BangData;
     /** What the user is actually searching for, with the bang token removed. */
     searchTerm: string;
@@ -17,7 +17,7 @@ export type ResolvedSearch = {
     hasExplicitBang: boolean;
     /**
      * True when the query is itself a navigable address (`hamzahmed.com`,
-     * `localhost:3000`) — the url then points straight at it rather than at a
+     * `localhost:3000`), the url then points straight at it rather than at a
      * search for it.
      */
     isDirectUrl: boolean;
@@ -27,7 +27,7 @@ export type ResolvedSearch = {
 
 /**
  * Treats a bare query as an address when it plausibly is one. Requires either
- * an explicit protocol, a dot (domain or IP), or localhost — so ordinary
+ * an explicit protocol, a dot (domain or IP), or localhost, so ordinary
  * searches are not hijacked.
  */
 export function asDirectUrl(raw: string): string | null {
@@ -64,7 +64,7 @@ function buildUrl(bang: BangData, searchTerm: string) {
 
 /**
  * Pure: works out which bang (if any) a query is using and what it would open.
- * No history writes, no navigation — so callers can preview a result without
+ * No history writes, no navigation, so callers can preview a result without
  * committing to it.
  *
  * A bang is only recognised as the final token. When the query has no bang the
@@ -84,7 +84,7 @@ export function resolveBang(query: string): ResolvedSearch | null {
     if (!bang) return null;
 
     // Strip the token only when it actually resolved to something, or when the
-    // user typed a bang-looking token at all — an unknown `!foo` still isn't
+    // user typed a bang-looking token at all, an unknown `!foo` still isn't
     // part of what they meant to search for.
     const searchTerm = token !== null ? words.slice(0, -1).join(" ") : trimmed;
 

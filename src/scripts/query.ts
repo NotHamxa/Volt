@@ -29,7 +29,7 @@ function send(key: string, query: string, filters: boolean[]): Promise<Processed
 /**
  * Results for `query`, or null if the search failed or a newer one replaced
  * it before it was sent. Asking for a search that's already in flight or
- * waiting shares it rather than replacing it — Enter on a stale list asks
+ * waiting shares it rather than replacing it, Enter on a stale list asks
  * for exactly what the debounce is about to.
  */
 export function getQueryData(query: string, filters: boolean[]): Promise<ProcessedQueryResult | null> {

@@ -200,7 +200,7 @@ export default function MainLayout({ inputRef, query, setQuery, argCommand, argI
                         // shadow-none: the Input primitive ships a shadow-sm, which
                         // drew a faint rounded outline around the search field.
                         // It was nearly invisible on the dark panel and obvious on
-                        // the light one — and this is chrome, not a form field.
+                        // the light one, and this is chrome, not a form field.
                         className="w-full my-2.5 block border-0 shadow-none bg-transparent relative"
                         autoFocus
                     />
@@ -210,7 +210,7 @@ export default function MainLayout({ inputRef, query, setQuery, argCommand, argI
                     )}
                 </div>
             )}
-            {/* Only the search chrome above is hidden on the AI route — the
+            {/* Only the search chrome above is hidden on the AI route, the
                 Outlet must still render, since /ai is a child route. */}
             {argCommand && !isAiRoute ? (
                 <div className="flex-1 min-h-0 flex items-center justify-center px-8">

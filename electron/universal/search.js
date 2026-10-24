@@ -61,7 +61,7 @@ function index(item) {
         item._tokens = tokenise(item.name);
         item._acronym = item._tokens.map(t => t[0]).join("");
         // Filled lazily for the few items that reach ranking, but declared
-        // here so every item keeps one object shape — adding it later to only
+        // here so every item keeps one object shape, adding it later to only
         // some of them slows property access across the whole index.
         item._usageKey = null;
     }
@@ -151,7 +151,7 @@ const settingsIndex = settings.map(s => index({ ...s }));
 
 export function searchApps(appCache, query) {
     if (!appCache?.length) return [];
-    // An empty query means "give me everything" — the renderer uses this to
+    // An empty query means "give me everything", the renderer uses this to
     // build its full app list and logo map.
     if (!query) return appCache;
     const nq = normaliseString(query);
@@ -227,7 +227,7 @@ class TopPerBucket {
 
         const { frecency, share } = this.signals(item, (item._usageKey ??= usageKey(item)));
         // Both bonuses saturate against an absolute scale rather than the
-        // strongest candidate — otherwise the most-used item collects the full
+        // strongest candidate, otherwise the most-used item collects the full
         // boost even when its own score has decayed away to nothing. The share
         // is what the user picked for this very query, so it counts for more.
         const entry = { item, bucket, score: base * typeWeight * usageBoost(frecency, share), seq: this.seq++ };
@@ -243,7 +243,7 @@ class TopPerBucket {
         if (top.length > TYPE_CAP) top.pop();
     }
 
-    // One list in score order — the strongest match first, whatever its type.
+    // One list in score order, the strongest match first, whatever its type.
     results() {
         return Object.values(this.buckets).flat().sort(rank).slice(0, GLOBAL_LIMIT).map(e => clean(e.item));
     }
@@ -281,7 +281,7 @@ export function processSearchQuery(appCache, commandsCache, cachedFolderData, us
     return { results: top.results() };
 }
 
-/** A link's address without the scheme and "www." — what people type for it. */
+/** A link's address without the scheme and "www.", what people type for it. */
 function linkHost(url) {
     try {
         return new URL(url).hostname.replace(/^www\./, "");
@@ -292,7 +292,7 @@ function linkHost(url) {
 
 /**
  * Pinned links, matched on their name or their address, whichever fits
- * better — "gh" finds a link named GitHub, and so does "github.com".
+ * better, "gh" finds a link named GitHub, and so does "github.com".
  */
 function collectLinks(top, links, q) {
     for (const link of links ?? []) {
@@ -319,7 +319,7 @@ function leadingWordForms(query) {
  * Commands are scored on the whole query, so "restart windows explorer" can't
  * land on "Restart" through its first word. Only a command that takes
  * arguments may be followed by them, so those also match on the leading
- * words — "kill 3000" still finds "Kill Port {port}".
+ * words, "kill 3000" still finds "Kill Port {port}".
  */
 function collectCommands(top, commands, q, query) {
     let heads = null;

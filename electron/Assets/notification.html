@@ -7,7 +7,7 @@
         /* This window is its own renderer and never loads the app's CSS, so it
            carries a small copy of the theme. The dark values are the ones the
            toast always used; `.light` is the counterpart. The resolved theme
-           arrives on the notify payload — see universal/notification.js. */
+           arrives on the notify payload, see universal/notification.js. */
         :root {
             --toast-bg: rgba(28, 28, 30, 0.78);
             --toast-border: rgba(255, 255, 255, 0.09);
@@ -99,7 +99,7 @@
                     transform 0.35s ease-in;
         }
 
-        /* Reset pulse — brief brightness flash when timer resets */
+        /* Reset pulse, brief brightness flash when timer resets */
         .toast.reset-pulse {
             animation: pulse 0.3s ease-out;
         }
@@ -274,7 +274,7 @@
         setContent({ title, message, icon })
 
         if (isReset) {
-            // Already visible — flash and restart progress
+            // Already visible, flash and restart progress
             triggerResetPulse()
             startProgress(duration)
         } else {

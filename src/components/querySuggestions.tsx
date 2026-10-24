@@ -352,7 +352,7 @@ const QueryComponent = memo(({
                 <span className="shrink-0 flex items-center">{icon}</span>
                 {/* leading-normal overrides Label's leading-none: a line box the
                     exact height of the font, plus truncate's overflow-hidden,
-                    clipped every descender — the y in "PyCharm" lost its tail.
+                    clipped every descender, the y in "PyCharm" lost its tail.
                     The 24px icon still sets the row height, so this costs
                     nothing in layout. */}
                 <Label className="block truncate min-w-0 leading-normal">{name}</Label>
@@ -372,7 +372,7 @@ const QueryComponent = memo(({
                             {buttonContent}
                         </TooltipTrigger>
                         {/* Now that names are cut off, the tooltip carries the
-                            whole one — it used to show the path for files only,
+                            whole one, it used to show the path for files only,
                             which left a long app name unreadable anywhere. */}
                         <TooltipContent side="top" className="max-w-135">
                             <span className="block break-all">{name}</span>
@@ -644,7 +644,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
     // us where they're going, so it takes the top slot ahead of any local guess.
     const promoteWeb = Boolean(webEntry && (webEntry.resolved.hasExplicitBang || webEntry.resolved.isDirectUrl));
 
-    // Autocomplete only when the user has signalled web intent with a bang —
+    // Autocomplete only when the user has signalled web intent with a bang,
     // otherwise every app search would pull in remote suggestions.
     useEffect(() => {
         let cancelled = false;
@@ -690,7 +690,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
      * Google's guesses at it.
      *
      * Ask AI used to sit last, below every suggestion, which stranded it a
-     * long way from the row it belongs beside — with eight suggestions it was
+     * long way from the row it belongs beside, with eight suggestions it was
      * pushed to the bottom edge of the panel. It is a sibling of the web row,
      * not a footnote to the autocomplete, so it now sits directly under it.
      */
@@ -946,7 +946,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
             window.electron.executeCmd(cmdCommand);
             clearQuery();
         } else if (e.key === "Enter" && query.trim() && resolvedFor !== query.trim()) {
-            // The list on screen belongs to an older query — or to none yet,
+            // The list on screen belongs to an older query, or to none yet,
             // right after the window opens and the user types fast. Running
             // its highlighted row would open the wrong thing and teach ranking
             // that it was meant, so act on the top result for what's typed.
@@ -1062,7 +1062,7 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
      *
      * It used to also require `results.length === 0`, as a stand-in for "we
      * haven't resolved anything yet". That holds right up until a query
-     * genuinely has no local matches — and from then on *every* keystroke
+     * genuinely has no local matches, and from then on *every* keystroke
      * satisfied it, blanking the panel for the length of a round-trip and
      * flashing the web and AI rows back in. `resolvedFor` already records
      * whether anything has resolved, so ask it directly.
@@ -1209,8 +1209,8 @@ export default function QuerySuggestions({ query, searchFilters, clearQuery, log
                             );
                         })}
 
-                        {/* The block is one unit now — web row, AI row, then
-                            the autocomplete — so it starts right after the
+                        {/* The block is one unit now, web row, AI row, then
+                            the autocomplete, so it starts right after the
                             local results rather than being split around them. */}
                         {!promoteWeb && renderWebBlock(results.length)}
                     </>

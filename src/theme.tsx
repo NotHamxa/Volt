@@ -4,7 +4,7 @@ export type ThemeChoice = "system" | "light" | "dark";
 export type ResolvedTheme = "light" | "dark";
 
 /**
- * `electron-store` holds the preference — it is where every other setting
+ * `electron-store` holds the preference, it is where every other setting
  * lives, and the main process needs to read it to style the notification
  * toast, which is its own window.
  *
@@ -57,8 +57,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const [choice, setChoiceState] = useState<ThemeChoice>(mirroredChoice);
     const [resolved, setResolved] = useState<ResolvedTheme>(() => resolve(mirroredChoice()));
 
-    // The store is authoritative. The mirror can be stale — a factory reset
-    // clears the store but not localStorage — so reconcile once on mount and
+    // The store is authoritative. The mirror can be stale, a factory reset
+    // clears the store but not localStorage, so reconcile once on mount and
     // heal the mirror from whatever the store says.
     useEffect(() => {
         let cancelled = false;
@@ -81,7 +81,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         setResolved(next);
     }, [choice]);
 
-    // Only while following the OS — otherwise an explicit choice would be
+    // Only while following the OS, otherwise an explicit choice would be
     // overridden the next time the system flipped.
     useEffect(() => {
         if (choice !== "system") return;

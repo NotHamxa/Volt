@@ -37,7 +37,7 @@ function App({app,pinnedApps,pinApp,unPinApp}:IApp) {
     useEscapeBarrier(menuOpen);
     useEffect(() => {
         let cancelled = false;
-        // Batched with every other tile mounting this tick — one IPC call.
+        // Batched with every other tile mounting this tick, one IPC call.
         appLogo(app).then(logo => {
             if (logo && !cancelled) setLogo(logo);
         });

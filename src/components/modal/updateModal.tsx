@@ -42,7 +42,7 @@ export function UpdateModal({ open, onClose, changelog, version, onStartTour }: 
                 else if (offerTour) onStartTour?.();
                 else onClose();
             } else if (e.key === "Tab" && !offerTour) {
-                // One button — nowhere else for focus to go.
+                // One button, nowhere else for focus to go.
                 e.preventDefault();
             }
         };

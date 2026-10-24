@@ -13,14 +13,14 @@ export const tips: Tip[] = [
         id: "shift-enter-context",
         category: "Shortcut",
         title: "Open the context menu on a result",
-        body: "Highlight any result and press Shift+Enter to open its right-click menu — pin apps, copy paths, open as admin, and more.",
+        body: "Highlight any result and press Shift+Enter to open its right-click menu to pin apps, copy paths, open as admin, and more.",
         keys: ["Shift", "Enter"],
     },
     {
         id: "web-fallback-row",
         category: "Web",
         title: "The web is always one Enter away",
-        body: "Every search keeps a web result at the bottom of the list — no mode switching. Add a bang like !yt or !gh and it jumps to the top, pointed at that site.",
+        body: "Every search keeps a web result at the bottom of the list, with no mode switching. Add a bang like !yt or !gh and it jumps to the top, pointed at that site.",
         keys: ["!"],
     },
     {
@@ -41,14 +41,14 @@ export const tips: Tip[] = [
         id: "bangs",
         category: "Web",
         title: "Use bangs to jump to a site",
-        body: "Type !yt cats or !g recipes to search YouTube or Google directly. Over 10,000 bangs are supported — browse them in Settings → Quick Bangs.",
+        body: "Type !yt cats or !g recipes to search YouTube or Google directly. Over 10,000 bangs are supported. Browse them in Settings → Quick Bangs.",
         keys: ["!", "yt"],
     },
     {
         id: "cmd-bang",
         category: "Commands",
         title: "Run shell commands with !cmd",
-        body: "Type a command followed by !cmd and press Enter to run it in your shell — e.g. ipconfig !cmd.",
+        body: "Type a command followed by !cmd and press Enter to run it in your shell, e.g. ipconfig !cmd.",
         keys: ["!", "cmd"],
     },
     {
@@ -97,7 +97,7 @@ export const tips: Tip[] = [
         id: "settings-search",
         category: "Search",
         title: "Find Windows settings fast",
-        body: "Just type a setting name — like 'bluetooth' or 'display' — and Volt jumps you straight into Windows Settings.",
+        body: "Just type a setting name, like 'bluetooth' or 'display', and Volt jumps you straight into Windows Settings.",
     },
     {
         id: "alphabet-jump",

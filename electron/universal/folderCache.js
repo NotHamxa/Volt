@@ -104,7 +104,7 @@ async function readDirRecursive(currentPath, out) {
 }
 
 // Index entries for a path that just appeared under a watched folder. A folder
-// is walked in full — a folder moved or extracted in only reports itself, not
+// is walked in full, a folder moved or extracted in only reports itself, not
 // its contents.
 export async function indexPath(fullPath) {
     let stat;

@@ -6,7 +6,7 @@ import { app } from "electron";
  * A raw record of each turn: every event the CLI sent, and its stderr, one
  * JSON object per line, under userData/ai-traces.
  *
- * The trace in the chat is a summary — readable, and lossy on purpose. When a
+ * The trace in the chat is a summary, readable, and lossy on purpose. When a
  * CLI misbehaves the reason is usually in what the summary left out (Codex's
  * sandbox refusals only ever appeared on stderr), and this is where to look.
  *

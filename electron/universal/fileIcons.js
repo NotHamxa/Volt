@@ -17,7 +17,7 @@ const small = new Map();
 const large = new Map();
 
 // Any plain folder's icon stands in for every folder. Taken from the temp
-// folder rather than whichever folder is asked for first — that could be
+// folder rather than whichever folder is asked for first, that could be
 // Downloads or Desktop, whose own icon would then show on every folder.
 const GENERIC_FOLDER = os.tmpdir();
 
@@ -38,7 +38,7 @@ function extract(fullPath, size) {
 }
 
 /**
- * The icon Windows shows for this file or folder, as a PNG data URL — the
+ * The icon Windows shows for this file or folder, as a PNG data URL, the
  * associated app's artwork, so a .docx gets Word's icon and a .pdf whatever
  * reads PDFs here. Null if the shell has nothing for it. `ownIcon` skips the
  * shared per-type icon, for folders like Downloads that have their own.

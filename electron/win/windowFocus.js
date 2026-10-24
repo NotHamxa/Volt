@@ -55,8 +55,8 @@ Write-Output "READY"
 `);
 }
 
-// Volt's own hwnd, so a capture that lands a beat too late — after the window
-// has already taken the foreground — doesn't record Volt as the app to go back
+// Volt's own hwnd, so a capture that lands a beat too late, after the window
+// has already taken the foreground, doesn't record Volt as the app to go back
 // to. The query runs in the PowerShell helper, so it's inherently racy against
 // our own show().
 export function setOwnWindowHandle(hwnd) {

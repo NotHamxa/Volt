@@ -4,7 +4,7 @@ export interface ChangelogEntry {
     highlights: string[];
     /**
      * Offer the tour from the update window. For releases that change enough
-     * that someone upgrading — who never sees the first-run intro — would
+     * that someone upgrading, who never sees the first-run intro, would
      * want walking through it.
      */
     tour?: boolean;
@@ -29,8 +29,8 @@ const changelog: ChangelogEntry[] = [
                 title: "A Fresh New Look",
                 items: [
                     "A redesigned home screen: your pinned apps fill the space above a links dock that never moves, with no limit on how many of either",
-                    "Group apps by dragging one onto another — a group shows its first four icons and opens into its own grid",
-                    "A light theme alongside the dark one — pick System, Light or Dark in Settings → General",
+                    "Group apps by dragging one onto another. A group shows its first four icons and opens into its own grid",
+                    "A light theme alongside the dark one: pick System, Light or Dark in Settings → General",
                     "Settings is laid out down the left side, with a search box (Ctrl + F) to find any setting",
                     "Real Windows icons for files and folders, and sharper icons for every app",
                     "Cleaner, more consistent text and spacing throughout",
@@ -39,10 +39,10 @@ const changelog: ChangelogEntry[] = [
             {
                 title: "New Features",
                 items: [
-                    "The AI chat shows each step Claude or Codex takes, where it happened in the answer — what it ran, read or edited, whether it worked, and its output a click away — along with its thinking and to-do list",
+                    "The AI chat shows each step Claude or Codex takes, where it happened in the answer (what it ran, read or edited, whether it worked, and its output a click away), along with its thinking and to-do list",
                     "Choose how much the AI may do: Ask first, Auto-edit, Auto or Full access (and Plan for Claude). Claude and Codex both ask before running commands or changing files, and the mode you pick becomes your default",
                     "Each AI answer shows the model, time and tokens used, and how much of your Claude plan's window is spent",
-                    "Give any app or link a global hotkey in Settings → Apps and Settings → Links — it opens from anywhere in Windows",
+                    "Give any app or link a global hotkey in Settings → Apps and Settings → Links. It opens from anywhere in Windows",
                     "Links open with Ctrl + 1–9, and your pinned links now show up in search",
                     "Preview pane (Alt + P): thumbnails, PDF first pages, file details and quick actions beside your results",
                     "A Shortcuts section to rebind Volt's keys",
@@ -61,7 +61,7 @@ const changelog: ChangelogEntry[] = [
                     "Commands run more reliably, and the built-in commands work properly on Windows 11",
                     "A failed update check says so, with a Try Again button, and the version number in Settings is now the update button",
                     "Claude and Codex are found wherever they're installed, and the AI integrations run on the latest Claude Agent SDK and Codex app server",
-                    "The AI chat can stay open while you click away — the pin in its corner shows it and turns it off",
+                    "The AI chat can stay open while you click away. The pin in its corner shows it and turns it off",
                 ],
             },
             {
@@ -107,9 +107,9 @@ const changelog: ChangelogEntry[] = [
             {
                 title: "New Features",
                 items: [
-                    "Custom commands support arguments — define named args with optional defaults and a required flag, reference them in the script with `{argName}`, and Volt prompts for values inline when you run the command",
-                    "Pass values inline by typing `commandName value1 \"value with spaces\"` in the search bar — only missing required args trigger the prompt",
-                    "Two new command types: Open in terminal and Open in terminal (with confirm) — spawns a visible cmd or PowerShell window so you can read the output",
+                    "Custom commands support arguments: define named args with optional defaults and a required flag, reference them in the script with `{argName}`, and Volt prompts for values inline when you run the command",
+                    "Pass values inline by typing `commandName value1 \"value with spaces\"` in the search bar. Only missing required args trigger the prompt",
+                    "Two new command types: Open in terminal and Open in terminal (with confirm), which open a visible cmd or PowerShell window so you can read the output",
                     "\"Did you know?\" tip banner on the home view rotating through hidden features, plus a full Tips & Shortcuts page in Settings",
                 ],
             },
@@ -126,7 +126,7 @@ const changelog: ChangelogEntry[] = [
             {
                 title: "New Features",
                 items: [
-                    "Steam library detection — installed Steam games appear alongside regular apps",
+                    "Steam library detection: installed Steam games appear alongside regular apps",
                 ],
             },
             {
@@ -141,7 +141,7 @@ const changelog: ChangelogEntry[] = [
         version: "1.1.4",
         date: "2026-03-24",
         highlights: [
-            "Custom shell commands — run anything from the search bar",
+            "Custom shell commands: run anything from the search bar",
             "Redesigned settings & search bar UI",
             "Faster, smarter search results",
         ],
@@ -149,7 +149,7 @@ const changelog: ChangelogEntry[] = [
             {
                 title: "New Features",
                 items: [
-                    "Custom Commands — add your own shell commands that appear directly in search results",
+                    "Custom Commands: add your own shell commands that appear directly in search results",
                     "Import & export command sets as JSON for easy sharing and backup",
                     "Inline editing and confirmation toggle for custom commands",
                     "Check for Updates button in Settings → About",
@@ -173,7 +173,7 @@ const changelog: ChangelogEntry[] = [
                 title: "Search Optimizations",
                 items: [
                     "Commands are now searched from an in-memory cache instead of static JSON for faster results",
-                    "Normalized string matching cached per entry — no recomputation on repeat searches",
+                    "Normalized string matching cached per entry, so repeat searches don't recompute it",
                     "Search results cleaned before returning to avoid leaking internal fields",
                     "Web search suggestions sanitized to prevent XSS from external sources",
                 ],
@@ -183,7 +183,7 @@ const changelog: ChangelogEntry[] = [
                 items: [
                     "Fixed duplicate and incorrect entries in the Windows settings list",
                     "Added missing Windows 11 settings (Storage, Multitasking, Remote Desktop, etc.)",
-                    "Fixed error boundary missing — unhandled component errors no longer white-screen the app",
+                    "Fixed error boundary missing: unhandled component errors no longer white-screen the app",
                 ],
             },
         ],

@@ -13,7 +13,7 @@ export type TimelinePart =
  *
  * Steps and thinking each record how much of the answer had been written when
  * they began, so a turn that writes, searches and writes again reads in that
- * order — rather than every step pooled above an answer that was in fact
+ * order, rather than every step pooled above an answer that was in fact
  * written around them. Chats saved before that was recorded have no `at`, and
  * read as before: the work first, then the answer.
  *

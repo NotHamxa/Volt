@@ -11,7 +11,7 @@ import { app, safeStorage } from "electron";
  *     is set. The main process attaches the value when it calls a provider.
  *
  * If OS encryption is unavailable we refuse to store rather than silently
- * writing plaintext — a key on disk in the clear is worse than no key.
+ * writing plaintext, a key on disk in the clear is worse than no key.
  */
 function keysFile() {
     return path.join(app.getPath("userData"), "ai-keys.bin");
@@ -25,7 +25,7 @@ function readAll() {
         return JSON.parse(json);
     } catch {
         // Missing file, or a blob this machine's key can no longer decrypt
-        // (restored profile, new OS user) — treat as no keys set.
+        // (restored profile, new OS user), treat as no keys set.
         return {};
     }
 }

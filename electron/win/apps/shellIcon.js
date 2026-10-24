@@ -7,7 +7,7 @@ import { app } from "electron";
  * Pulls icons straight out of the Windows shell.
  *
  * `IShellItemImageFactory` renders whatever Explorer and the Start menu show
- * for a shell item, which means it works for every entry in AppsFolder —
+ * for a shell item, which means it works for every entry in AppsFolder,
  * packaged or not, with or without a .lnk on disk. That's the whole point: the
  * older routes needed either a file path (extract-file-icon) or an AppxManifest
  * (packaged apps), and a large slice of Get-StartApps results have neither.

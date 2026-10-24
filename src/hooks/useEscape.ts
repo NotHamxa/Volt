@@ -3,8 +3,8 @@ type Entry = { handler: () => void; id: symbol; passthrough: boolean };
 const stack: Entry[] = [];
 /**
  * Escapes a barrier let through. The overlay's own handler (Radix listens on
- * document, in capture) closes it and React can commit — dropping the barrier
- * — before App's bubble-phase handler asks, so the stack alone would already
+ * document, in capture) closes it and React can commit, dropping the barrier
+ *, before App's bubble-phase handler asks, so the stack alone would already
  * be empty by then and the same keypress would leave the page too.
  */
 const barred = new WeakSet<Event>();

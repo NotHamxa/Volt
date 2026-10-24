@@ -9,7 +9,7 @@
  * The UI is built almost entirely out of alpha overlays on a translucent
  * panel, so a theme is really just two questions: what colour do we draw
  * overlays in, and what sits behind them. `--ink` answers the first,
- * `--surface-*` the second, and every call site keeps its own alpha —
+ * `--surface-*` the second, and every call site keeps its own alpha,
  * `text-ink/25`, `bg-ink/[0.05]`, `border-ink/[0.08]`.
  *
  * The dark values below are the exact colours the app already shipped, so
@@ -32,7 +32,7 @@
   --surface-float: rgb(253 253 255);  /* glassy floating bars and pills */
 
   /* Pre-mixed ink, for the handful of places that need a colour rather than
-     a utility — `scrollbar-color`, which takes two values and so can't be
+     a utility, `scrollbar-color`, which takes two values and so can't be
      expressed as a Tailwind arbitrary property cleanly. */
   --ink-soft: color-mix(in oklab, var(--ink) 15%, transparent);
 
@@ -40,7 +40,7 @@
    * Structural fills and hairlines. These are the one part of the theme that
    * can't share an alpha between modes: white at 5% on a near-black panel is
    * a fivefold lift in luminance, while black at 5% on a near-white one is a
-   * 5% dip. Same number, nowhere near the same amount of contrast — sharing
+   * 5% dip. Same number, nowhere near the same amount of contrast, sharing
    * it is exactly what made the first light build look washed out.
    *
    * The step name is the dark alpha in per-mille, so `fill-050` is the 0.05
@@ -68,7 +68,7 @@
   /*
    * Text tones. Dimmed text is the worst case for a shared alpha: white at
    * 25% still reads on a near-black panel, black at 25% on a near-white one
-   * is a ghost — which is what made the labels and secondary buttons look
+   * is a ghost, which is what made the labels and secondary buttons look
    * washed out.
    *
    * Light is the dark alpha raised to 0.62 rather than multiplied: that lifts
@@ -116,7 +116,7 @@
      the one meant for a light background. */
   --gh-mark: #1b1f23;
 
-  /* Modal backdrops. Black in both themes — a scrim dims, it doesn't tint —
+  /* Modal backdrops. Black in both themes, a scrim dims, it doesn't tint,
      but a light UI needs less of one to read as "behind". */
   --scrim-soft: rgba(0, 0, 0, 0.25);
   --scrim: rgba(0, 0, 0, 0.35);
@@ -160,7 +160,7 @@
   --sidebar-ring: color-mix(in oklab, var(--ink) 30%, transparent);
 }
 
-/* `:root.dark`, not `.dark` — same element as the block above, so an equal
+/* `:root.dark`, not `.dark`, same element as the block above, so an equal
    specificity would leave this depending on source order. */
 :root.dark {
   --ink: #ffffff;
@@ -235,7 +235,7 @@
 }
 
 /*
- * Accents keep their palette names at the call site — `red` still means red,
+ * Accents keep their palette names at the call site, `red` still means red,
  * unlike `white`, which would be a lie in light mode. Only the shade each
  * name resolves to changes, because a 300-weight tuned to read on near-black
  * disappears on near-white. Tailwind v4 compiles `text-red-300/80` to a
@@ -283,7 +283,7 @@
 
   /*
    * Type scale. The step name is the size in px, the way the fill and line
-   * ladders name their alpha, so `text-11` is 11px. Font size only — no
+   * ladders name their alpha, so `text-11` is 11px. Font size only, no
    * line-height, unlike Tailwind's `text-xs`/`text-sm`, which would change
    * the leading of every line they were swapped onto. Spacing needs no
    * tokens of its own: Tailwind's scale already reaches any whole pixel
@@ -410,7 +410,7 @@
   animation: settingFlash 1.4s ease-out;
 }
 
-/* Native overflow that can't host a Radix ScrollArea — the prompt textarea —
+/* Native overflow that can't host a Radix ScrollArea, the prompt textarea,
    still needs to look like one. Mirrors ScrollBar/ScrollAreaThumb: a 10px
    gutter with a rounded thumb inset by a transparent border. */
 .scrollbar-thin-shadcn {

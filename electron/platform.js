@@ -3,7 +3,7 @@
 //
 // This is the single place that binds the universal app to an OS-specific
 // implementation. Universal code (electron/universal, electron/ipc,
-// electron/main.js) imports every platform-specific operation from here — never
+// electron/main.js) imports every platform-specific operation from here, never
 // from electron/win directly.
 //
 // To add another platform:
@@ -21,5 +21,5 @@ export * from "./win/index.js";
 //   export * from process.platform === "linux"
 //       ? "./linux/index.js"
 //       : "./win/index.js";
-// (Static `export *` can't branch — split into per-platform entry files or use
+// (Static `export *` can't branch, split into per-platform entry files or use
 //  a dynamic import in main.js if runtime selection becomes necessary.)

@@ -16,7 +16,7 @@ export type UpdateStatus = {
  *
  * Every place that shows update progress reads this one copy, subscribed once
  * at module scope, so the chip in the settings header, About and the footer
- * can't disagree — and remounting any of them doesn't add another listener.
+ * can't disagree, and remounting any of them doesn't add another listener.
  */
 let state: UpdateState = "idle";
 let percent = 0;

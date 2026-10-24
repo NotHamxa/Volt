@@ -14,7 +14,7 @@ import {appLogo, cachedAppLogo} from "@/utils/appLogos.ts";
 interface IPinnedApp {
     app: SearchQueryT;
     unPinApp: (app: SearchQueryT) => void;
-    /** Menu items that depend on where the tile is — grouping, from the home screen. */
+    /** Menu items that depend on where the tile is, grouping, from the home screen. */
     menu?: ReactNode;
     /** Another app is held over this one, and letting go groups them. */
     dropTarget?: boolean;
@@ -29,7 +29,7 @@ interface ISortable {
     ghosted?: boolean;
 }
 
-/** `id` is the pin's identity from the list — not the name, which two apps can share. */
+/** `id` is the pin's identity from the list, not the name, which two apps can share. */
 export default function SortablePinnedApp({id, app, unPinApp, menu, dropTarget, ghosted}: IPinnedApp & ISortable) {
     const {
         attributes,
@@ -95,7 +95,7 @@ function PinnedApp({app, unPinApp, menu, dropTarget}: IPinnedApp) {
                 <TooltipProvider delayDuration={500}>
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            {/* 100 × 90 — APP_TILE in utils/homeTiles.ts must match. */}
+                            {/* 100 × 90, APP_TILE in utils/homeTiles.ts must match. */}
                             <button
                                 aria-label={`Open ${app.name}`}
                                 className={`flex items-center justify-start w-25 h-22.5 rounded-lg transition-all duration-150 cursor-pointer flex-col overflow-hidden text-center select-none pt-1.25 active:scale-95 ${

@@ -33,7 +33,7 @@ export function Combo({ combo }: { combo: string }) {
  */
 export type SaveResult = { message: string; revert?: boolean } | null;
 
-/** A small icon button beside the keycaps — Reset on Shortcuts, Clear on Apps and Links. */
+/** A small icon button beside the keycaps, Reset on Shortcuts, Clear on Apps and Links. */
 export type RowAction = { icon: ReactNode; title: string; run: () => Promise<SaveResult> };
 
 /**

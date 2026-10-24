@@ -26,7 +26,7 @@ export function CopyButton({ getText, label = "Copy", className = "" }: {
         try {
             await navigator.clipboard.writeText(text);
         } catch {
-            return; // clipboard denied — say nothing rather than claim success
+            return; // clipboard denied, say nothing rather than claim success
         }
         setCopied(true);
         if (timerRef.current) clearTimeout(timerRef.current);

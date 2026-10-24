@@ -7,7 +7,7 @@ import { checkForUpdates } from "../universal/updater.js";
 import { executeUserCommand } from "../platform.js";
 
 // shell.openExternal hands the string to the OS, which on Windows will launch
-// any registered protocol handler — not just a browser. Everything the renderer
+// any registered protocol handler, not just a browser. Everything the renderer
 // legitimately opens is a web link, so anything else is rejected.
 const EXTERNAL_SCHEMES = new Set(["http:", "https:", "mailto:"]);
 
@@ -119,12 +119,12 @@ export function registerElectronIpc({ hideMainWindow, cache, store }) {
         return true;
     });
 
-    // Resolves { ok, message? } — ok false means no check is running, so the
+    // Resolves { ok, message? }, ok false means no check is running, so the
     // renderer mustn't wait for an event that isn't coming.
     ipcMain.handle("check-for-updates", () => checkForUpdates());
 
     // Asked on every load until it's been closed: clearing it on the first
-    // ask lost it whenever the page reloaded before it showed — every time
+    // ask lost it whenever the page reloaded before it showed, every time
     // in development, which reloads the window once just after launch.
     ipcMain.handle("get-update-modal-info", () => {
         if (cache.showUpdateModal) {

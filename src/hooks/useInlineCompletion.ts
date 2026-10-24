@@ -5,7 +5,7 @@ import { SearchQueryT } from "@/interfaces/searchQuery.ts";
 /**
  * Suggests the rest of an app name or past search as *ghost text*.
  *
- * The suggestion is never written into the input's value — the field always
+ * The suggestion is never written into the input's value, the field always
  * holds exactly what was typed. That makes it impossible for a completion to
  * swallow the query, which is what happens when you push it into the value and
  * rely on a text selection to undo it.

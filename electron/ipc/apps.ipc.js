@@ -54,7 +54,7 @@ export function registerAppsIpc({
 
     /**
      * Holds the launcher open and un-pinned while a native dialog is up, and
-     * always puts it back — left set, the window could never hide again.
+     * always puts it back, left set, the window could never hide again.
      */
     const withDialog = async (show) => {
         appStates.fixWindowOpen = true;
@@ -106,7 +106,7 @@ export function registerAppsIpc({
             throw new Error(`Couldn't read that file: ${err?.message ?? err}`);
         }
         const commands = Array.isArray(parsed) ? parsed : [parsed];
-        // Same validator the AI drafting path uses — one way in.
+        // Same validator the AI drafting path uses, one way in.
         if (!commands.some(c => sanitiseCommand(c))) {
             throw new Error("The file doesn't contain any valid commands.");
         }

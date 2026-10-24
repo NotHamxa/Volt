@@ -6,12 +6,12 @@ import { SaveResult } from "@/components/hotkeyRow.tsx";
 
 /**
  * Why a combo can't open an app or link from anywhere, or null. These are
- * registered with Windows, so they're taken from every other program too —
+ * registered with Windows, so they're taken from every other program too,
  * and from Volt itself while it has focus.
  */
 function launchComboProblem(combo: string): string | null {
     if (!toAccelerator(combo)) return "Windows can't use that key for a global shortcut.";
-    if (!hasCommandModifier(combo)) return "Add Ctrl, Alt or Win — a hotkey that works everywhere can't be a bare key.";
+    if (!hasCommandModifier(combo)) return "Add Ctrl, Alt or Win. A hotkey that works everywhere can't be a bare key.";
     if (/^Ctrl\+[1-9]$/.test(combo)) return "Volt uses Ctrl + 1–9 to open pinned links.";
     const clash = conflictWith("", combo);
     if (clash) return `Volt uses that for "${clash}".`;

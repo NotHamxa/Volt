@@ -30,7 +30,7 @@ export function splitPoint(text: string): number {
         // An odd number of fences means the split would land inside one.
         const insideFence = (head.match(/^\s*```/gm) ?? []).length % 2 !== 0;
         // Only a cut *within* a list is a problem. Cutting just before one
-        // starts is fine — the tail begins the list, so it numbers from 1
+        // starts is fine, the tail begins the list, so it numbers from 1
         // exactly as it should.
         const midList = LIST_ITEM.test(nextLine) && (LIST_ITEM.test(prevLine) || INDENTED.test(prevLine));
         // An indented continuation belongs to the block above it.

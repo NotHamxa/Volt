@@ -6,7 +6,7 @@ import { SearchQueryT } from "@/interfaces/searchQuery.ts";
 import type { ItemPreview } from "@/interfaces/preview.ts";
 import { renderPdfFirstPage } from "@/utils/pdfPreview.ts";
 
-// The hero area a PDF page is fitted into — taller than for other files,
+// The hero area a PDF page is fitted into, taller than for other files,
 // since a page is portrait and unreadable squeezed into a short box.
 const PDF_BOX = { width: 330, height: 236 };
 
@@ -99,7 +99,7 @@ type Props = {
 };
 
 /**
- * Details of the highlighted result, beside the list — the same idea as the
+ * Details of the highlighted result, beside the list, the same idea as the
  * Windows search preview. Toggled with the preview shortcut (Alt+P).
  */
 export default function PreviewPane({ item, logo, fileIcon, activeAction, onAction }: Props) {
@@ -161,7 +161,7 @@ export default function PreviewPane({ item, logo, fileIcon, activeAction, onActi
     else if (type === "webSearch" || type === "webSuggestion") { Icon = Globe; kindLabel = `Web · ${item.source ?? "link"}`; }
 
     // A real thumbnail when Windows can draw one (images, video…), otherwise
-    // the large icon of whatever opens this type — Word's, the PDF reader's.
+    // the large icon of whatever opens this type, Word's, the PDF reader's.
     const artwork = (type === "file" ? preview?.thumbnail ?? pdfUrl : null) ?? null;
     const bigIcon = preview?.icon ?? (type === "app" ? logo : fileIcon) ?? null;
     const visual = artwork

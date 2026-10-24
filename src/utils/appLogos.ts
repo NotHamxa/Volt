@@ -3,8 +3,8 @@ import { SearchQueryT } from "@/interfaces/searchQuery.ts";
 /**
  * App logos, batched.
  *
- * Several views ask for logos at once — All Apps mounts ~200 tiles, each with
- * its own request — and one IPC call per app froze the main process for
+ * Several views ask for logos at once, All Apps mounts ~200 tiles, each with
+ * its own request, and one IPC call per app froze the main process for
  * hundreds of milliseconds. Requests made in the same tick go out as a single
  * call; cached artwork comes back as volt-icon:// URLs that Chromium loads off
  * the main thread. Only apps with no cached icon fall back to a one-off
@@ -43,14 +43,14 @@ async function flush() {
 
 /**
  * Logos already found, by app. Kept for the life of the window so a tile that
- * mounts again — coming back to the home screen, opening a group — draws its
+ * mounts again, coming back to the home screen, opening a group, draws its
  * icon on its first frame instead of a blank one while the request goes out.
  * Misses aren't kept: an icon still being extracted can turn up later.
  */
 const found = new Map<string, string>();
 const logoKey = (app: SearchQueryT) => `${app.source ?? ""}|${app.appId || app.path || app.name}`;
 
-/** The logo if one is already known — synchronous, for a tile's first render. */
+/** The logo if one is already known, synchronous, for a tile's first render. */
 export function cachedAppLogo(app: SearchQueryT): string | undefined {
     return found.get(logoKey(app));
 }

@@ -77,7 +77,7 @@ function PinnedLinks({ link, removeLink, setEditLink, index }: IPinnedLinks) {
                                             <Globe size={16} className="text-tone-400" />
                                         )}
                                         {/* Held Ctrl: which number opens it, floated on the
-                                            favicon's corner like an app badge — the chip keeps
+                                            favicon's corner like an app badge, the chip keeps
                                             its width, and it stays inside the dock's clip. */}
                                         {showKbd && (
                                             <Kbd className="absolute -right-2 -bottom-1.5 h-3.75 min-w-3.75 px-1 rounded-[5px] bg-tone-850 text-surface text-10 font-bold leading-none shadow-[0_1px_4px_var(--shadow-2)] animate-in fade-in zoom-in-75 duration-100">

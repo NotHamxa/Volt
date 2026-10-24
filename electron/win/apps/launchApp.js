@@ -28,7 +28,7 @@ export async function launchApp(app,admin) {
         } else if (app.path) {
             exec(`start "" "${app.path}"`, err => { if (err) console.error('Regular launch failed:', err); });
         } else if (app.appId) {
-            // Every AppsFolder entry — packaged or not — launches through its
+            // Every AppsFolder entry, packaged or not, launches through its
             // AppUserModelID, the same way Start does. Quoted: some IDs contain spaces.
             exec(`start "" "shell:AppsFolder\\${app.appId}"`, err => { if (err) console.error('AppsFolder launch failed:', err); });
         } else {

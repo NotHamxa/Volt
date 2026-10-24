@@ -56,7 +56,7 @@ const appStates = {
     fixWindowOpen:false,
     windowLocked:false,
     // AI mode keeps the window open like fixWindowOpen, but without stealing
-    // focus back on blur — you should be able to click away and read something
+    // focus back on blur, you should be able to click away and read something
     // while an answer streams.
     aiMode:false,
     // Whether the AI view holds the window open on blur. On unless the pin
@@ -65,8 +65,8 @@ const appStates = {
     dialogOpen:false,
 }
 
-// cachedFoldersData is derived state — rebuilt from disk on every launch by
-// loadFolderCache — so the watcher only patches it in memory.
+// cachedFoldersData is derived state, rebuilt from disk on every launch by
+// loadFolderCache, so the watcher only patches it in memory.
 const folderWatcher = new FolderWatcher();
 folderWatcher.on("add", async (root, addedPaths) => {
     const found = [];
@@ -105,7 +105,7 @@ const showMainWindow = () => {
 
     mainWindow.setOpacity(0);
     // Dismissing minimises before hiding, so the window can come back from a
-    // minimised state — show() alone doesn't always undo that on Windows.
+    // minimised state, show() alone doesn't always undo that on Windows.
     if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.show();
     mainWindow.focus();
@@ -117,14 +117,14 @@ const showMainWindow = () => {
 let hidingWindow = false;
 const hideMainWindow = (restoreFocus = true) => {
     // aiMode is deliberately not checked here: it only suppresses the *blur*
-    // auto-hide (handled in the blur listener). An explicit hide — the hotkey,
-    // Escape, tray — must still work while the AI view is open.
+    // auto-hide (handled in the blur listener). An explicit hide, the hotkey,
+    // Escape, tray, must still work while the AI view is open.
     if (!mainWindow || appStates.fixWindowOpen || appStates.windowLocked) return;
     if (hidingWindow) return;
     hidingWindow = true;
     // hide() on its own just drops Volt off the screen: Windows is free to hand
     // the foreground to the desktop instead of whatever the window was covering.
-    // Minimising first makes it promote the next window in the z-order — the app
+    // Minimising first makes it promote the next window in the z-order, the app
     // you were using before you opened Volt. SetForegroundWindow on the captured
     // hwnd is the belt-and-braces pass for the cases where that isn't enough.
     if (restoreFocus && mainWindow.isVisible()) mainWindow.minimize();
@@ -156,7 +156,7 @@ const launchHotkeys = createLaunchHotkeys({
 });
 // The hotkey is the only way into Volt, so a new one must be registered
 // before the old one is let go. Windows refuses combos another app owns, and
-// Electron throws on names it can't parse — either way the old key stays.
+// Electron throws on names it can't parse, either way the old key stays.
 const changeOpenBind = async (binding)=>{
     if (binding === openShortcut) return true;
     // Already Volt's own, as an app or link hotkey.
@@ -243,7 +243,7 @@ const createWindow = async () => {
     const devServerURL = "http://localhost:5173";
 
     mainWindow.on('blur', () => {
-        // AI mode keeps the window open but must not grab focus back — you
+        // AI mode keeps the window open but must not grab focus back, you
         // should be able to click away and read while an answer streams.
         if (appStates.aiMode && appStates.aiKeepOpen) return;
         if (appStates.fixWindowOpen && !appStates.dialogOpen) mainWindow.focus();
@@ -288,8 +288,8 @@ const createWindow = async () => {
     // The renderer only ever loads the local bundle (or the dev server). Any
     // other navigation would inherit the preload bridge, so refuse it and hand
     // the URL to the OS browser instead. Same for window.open. Only the app's
-    // own index.html counts: any file:// page — say an .html dropped onto the
-    // window — would otherwise load with the bridge attached.
+    // own index.html counts: any file:// page, say an .html dropped onto the
+    // window, would otherwise load with the bridge attached.
     const indexURL = pathToFileURL(path.join(__dirname, "../dist/index.html")).href;
     const isInternalURL = (url) =>
         url.split("#")[0].split("?")[0] === indexURL ||
@@ -368,11 +368,11 @@ app.whenReady().then(async () => {
     }
 
     // One-time install ping. Retries on every launch until the server
-    // acknowledges — only then is the "sent" flag flipped in the store.
+    // acknowledges, only then is the "sent" flag flipped in the store.
     sendInstallTelemetryIfNeeded(store).catch(() => { /* swallowed */ });
 
     // Heavy caching in the background: the window is already dismissible.
-    // The file index doesn't gate the loader — a large indexed folder used to
+    // The file index doesn't gate the loader, a large indexed folder used to
     // hold it on an unmoving "Loading" for as long as the walk took.
     loadFolderCache(cache)
         .then(() => folderWatcher.add(cache.cachedFolders))

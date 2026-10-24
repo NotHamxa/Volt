@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from "react";
  * Reveals streamed text at a steady rate instead of in the lumps it arrives in.
  *
  * Providers don't stream a token at a time. Measured against the Claude CLI, a
- * 1151-character answer arrived as 12 deltas — a median of 111 characters every
- * ~360ms — so the text landed in visible slabs however fast the UI rendered.
+ * 1151-character answer arrived as 12 deltas, a median of 111 characters every
+ * ~360ms, so the text landed in visible slabs however fast the UI rendered.
  * This drains whatever has arrived across the frames until the next delta.
  *
  * The rate is derived from the backlog rather than fixed: catching up quickly

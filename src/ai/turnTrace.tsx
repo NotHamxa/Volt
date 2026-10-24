@@ -12,7 +12,7 @@ import type { TraceItem } from "@/ai/timeline.ts";
  *
  * A turn that reads six files before writing a word used to be a spinner and
  * nothing else, which is indistinguishable from a hang. Then it was a list of
- * verbs, which at least moved — but a command that failed looked exactly like
+ * verbs, which at least moved, but a command that failed looked exactly like
  * one that worked, and nothing said what it printed. Each step now carries its
  * outcome, how long it took, and its output a click away.
  *
@@ -96,7 +96,7 @@ function useNow(active: boolean) {
  * The work done between two pieces of an answer.
  *
  * `running` is for the stretch the turn is in now. An earlier one can still
- * have a step going — Claude runs some in parallel — and shows it as busy
+ * have a step going, Claude runs some in parallel, and shows it as busy
  * until that settles.
  */
 export function TurnTrace({ items, childSteps, hiddenSteps = 0, plan, running }: {
@@ -118,8 +118,8 @@ export function TurnTrace({ items, childSteps, hiddenSteps = 0, plan, running }:
 
     const failed = steps.filter(s => s.status === "failed").length;
     const total = steps.length + hiddenSteps;
-    // Between steps nothing is running, and naming the last one — which may
-    // have failed — beside a spinner would say it is still going.
+    // Between steps nothing is running, and naming the last one, which may
+    // have failed, beside a spinner would say it is still going.
     const current = [...steps].reverse().find(s => s.status === "running");
     const busy = running || Boolean(current);
     const doing = planItems.find(p => p.status === "in_progress");
@@ -242,7 +242,7 @@ function ThoughtRow({ thought, now }: { thought: AiThought; now: number }) {
 
 /**
  * One step: what it did, how it ended, how long it took. Output is behind a
- * click — useful when something went wrong, noise when it didn't.
+ * click, useful when something went wrong, noise when it didn't.
  */
 function StepRow({ step, now, bare = false }: { step: AiStep; now: number; bare?: boolean }) {
     const [showOutput, setShowOutput] = useState(false);
@@ -337,7 +337,7 @@ function Reasoning({ thought, now, running }: { thought: AiThought; now: number;
 /**
  * The figures behind an answer, in one quiet line: which model actually ran
  * (an alias like "default" says nothing), how long it took, what it read and
- * wrote, and — on a subscription — how much of the plan's window is gone.
+ * wrote, and, on a subscription, how much of the plan's window is gone.
  */
 export function TurnStats({ stats, showCost }: { stats: AiTurnStats; showCost: boolean }) {
     const parts: string[] = [];

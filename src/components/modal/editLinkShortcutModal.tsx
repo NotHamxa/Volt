@@ -57,7 +57,7 @@ export default function EditLinkShortcutModal({
             return false;
         }
 
-        // Links are keyed by URL — React keys, drag ids, and Remove all use it —
+        // Links are keyed by URL, React keys, drag ids, and Remove all use it,
         // so a second link to the same place would be one link twice.
         if (linkShortcuts.some(link => link.shortcut === normalizedShortcut && link.shortcut !== editLink?.shortcut)) {
             setError("Link already exists");

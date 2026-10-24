@@ -54,7 +54,7 @@ export const ICON_SIZE = 128;
  * Bounding box of the actual artwork.
  *
  * The shell centres a small source icon on a filled canvas, so the padding is
- * often opaque rather than transparent — autocrop alone can't see it, and a
+ * often opaque rather than transparent, autocrop alone can't see it, and a
  * faint 1px frame around the edge defeats it entirely. The background colour is
  * therefore sampled from a ring just inside the border, skipping that frame.
  */
@@ -92,7 +92,7 @@ function contentBounds(image) {
 
     // The shell draws a faint 1px frame around the canvas. It clears the alpha
     // floor, so scanning the full bitmap makes the bounding box the whole image
-    // and nothing ever gets trimmed — skip the border ring entirely.
+    // and nothing ever gets trimmed, skip the border ring entirely.
     let minX = w, minY = h, maxX = -1, maxY = -1;
     for (let y = inset; y < h - inset; y++) {
         for (let x = inset; x < w - inset; x++) {

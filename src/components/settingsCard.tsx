@@ -24,7 +24,7 @@ interface SettingCardProps {
  *
  * The icon is a bare glyph rather than the boxed chip it used to be: a
  * bordered tile on every row turned a list of six settings into a column of
- * six competing badges. Destructive rows are neutral too — the tint moves to
+ * six competing badges. Destructive rows are neutral too, the tint moves to
  * the icon and title, and the confirmation lives in the control itself, so
  * the section reads as a list rather than a wall of warnings.
  */
@@ -73,7 +73,7 @@ export function DeleteHistorySection() {
         setIsDeleting(true);
         try {
             window.electronStore.set("searchHistory", "[]");
-            // The usage statistics ranking learned from — what the row promises.
+            // The usage statistics ranking learned from, what the row promises.
             await window.electron.clearUsage();
             window.dispatchEvent(new CustomEvent("searchHistoryChanged"));
             window.electron.notify("History Cleared", "Your search history and usage statistics have been removed.");

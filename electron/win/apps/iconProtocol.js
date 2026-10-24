@@ -7,8 +7,8 @@ import { steamIconPath } from "./steam.js";
 /**
  * App logos by URL instead of by value.
  *
- * The home screen used to ask for every logo over IPC — ~200 round trips, each
- * reading its PNG synchronously and base64-encoding it on the main thread —
+ * The home screen used to ask for every logo over IPC, ~200 round trips, each
+ * reading its PNG synchronously and base64-encoding it on the main thread,
  * which froze the main process for 300–500 ms per refresh. Now the renderer
  * gets one list of volt-icon:// URLs and Chromium loads the files itself,
  * lazily and off the main thread.
@@ -46,7 +46,7 @@ export function handleIconProtocol(cache) {
 }
 
 /**
- * One URL per app (same order), or null where there is no cached artwork —
+ * One URL per app (same order), or null where there is no cached artwork,
  * the renderer falls back to asking for those individually. The file's mtime
  * rides along so a re-extracted icon isn't served from Chromium's cache.
  */

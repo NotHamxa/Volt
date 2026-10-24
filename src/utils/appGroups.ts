@@ -6,7 +6,7 @@ import {appKey} from "@/utils/appUtils.ts";
  * into its own grid.
  *
  * Kept beside `pinnedApps` rather than inside it: the flat list stays what
- * every other part of Volt already reads — what's pinned, in what order — and
+ * every other part of Volt already reads, what's pinned, in what order, and
  * a group only says which of those belong together and what they're called.
  * A group stands in the grid where its first member would, and its members
  * are kept next to each other in the flat list, so reordering the grid is

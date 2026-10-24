@@ -83,7 +83,7 @@ export default function AppGroupPanel({group, apps, renaming, unPinApp, onClose,
                     <span className="shrink-0 text-11 tabular-nums text-tone-300">{apps.length} app{apps.length === 1 ? "" : "s"}</span>
                     <button
                         onClick={onUngroup}
-                        title="Ungroup — the apps go back to the grid"
+                        title="Ungroup: the apps go back to the grid"
                         className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg text-11 text-tone-400 hover:text-tone-800 hover:bg-fill-080 transition-colors cursor-pointer"
                     >
                         <Ungroup size={12}/> Ungroup

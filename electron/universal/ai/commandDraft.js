@@ -7,7 +7,7 @@ import { sanitiseCommand, reviewCommand, COMMAND_TYPES, SHELLS } from "../comman
  *
  * The result is only ever a *draft*. It is sanitised through the same validator
  * as an imported file, handed to the renderer for review, and saved only if the
- * person reading the script chooses to. Nothing generated here is executed —
+ * person reading the script chooses to. Nothing generated here is executed,
  * and the model is asked for a pure completion (`toolless`), so it can't run
  * anything while drafting either.
  */
@@ -31,7 +31,7 @@ function instructionFor({ description, existing, platform }) {
     return [
         `You are drafting a launcher command for ${platform === "win32" ? "Windows" : platform}.`,
         "",
-        "Reply with a single JSON object and nothing else — no prose, no code fence.",
+        "Reply with a single JSON object and nothing else: no prose, no code fence.",
         `Shape: ${JSON.stringify(shape)}`,
         "",
         "Rules:",
@@ -102,7 +102,7 @@ export async function draftCommand({
     let failure = null;
     try {
         // A one-shot turn: no session id, so this never joins a conversation.
-        // No tools either — CLI providers otherwise bring Bash and file access.
+        // No tools either, CLI providers otherwise bring Bash and file access.
         for await (const chunk of provider.send({ prompt, model, settings, history: [], signal, toolless: true })) {
             if (chunk.type === "text") text += chunk.text;
             if (chunk.type === "error") failure = chunk.message;

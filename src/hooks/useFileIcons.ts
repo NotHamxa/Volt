@@ -10,8 +10,8 @@ const ICON_LIMIT = 500;
 const wantsIcon = (item: SearchQueryT) => !!item.path && (item.type === "file" || item.type === "folder");
 
 /**
- * The Windows icon for each file and folder result — Word's for a .docx,
- * the PDF reader's for a .pdf — fetched in one batch per result set.
+ * The Windows icon for each file and folder result, Word's for a .docx,
+ * the PDF reader's for a .pdf, fetched in one batch per result set.
  * Returns a lookup that yields undefined until an icon has arrived.
  */
 export function useFileIcons(items: SearchQueryT[]) {

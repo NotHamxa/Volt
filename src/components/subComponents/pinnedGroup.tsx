@@ -46,7 +46,7 @@ export default function SortablePinnedGroup(props: Props & { ghosted?: boolean }
     );
 }
 
-/** The first four members' icons, two by two — enough to recognise it. */
+/** The first four members' icons, two by two, enough to recognise it. */
 function GroupPreview({apps}: {apps: SearchQueryT[]}) {
     const [logos, setLogos] = useState<string[]>(() => apps.slice(0, 4).map(app => cachedAppLogo(app) ?? ""));
     useEffect(() => {
@@ -81,10 +81,10 @@ function PinnedGroup({group, apps, dropTarget, onOpen, onRename, onUngroup}: Pro
     return (
         <ContextMenu onOpenChange={setMenuOpen}>
             <ContextMenuTrigger>
-                {/* 100 × 90, the same footprint as an app — APP_TILE. */}
+                {/* 100 × 90, the same footprint as an app, APP_TILE. */}
                 <button
                     aria-label={`Open group ${group.name}`}
-                    title={`${group.name} — ${apps.length} app${apps.length === 1 ? "" : "s"}`}
+                    title={`${group.name} (${apps.length} app${apps.length === 1 ? "" : "s"})`}
                     onClick={onOpen}
                     className={`flex items-center justify-start w-25 h-22.5 rounded-lg flex-col overflow-hidden text-center select-none pt-1 cursor-pointer transition-all duration-150 active:scale-95 ${
                         dropTarget ? "bg-fill-150 ring-2 ring-ink/25 scale-105" : "hover:bg-fill-140"

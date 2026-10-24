@@ -12,7 +12,7 @@ import path from "path";
  * the times. `kind` picks the icon in the view.
  */
 
-/** Last two segments of a path — enough to recognise, short enough to fit. */
+/** Last two segments of a path, enough to recognise, short enough to fit. */
 export function shortPath(p) {
     if (typeof p !== "string" || !p) return "";
     const parts = p.replace(/\\/g, "/").split("/").filter(Boolean);
@@ -48,7 +48,7 @@ export function toolResultText(content) {
 /**
  * Claude's own bookkeeping: the plan it keeps, and the index it loads tool
  * definitions from. None of it touches the machine, so it's neither approved
- * nor shown as a step — the plan is drawn as a plan instead.
+ * nor shown as a step, the plan is drawn as a plan instead.
  */
 export const PLANNING_TOOLS = new Set(["TodoWrite", "TaskCreate", "TaskGet", "TaskList", "TaskUpdate"]);
 export const QUIET_TOOLS = new Set([...PLANNING_TOOLS, "ToolSearch"]);
@@ -78,7 +78,7 @@ export function describeTool(name, input) {
         case "EnterPlanMode": return { kind: "tool", label: "Planning" };
         default:
             // Unknown or MCP tools still say something useful rather than
-            // vanishing — the name alone is better than silence.
+            // vanishing, the name alone is better than silence.
             return {
                 kind: "tool",
                 label: "Using",
@@ -88,8 +88,8 @@ export function describeTool(name, input) {
 }
 
 /**
- * Codex wraps every command in the shell it ran it with —
- * `"C:\…\pwsh.exe" -Command 'git status'` — which buries the part worth
+ * Codex wraps every command in the shell it ran it with,
+ * `"C:\…\pwsh.exe" -Command 'git status'`, which buries the part worth
  * reading behind a path. The command itself is what the trace should show.
  */
 export function unwrapShell(command) {

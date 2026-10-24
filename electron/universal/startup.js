@@ -105,7 +105,7 @@ export function removeCustomCommand(cache, store, commandName) {
     return saveCustomCommands(cache, store, customCommands);
 }
 
-// Stored before sanitising existed, or edited by hand — either way, only
+// Stored before sanitising existed, or edited by hand, either way, only
 // well-formed commands make it into the running list.
 export function getCustomCommands(store) {
     let stored;
@@ -120,7 +120,7 @@ export function getCustomCommands(store) {
 /**
  * The commands from an import file that would actually be new: valid, first
  * of their name within the file, and not clashing with a built-in or an
- * existing custom command. Nothing is saved here — the renderer shows these
+ * existing custom command. Nothing is saved here, the renderer shows these
  * for review and adds the ones the person confirms.
  */
 export function newCommandsFrom(store, rawCommands) {

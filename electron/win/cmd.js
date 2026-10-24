@@ -25,7 +25,7 @@ export function escapeForOuterCmd(cmd) {
 }
 
 // Runs a user-typed `!cmd` line in a visible console. Arbitrary execution is
-// the point of this feature, but the command must reach that console intact —
+// the point of this feature, but the command must reach that console intact,
 // not be split up by the hidden cmd.exe that opens it.
 //
 // `start "" cmd /k <cmd>` detaches into a new console window. The empty title

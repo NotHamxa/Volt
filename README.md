@@ -2,7 +2,7 @@
 
 **Your system, at your fingertips.**
 
-Volt is a fast, minimal launcher for Windows — built with Electron and React. Hit a shortcut, find what you need, and get back to work.
+Volt is a fast, minimal launcher for Windows, built with Electron and React. Hit a shortcut, find what you need, and get back to work.
 
 [**hamzahmed.com/project/volt**](https://hamzahmed.com/project/volt)
 
@@ -11,7 +11,7 @@ Volt is a fast, minimal launcher for Windows — built with Electron and React. 
 ## What it does
 
 **Search everything**
-Type to instantly search installed apps, files and folders, system commands, and Windows Settings — all from one place.
+Type to instantly search installed apps, files and folders, system commands, and Windows Settings, all from one place.
 
 **Pin what you use most**
 Right-click any app to pin it. Add links by URL. Pinned items always appear at the top.
@@ -23,7 +23,7 @@ Tell Volt which folders to index and your files surface directly in the search b
 Press `Tab` to switch between local and web search. No need to open a browser for a quick lookup.
 
 **Bangs**
-Jump straight to a site's search with a bang shortcut — `!yt`, `!g`, `!r`, and more. Fully customisable.
+Jump straight to a site's search with a bang shortcut: `!yt`, `!g`, `!r`, and more. Fully customisable.
 
 ---
 

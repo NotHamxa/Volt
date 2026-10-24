@@ -9,7 +9,7 @@ import { providerLogo, providerLogoTint } from "@/ai/providerLogos.ts";
  * list of their models.
  *
  * Two dropdowns meant picking a provider before you could see what it offered,
- * and one vendor's catalogue runs to dozens of entries — far past what a select
+ * and one vendor's catalogue runs to dozens of entries, far past what a select
  * can show usefully. Search is the way through a list that long; the collapsed
  * tail keeps the common case short without hiding anything.
  */
@@ -147,7 +147,7 @@ export function ModelPicker({
                 className="w-100 p-0 overflow-hidden rounded-xl border-line-090 bg-surface-menu/[0.98] backdrop-blur-xl shadow-[0_12px_36px_var(--shadow-2)]"
             >
                 {/* Capped to the room Radix reports, so it never runs past the
-                    window edge — in Settings the row can sit low in the page. */}
+                    window edge, in Settings the row can sit low in the page. */}
                 <div className="flex h-[min(300px,calc(var(--radix-popover-content-available-height)-8px))]">
                     {/* Provider rail. Switching here re-filters the list rather
                         than committing, so you can look before choosing. */}
@@ -159,7 +159,7 @@ export function ModelPicker({
                                 <button
                                     key={p.id}
                                     onClick={() => { onBrowse(p.id); setBrowsing(p.id); setShowAll(false); setActive(0); }}
-                                    title={p.available ? p.label : `${p.label} — unavailable`}
+                                    title={p.available ? p.label : `${p.label} (unavailable)`}
                                     aria-label={p.label}
                                     className={`relative flex items-center justify-center w-7 h-7 rounded-lg text-9.5 font-semibold transition-colors cursor-pointer ${
                                         isBrowsing
@@ -272,7 +272,7 @@ export function ModelPicker({
                                 })}
 
 
-                                {/* Providers accept ids they don't advertise —
+                                {/* Providers accept ids they don't advertise,
                                     the Claude CLI lists five aliases but takes
                                     any model name. Typing one reaches the older
                                     versions without a hard-coded list here that
@@ -310,9 +310,9 @@ export function ModelPicker({
                             </div>
                         </ScrollArea>
 
-                        {/* The advertised list is rarely the whole set — the
+                        {/* The advertised list is rarely the whole set, the
                             Claude CLI lists five aliases but accepts any model
-                            name — so say that rather than leave it to chance. */}
+                            name, so say that rather than leave it to chance. */}
                         {!exactId && (
                             <p className="shrink-0 px-3 py-1.5 border-t border-line-060 text-10 text-tone-250">
                                 Type any model id to use one that isn't listed

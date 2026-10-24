@@ -1,7 +1,7 @@
 import Store from "electron-store";
 
 /**
- * Non-secret AI preferences — which provider and model to open with, and the
+ * Non-secret AI preferences, which provider and model to open with, and the
  * default value for each provider's own controls.
  *
  * Lazily constructed for the same reason usage.js does it: importing this
@@ -20,7 +20,7 @@ const DEFAULTS = {
     // Directory the CLI providers run in; null means the managed default.
     workspace: null,
     // Model ids typed in by hand, per provider. Providers accept ids they never
-    // advertise — the Claude CLI lists five aliases but takes any model name —
+    // advertise, the Claude CLI lists five aliases but takes any model name,
     // so remembering them is the only way an older model can join the list
     // without a hard-coded catalogue here that would go stale.
     customModels: {},

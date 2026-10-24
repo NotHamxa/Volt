@@ -104,7 +104,7 @@ async function refreshCatalog(webContents, cache) {
  * Name is only a last resort for pins with no identity at all: two apps can
  * share one (Google's and Samsung's Quick Share), so a pin with an ID or path
  * must never slide onto a namesake. A shortcut pin that no longer matches an
- * entry — its file name differs from Start's display name — stays as it is
+ * entry, its file name differs from Start's display name, stays as it is
  * while the shortcut exists, since it still launches.
  */
 function reconcilePinnedApps(appCache) {
@@ -142,7 +142,7 @@ function readIconCache(cache) {
 
 /**
  * Icons used to be cached by app name. Carry those entries over to the
- * identity key — only where the name is unambiguous, since a shared name is
+ * identity key, only where the name is unambiguous, since a shared name is
  * exactly the case the old key got wrong.
  */
 function adoptNameKeyedIcons(cache) {
@@ -177,7 +177,7 @@ async function loadAppIconsCache(webContents, cache) {
     const missing = cache.appCache.filter(app => app.source !== "Steam" && !hasCachedIcon(cache, app));
 
     // Progress counts only the icons actually being made, and an icon is done
-    // once it's written (or every route has failed) — so the bar moves through
+    // once it's written (or every route has failed), so the bar moves through
     // the whole pass and always ends at 100%.
     let done = 0;
     const reportProgress = () => {
@@ -199,7 +199,7 @@ async function loadAppIconsCache(webContents, cache) {
  * The shell is the primary source: it produces full-bleed, correctly-sized
  * artwork for every AppsFolder entry. File extraction and the package manifest
  * only handle what it couldn't draw, rather than claiming apps first with a
- * worse icon. The manifest's Properties.Logo is the StoreLogo — a solid
+ * worse icon. The manifest's Properties.Logo is the StoreLogo, a solid
  * branded tile rather than the transparent icon Start actually shows.
  *
  * @returns whether any icon was written
@@ -302,7 +302,7 @@ async function revalidate(webContents, cache) {
             // itself is caught the moment its file is rewritten.
             if (!pngMtime || srcMtime > pngMtime) refresh.push(appData);
         } else if (!pngMtime || (Date.now() - pngMtime) > SHELL_REFRESH_MS) {
-            // Nothing on disk to compare against — packaged apps and
+            // Nothing on disk to compare against, packaged apps and
             // AppsFolder-only entries are re-asked periodically instead.
             refresh.push(appData);
         }

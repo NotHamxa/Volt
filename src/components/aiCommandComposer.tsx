@@ -107,7 +107,7 @@ export default function AiCommandComposer({ existing, onDraft, placeholder }: {
 
             <p className="flex items-center gap-1.5 text-10 text-tone-200">
                 <TriangleAlert size={10} className="shrink-0" />
-                Drafted with {provider.label}. Read the script before saving — nothing runs until you do.
+                Drafted with {provider.label}. Read the script before saving. Nothing runs until you do.
             </p>
 
             {problem && <p className="text-10.5 text-red-300/80">{problem}</p>}

@@ -27,7 +27,7 @@ type StepKeys = { settings: string | null; ai: string | null; preview: string | 
 
 /**
  * The tour: search and the home screen, then the AI view, then the parts of
- * Settings worth knowing about — each shown on its own page, so it ends with
+ * Settings worth knowing about, each shown on its own page, so it ends with
  * the person having actually been to every place it mentions.
  */
 const STEPS: Step[] = [
@@ -59,7 +59,7 @@ const STEPS: Step[] = [
         route: "/ai",
         selector: '[data-walkthrough="ai-composer"]',
         title: "Ask AI",
-        body: (keys) => `Ask anything here${keys.ai ? ` — ${keys.ai} brings you here from search` : ""}. Answers show each step the AI takes where it happened: the files it read, the commands it ran, what it was thinking.`,
+        body: (keys) => `Ask anything here${keys.ai ? `. ${keys.ai} brings you here from search` : ""}. Answers show each step the AI takes where it happened: the files it read, the commands it ran, what it was thinking.`,
         placement: "top",
         padding: 4,
     },
@@ -83,7 +83,7 @@ const STEPS: Step[] = [
         route: "/ai",
         selector: '[data-walkthrough="ai-history"]',
         title: "Your chats",
-        body: "Past conversations are kept here — hover to see them. Each remembers its model and mode, and a reply keeps going if you leave.",
+        body: "Past conversations are kept here. Hover to see them. Each remembers its model and mode, and a reply keeps going if you leave.",
         placement: "right",
         padding: 4,
     },
@@ -112,7 +112,7 @@ const STEPS: Step[] = [
         section: "keys",
         selector: '[data-walkthrough="settings-keys"]',
         title: "Shortcuts",
-        body: (keys) => `Every key Volt responds to, and the ones you can change${keys.open ? ` — like ${keys.open}, which opens Volt` : ""}.`,
+        body: (keys) => `Every key Volt responds to, and the ones you can change${keys.open ? `, like ${keys.open}, which opens Volt` : ""}.`,
         placement: "right",
         padding: 3,
     },
@@ -121,7 +121,7 @@ const STEPS: Step[] = [
         section: "apps",
         selector: '[data-walkthrough="settings-apps"]',
         title: "Hotkeys for apps and links",
-        body: "Give any app — or, under Links, any site — a hotkey that opens it from anywhere in Windows, even when Volt is hidden.",
+        body: "Give any app (or, under Links, any site) a hotkey that opens it from anywhere in Windows, even when Volt is hidden.",
         placement: "right",
         padding: 3,
     },
@@ -179,7 +179,7 @@ export function Walkthrough({ open, onClose }: WalkthroughProps) {
     const measure = useCallback(() => {
         const el = current?.selector ? document.querySelector(current.selector) : null;
         const next = el ? el.getBoundingClientRect() : null;
-        // Only a real move re-renders — this runs every frame.
+        // Only a real move re-renders, this runs every frame.
         setRect(prev => (
             prev === next || (prev && next && prev.top === next.top && prev.left === next.left
                 && prev.width === next.width && prev.height === next.height)

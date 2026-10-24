@@ -31,7 +31,7 @@ function sanitiseArgs(args) {
 /**
  * Returns a command safe to store, or null if it isn't one.
  *
- * Nothing here decides whether a script is *wise* to run — that judgement
+ * Nothing here decides whether a script is *wise* to run, that judgement
  * stays with the person reading it before they save it.
  */
 export function sanitiseCommand(raw) {
@@ -66,7 +66,7 @@ export function commandNameKey(name) {
 }
 
 /**
- * Placeholders the author already wrapped in quotes — `"{x}"`, `'{x}'`, or
+ * Placeholders the author already wrapped in quotes, `"{x}"`, `'{x}'`, or
  * anywhere inside a "…" string on its line. The runner escapes the value for
  * that string rather than quoting it again, so this works; it's still worth
  * knowing that elsewhere the quotes are added for you.
@@ -105,7 +105,7 @@ export function reviewCommand(command) {
         }
     }
     for (const name of quotedPlaceholdersIn(command.path)) {
-        notes.push(`{${name}} is already inside quotes. That works — the value is escaped for that string — but a bare {${name}} is quoted for you.`);
+        notes.push(`{${name}} is already inside quotes. That works (the value is escaped for that string), but a bare {${name}} is quoted for you.`);
     }
     return notes;
 }

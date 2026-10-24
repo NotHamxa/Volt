@@ -34,7 +34,7 @@ export function sendCommandNotification(commandName) {
 }
 
 /**
- * Failure detail goes back to the renderer, which shows it in a notification —
+ * Failure detail goes back to the renderer, which shows it in a notification,
  * so it's truncated here, where a wall of stderr would otherwise land.
  */
 function summarise(detail) {
@@ -60,8 +60,8 @@ const PS_VERBS = [
     "unlock", "unprotect", "unpublish", "unregister", "update", "use", "wait", "watch", "where", "write",
 ];
 
-// A cmdlet only counts in command position — line start, or after a pipe,
-// `;`, `(`, `{`, `=` or `&` — so a path like `mkdir new-app` isn't mistaken
+// A cmdlet only counts in command position, line start, or after a pipe,
+// `;`, `(`, `{`, `=` or `&`, so a path like `mkdir new-app` isn't mistaken
 // for one.
 const PS_CMDLET = new RegExp(`(^|[|;({=&])\\s*(${PS_VERBS.join("|")})-[a-z][a-z0-9]*\\b`, "im");
 const PS_SIGNALS = [
@@ -109,7 +109,7 @@ export function resolveShell(item) {
 // A value becomes a literal in whatever quoting context its placeholder sits
 // in. Authors often write `"{x}"` or `Write-Host "Hi {x}"` themselves, so a
 // placeholder already inside quotes is escaped for that string rather than
-// wrapped in another layer — double wrapping is exactly what lets a value
+// wrapped in another layer, double wrapping is exactly what lets a value
 // close the author's quotes and run.
 
 const PLACEHOLDER = /\{([a-zA-Z_][a-zA-Z0-9_]*)\}/y;
@@ -306,7 +306,7 @@ function removeQuietly(file) {
 }
 
 // `@(goto)` ends the batch, but the rest of the already-parsed line still runs
-// — the standard way for a .bat to delete itself without an error.
+//, the standard way for a .bat to delete itself without an error.
 const BAT_SELF_DELETE = '@(goto) 2>nul & del "%~f0"';
 
 /**
@@ -499,7 +499,7 @@ export async function executeCommandOpen(item, argValues) {
 
 /**
  * Failures come back as `{ ok: false, detail }` and are the caller's to show
- * — the renderer notifies on every path that runs a command, so notifying
+ *, the renderer notifies on every path that runs a command, so notifying
  * here too would report each failure twice.
  */
 export async function executeCommand(item, argValues){

@@ -135,7 +135,7 @@ function QuotedPlaceholderHint({ script }: { script: string }) {
     const list = quoted.map(n => `{${n}}`).join(", ");
     return (
         <p className="text-10 text-amber-400/80 leading-relaxed pl-0.5">
-            {list} {quoted.length === 1 ? "is" : "are"} already inside quotes. That works — the value is escaped for that string — but a bare placeholder is quoted for you.
+            {list} {quoted.length === 1 ? "is" : "are"} already inside quotes. That works (the value is escaped for that string), but a bare placeholder is quoted for you.
         </p>
     );
 }
@@ -169,7 +169,7 @@ function ExpandablePanel({ open, children }: { open: boolean; children: React.Re
     const contentRef = useRef<HTMLDivElement>(null);
     const [height, setHeight] = useState(0);
 
-    // Re-measure on content changes — adding args to the form should grow
+    // Re-measure on content changes, adding args to the form should grow
     // the panel so the Save row never disappears under the clip.
     useEffect(() => {
         if (!open || !contentRef.current) {
@@ -220,7 +220,7 @@ function StyledCheckbox({ checked, onChange, label }: { checked: boolean; onChan
 
 /**
  * `onUnsavedChange` reports whether an add or edit form holds a draft that
- * leaving the section would throw away — the same contract as KeysSection's
+ * leaving the section would throw away, the same contract as KeysSection's
  * `onRecordingChange`.
  */
 export default function CommandsSection({ onUnsavedChange }: { onUnsavedChange?: (v: boolean) => void } = {}) {
@@ -283,7 +283,7 @@ export default function CommandsSection({ onUnsavedChange }: { onUnsavedChange?:
 
     /**
      * A draft populates the form rather than saving. The script is then read
-     * and accepted in the normal editor, which is the whole point — generated
+     * and accepted in the normal editor, which is the whole point, generated
      * shell text should never reach the command list unseen.
      */
     const applyDraft = (cmd: SearchQueryT, notes: string[]) => {
@@ -392,7 +392,7 @@ export default function CommandsSection({ onUnsavedChange }: { onUnsavedChange?:
         const skipped = selected.length - added;
         window.electron.notify(
             "Commands Imported",
-            `${added} command(s) imported.${skipped ? ` ${skipped} skipped — the name already exists.` : ""}`,
+            `${added} command(s) imported.${skipped ? ` ${skipped} skipped because the name already exists.` : ""}`,
         );
     };
 
@@ -696,7 +696,7 @@ export default function CommandsSection({ onUnsavedChange }: { onUnsavedChange?:
 }
 
 /**
- * Everything an import file would add, shown before any of it is saved —
+ * Everything an import file would add, shown before any of it is saved,
  * a shared commands file is a script someone else wrote.
  */
 function ImportReviewModal({ candidates, onCancel, onConfirm }: {
@@ -728,7 +728,7 @@ function ImportReviewModal({ candidates, onCancel, onConfirm }: {
                     </div>
                     <div className="min-w-0">
                         <h3 className="text-13 font-semibold text-tone-850 tracking-[-0.01em]">Review imported commands</h3>
-                        <p className="text-10.5 text-tone-350">Read each script before importing — they run on your PC exactly as written.</p>
+                        <p className="text-10.5 text-tone-350">Read each script before importing. They run on your PC exactly as written.</p>
                     </div>
                 </header>
 

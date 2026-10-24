@@ -5,7 +5,7 @@ import { isExcludedPath, excludedFolders } from "./folderCache.js";
 
 // Native recursive watch on its own thread: one subscription per root, no
 // per-file handles, and no events dropped when a burst (an extracted archive,
-// a git clone) overflows the OS change buffer — fs.watch loses most of those.
+// a git clone) overflows the OS change buffer, fs.watch loses most of those.
 // Resolves to the subscription, or null if the folder can't be watched.
 export function watchTree(root, onEvents, ignore = []) {
     return parcelWatcher
@@ -25,8 +25,8 @@ export function watchTree(root, onEvents, ignore = []) {
 const IGNORE_GLOBS = excludedFolders.flatMap(f => [`**/${f}`, `**/${f}/**`]);
 
 // Watches indexed folders. Emits per batch:
-//   "add"    (root, paths) — files or folders that appeared
-//   "remove" (root, paths) — files or folders that are gone; a folder's
+//   "add"    (root, paths), files or folders that appeared
+//   "remove" (root, paths), files or folders that are gone; a folder's
 //                            contents aren't listed individually
 export class FolderWatcher extends EventEmitter {
     #subscriptions = new Map();

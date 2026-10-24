@@ -134,7 +134,7 @@ export function createLaunchHotkeys({ store, cache, getOpenShortcut, hideIfShown
             if (combo === getOpenShortcut()) return "That's the shortcut that opens Volt.";
             const owner = want.get(combo);
             if (owner) return `Already opens "${owner.label}".`;
-            if (!register(combo)) return "Windows wouldn't grant that combination — something else has it.";
+            if (!register(combo)) return "Windows wouldn't grant that combination. Something else is using it.";
         }
 
         if (!persist(target, id, combo)) {

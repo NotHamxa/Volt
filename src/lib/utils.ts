@@ -4,7 +4,7 @@ import { extendTailwindMerge } from "tailwind-merge"
 /**
  * The type scale defined in index.css (`text-11` is 11px). tailwind-merge only
  * knows Tailwind's own t-shirt sizes, and reads any other `text-*` as a
- * colour — so without this, `text-11` lost to a component's default `text-sm`
+ * colour, so without this, `text-11` lost to a component's default `text-sm`
  * and could knock out a real colour class beside it. Keep in step with the
  * `--text-*` tokens there.
  */

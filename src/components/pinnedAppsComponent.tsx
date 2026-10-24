@@ -70,7 +70,7 @@ const noShift = () => null;
 
 /**
  * Where on a tile a dragged app has to be held to drop *into* it rather than
- * beside it. On an app, the middle half — making a group should be meant.
+ * beside it. On an app, the middle half, making a group should be meant.
  * On a group, nearly all of it: adding to one is what dropping there means,
  * and only the outermost edge still nudges the grid to reorder.
  */
@@ -88,7 +88,7 @@ function inMergeZone(x: number, y: number, r: { left: number; top: number; width
  * pinned, so a link is always in the same place to reach for; the apps take
  * everything above it, in whole rows, and scroll a row at a time once there
  * are more than fit. An earlier version let the two share their space by
- * how full each was — which meant adding an app could push the links down,
+ * how full each was, which meant adding an app could push the links down,
  * and removing one pulled them up.
  */
 export default function PinnedApps({setStage, unPinApp, pinnedApps,setPinnedApps}: Props) {
@@ -253,7 +253,7 @@ export default function PinnedApps({setStage, unPinApp, pinnedApps,setPinnedApps
     // straight to another tile and drop it in: held over a tile's middle,
     // that tile lights up and letting go groups them. Resting over a tile's
     // edge for a moment makes room there instead. The tiles really move in
-    // the page — not just their pictures — so what's under the pointer is
+    // the page, not just their pictures, so what's under the pointer is
     // always what you see. (The first version shifted tiles the instant the
     // pointer touched them, so the one you were heading for slid away.)
 
@@ -518,7 +518,7 @@ export default function PinnedApps({setStage, unPinApp, pinnedApps,setPinnedApps
                                 <div
                                     ref={attachLinks}
                                     onScroll={onLinksScroll}
-                                    // A plain wheel scrolls the dock sideways —
+                                    // A plain wheel scrolls the dock sideways,
                                     // it has nowhere to go up or down.
                                     onWheel={(e) => {
                                         if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) e.currentTarget.scrollLeft += e.deltaY;
@@ -540,7 +540,7 @@ export default function PinnedApps({setStage, unPinApp, pinnedApps,setPinnedApps
                         </DndContext>
                     ) : (
                         <p className="flex-1 min-w-0 truncate pl-1 text-12 text-tone-200">
-                            Your most-used sites go here — the first nine open with Ctrl + 1–9
+                            Your most-used sites go here. The first nine open with Ctrl + 1–9
                         </p>
                     )}
                     <button

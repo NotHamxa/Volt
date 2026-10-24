@@ -9,7 +9,7 @@ import { useUpdateStatus } from "@/hooks/useUpdateStatus.ts";
 export default function AboutSection() {
     const [appVersion, setAppVersion] = useState("");
     // Shared with the version chip in the settings header, so the two can't
-    // disagree — and so the update IPC is subscribed to once, not per mount.
+    // disagree, and so the update IPC is subscribed to once, not per mount.
     const { state: updateStatus, percent: downloadPercent, error: updateError, check, install } = useUpdateStatus();
 
     useEffect(() => {

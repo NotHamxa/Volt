@@ -16,6 +16,42 @@ export interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
     {
+        version: "2.1.0",
+        date: "2026-10-24",
+        highlights: [
+            "Attach files and images in AI chat",
+            "Use Claude with an API key",
+            "A guided AI setup",
+        ],
+        sections: [
+            {
+                title: "New Features",
+                items: [
+                    "Attach files to an AI chat: paste a screenshot, drop files anywhere on the chat, or use the paperclip. Images go straight to the model, and text files are included in your message",
+                    "Attached images show as pictures in the chat. Click one to see it full size",
+                    "Claude (API key): use Claude with a key from the Claude Console, no CLI needed. It lists the models your key can use, offers each one's effort levels and shows Claude's thinking",
+                    "A setup guide in Settings → AI gets you going with a Claude plan, a ChatGPT plan or an API key. Each step ticks itself off, and Volt can run the commands for you",
+                    "Step through your chats with Alt + Up and Alt + Down",
+                ],
+            },
+            {
+                title: "Improvements",
+                items: [
+                    "Each chat keeps its own unsent message, even after Volt is closed",
+                    "Opening AI before anything is set up takes you to the setup guide",
+                    "Claude CLI and Codex say when they're installed but not signed in",
+                ],
+            },
+            {
+                title: "Bug Fixes",
+                items: [
+                    "Stop in the AI chat now stops straight away",
+                    "Long unbroken text, like keys and URLs, now wraps in your messages",
+                ],
+            },
+        ],
+    },
+    {
         version: "2.0.0",
         date: "2026-10-21",
         tour: true,

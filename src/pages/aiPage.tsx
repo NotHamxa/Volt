@@ -18,6 +18,7 @@ import { Kbd } from "@/components/ui/kbd.tsx";
 import { useChat, stepsOf, thoughtsOf } from "@/ai/useChat.ts";
 import { useDrafts, NEW_DRAFT } from "@/ai/useDrafts.ts";
 import { isReady } from "@/ai/readiness.ts";
+import { isTouring } from "@/components/walkthroughState.ts";
 import { useSmoothText } from "@/ai/useSmoothText.ts";
 import { ModelPicker } from "@/ai/modelPicker.tsx";
 import { Markdown, StreamingMarkdown } from "@/ai/markdown.tsx";
@@ -259,7 +260,8 @@ export default function AiPage() {
             ]);
             // Nothing to chat with yet. The setup guide is in Settings, so
             // that's where this goes instead of an empty box that can only fail.
-            if (!list.some(isReady)) {
+            // Not mid-tour, though: the tour is showing you this view.
+            if (!list.some(isReady) && !isTouring()) {
                 navigate("/settings?section=ai&setup=1", { replace: true });
                 return;
             }

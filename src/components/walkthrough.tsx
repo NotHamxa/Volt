@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useLocation, useNavigate } from "react-router";
 import { useEscape } from "@/hooks/useEscape.ts";
 import { useKeybindings } from "@/hooks/useKeybindings.ts";
+import { setTouring } from "@/components/walkthroughState.ts";
 
 type Step = {
     selector?: string;
@@ -23,7 +24,14 @@ type Step = {
 };
 
 /** The shortcuts a step can name, as currently bound. Null when unbound. */
-type StepKeys = { settings: string | null; ai: string | null; preview: string | null; open: string | null };
+type StepKeys = {
+    settings: string | null;
+    ai: string | null;
+    preview: string | null;
+    open: string | null;
+    prevChat: string | null;
+    nextChat: string | null;
+};
 
 /**
  * The tour: search and the home screen, then the AI view, then the parts of
@@ -59,7 +67,7 @@ const STEPS: Step[] = [
         route: "/ai",
         selector: '[data-walkthrough="ai-composer"]',
         title: "Ask AI",
-        body: (keys) => `Ask anything here${keys.ai ? `. ${keys.ai} brings you here from search` : ""}. Answers show each step the AI takes where it happened: the files it read, the commands it ran, what it was thinking.`,
+        body: (keys) => `Ask anything here${keys.ai ? `. ${keys.ai} brings you here from search` : ""}. Answers show each step the AI takes where it happened: the files it read, the commands it ran, what it was thinking. Paste, drop or attach files and images too.`,
         placement: "top",
         padding: 4,
     },
@@ -67,7 +75,7 @@ const STEPS: Step[] = [
         route: "/ai",
         selector: '[data-walkthrough="ai-model"]',
         title: "Pick a model",
-        body: "Claude, Codex, Gemini or any OpenAI-compatible provider, and any model id you type. Claude and Codex use the accounts you're already signed in to.",
+        body: "Claude (with your plan or an API key), Codex, Gemini or any OpenAI-compatible provider, and any model id you type. Claude and Codex can use the accounts you're already signed in to.",
         placement: "top",
         padding: 4,
     },
@@ -83,7 +91,7 @@ const STEPS: Step[] = [
         route: "/ai",
         selector: '[data-walkthrough="ai-history"]',
         title: "Your chats",
-        body: "Past conversations are kept here. Hover to see them. Each remembers its model and mode, and a reply keeps going if you leave.",
+        body: (keys) => `Past conversations are kept here. Hover to see them${keys.prevChat && keys.nextChat ? `, or step through them with ${keys.prevChat} and ${keys.nextChat}` : ""}. Each remembers its model, its mode and what you'd started typing, and a reply keeps going if you leave.`,
         placement: "right",
         padding: 4,
     },
@@ -139,7 +147,7 @@ const STEPS: Step[] = [
         section: "ai",
         selector: '[data-walkthrough="settings-ai"]',
         title: "AI providers",
-        body: "Connect providers and API keys, and choose the default model and the folder AI tools work in.",
+        body: "Not set up yet? A step-by-step guide gets you going with a Claude or ChatGPT plan, or an API key. This is also where you pick the default model and the folder AI tools work in.",
         placement: "right",
         padding: 3,
     },
@@ -171,10 +179,18 @@ export function Walkthrough({ open, onClose }: WalkthroughProps) {
         ai: bindingFor("open-ai") || null,
         preview: bindingFor("toggle-preview") || null,
         open: bindingFor("open-volt") || null,
+        prevChat: bindingFor("ai-prev-chat") || null,
+        nextChat: bindingFor("ai-next-chat") || null,
     };
     const location = useLocation();
 
     const current = STEPS[step];
+
+    // Read by the AI view, which holds off its setup redirect mid-tour.
+    useEffect(() => {
+        setTouring(open);
+        return () => setTouring(false);
+    }, [open]);
 
     const measure = useCallback(() => {
         const el = current?.selector ? document.querySelector(current.selector) : null;

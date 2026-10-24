@@ -7,12 +7,12 @@ export type Binding = {
     description: string;
     /**
      * For the global shortcut this mirrors the main process's fallback, which
-     * registers Ctrl+Space on a first run — Reset puts that back.
+     * registers Ctrl+Space on a first run, Reset puts that back.
      */
     default: string;
     /**
      * Structural keys are listed but not rebindable. Enter, Escape and the
-     * arrows aren't commands so much as how a list works — remapping them
+     * arrows aren't commands so much as how a list works, remapping them
      * would leave the app with no way to accept or back out of anything.
      */
     editable: boolean;
@@ -66,6 +66,14 @@ export const BINDINGS: Binding[] = [
         label: "New conversation", description: "Starts a fresh chat, leaving any running answer to finish.",
     },
     {
+        id: "ai-prev-chat", group: "AI", editable: true, default: "Alt+Up",
+        label: "Previous conversation", description: "Steps up the conversation list, ending at a new chat.",
+    },
+    {
+        id: "ai-next-chat", group: "AI", editable: true, default: "Alt+Down",
+        label: "Next conversation", description: "Steps down to older conversations.",
+    },
+    {
         id: "ai-send", group: "AI", editable: false, default: "Enter",
         label: "Send prompt", description: "Shift+Enter inserts a newline instead.",
     },
@@ -111,7 +119,7 @@ function keyName(e: KeyboardEvent): string | null {
     if (MODIFIERS.has(e.key)) return null;
     // IME composition and dead keys say nothing about which key was hit.
     if (e.key === "Unidentified" || e.key === "Process" || e.key === "Dead") return null;
-    // Shift turns 1 into "!" — read the digit off the physical key so the
+    // Shift turns 1 into "!", read the digit off the physical key so the
     // combo is still called Ctrl+Shift+1.
     const digit = /^Digit(\d)$/.exec(e.code);
     if (digit) return digit[1];
@@ -151,7 +159,7 @@ export function hasCommandModifier(combo: string): boolean {
     return comboParts(combo).some(p => p === "Ctrl" || p === "Alt" || p === "Super");
 }
 
-/** A combo that is also just typing — a letter, digit, Space, Backspace… */
+/** A combo that is also just typing, a letter, digit, Space, Backspace… */
 export function isTypingCombo(combo: string): boolean {
     if (!combo || hasCommandModifier(combo)) return false;
     const parts = comboParts(combo);
@@ -161,7 +169,7 @@ export function isTypingCombo(combo: string): boolean {
 
 /**
  * Every concrete combo a binding's text stands for. Structural rows are
- * written for reading — "Up / Down" is two combos, "Ctrl+1…8" eight.
+ * written for reading, "Up / Down" is two combos, "Ctrl+1…8" eight.
  */
 export function expandCombo(text: string): string[] {
     if (!text) return [];

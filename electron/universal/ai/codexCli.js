@@ -7,12 +7,13 @@ import { codexAuthMode } from "./cliAuth.js";
 import { workspaceDir } from "./workspace.js";
 import { describeCodexItem, clipOutput } from "./trace.js";
 import { resolveCli, killTree, track } from "./cliProcess.js";
+import { expandAttachments } from "./attachments.js";
 
 /**
  * Codex through the user's installed CLI, driven over `codex app-server`.
  *
  * Spawned directly rather than through @openai/codex-sdk: that package depends
- * on @openai/codex, which ships its own copy of the binary — the same
+ * on @openai/codex, which ships its own copy of the binary, the same
  * duplicate-a-large-binary problem the Claude adapter avoids. Auth comes from
  * the user's existing `codex login`.
  *
@@ -20,7 +21,7 @@ import { resolveCli, killTree, track } from "./cliProcess.js";
  * a command that needed approval was simply refused, so the only choices
  * were a sandbox that blocked the work or one that allowed everything. Over
  * the app-server's JSON-RPC, Codex asks and the person at the keyboard
- * answers — the same approval prompts Claude uses. It also streams the answer
+ * answers, the same approval prompts Claude uses. It also streams the answer
  * and its reasoning summaries as they're written, where exec delivered each
  * message whole.
  *
@@ -56,7 +57,7 @@ function spawnCodex(cli, args, options) {
 
 /**
  * How much Codex may do without asking. Each is a pairing of the sandbox the
- * commands run in and when Codex has to stop and ask — the same four modes,
+ * commands run in and when Codex has to stop and ask, the same four modes,
  * in the same words, as Claude's picker, so switching provider doesn't mean
  * learning a second vocabulary. Picking one makes it the default for new
  * conversations too.
@@ -70,7 +71,7 @@ const MODE_CONTROL = {
         { id: "ask", label: "Ask first", detail: "Reads freely; asks before changing files or running anything else" },
         { id: "edits", label: "Auto-edit", detail: "Edits inside the workspace go ahead; asks to go further" },
         { id: "auto", label: "Auto", detail: "A reviewer model approves routine requests; asks about the rest" },
-        { id: "full", label: "Full access", detail: "No sandbox — any file, any command, the network", danger: true },
+        { id: "full", label: "Full access", detail: "No sandbox: any file, any command, the network", danger: true },
     ],
     default: "ask",
 };
@@ -110,7 +111,7 @@ const CLIENT_INFO = { name: "volt", title: "Volt", version: "1.0.0" };
 /**
  * Newline-delimited JSON-RPC over a child's stdio, both ways: calls go out
  * and get answered, and the server sends notifications and requests of its
- * own — an approval is a request *from* Codex, answered with `respond`.
+ * own, an approval is a request *from* Codex, answered with `respond`.
  */
 function rpcClient(child, { onNotification, onRequest, trace } = {}) {
     const pending = new Map();
@@ -197,7 +198,7 @@ async function initialize(rpc) {
 
 /**
  * The real catalogue, from the CLI's app-server rather than a list typed out
- * here: `model/list` answers with each model's supported reasoning efforts —
+ * here: `model/list` answers with each model's supported reasoning efforts,
  * which genuinely differ between them.
  *
  * Cached for the process lifetime: this costs a spawn and a handshake.
@@ -243,7 +244,7 @@ async function fetchModels() {
     }
 }
 
-/** Each model advertises its own levels — sol offers "ultra", luna doesn't. */
+/** Each model advertises its own levels, sol offers "ultra", luna doesn't. */
 function effortControl(model) {
     const levels = (model.supportedReasoningEfforts ?? [])
         .map(entry => (typeof entry === "string" ? entry : entry?.reasoningEffort))
@@ -305,7 +306,7 @@ export const codexProvider = registerProvider({
         return [MODE_CONTROL];
     },
 
-    async *send({ prompt, sessionId, history, model, settings, signal, toolless, requestPermission, trace }) {
+    async *send({ prompt, attachments, sessionId, history, model, settings, signal, toolless, requestPermission, trace }) {
         const cli = findCodexBinary();
         if (!cli) {
             yield { type: "error", message: "Codex CLI not found." };
@@ -313,7 +314,7 @@ export const codexProvider = registerProvider({
             return;
         }
 
-        const run = (turn) => runTurn({ cli, ...turn, model, settings, signal, toolless, requestPermission, trace });
+        const run = (turn) => runTurn({ cli, ...turn, attachments, model, settings, signal, toolless, requestPermission, trace });
         // A one-shot completion has no thread to resume or transcript to replay.
         if (toolless) yield* run({ sessionId: null, prompt });
         else yield* withResumeFallback({ sessionId, prompt, history, run });
@@ -395,8 +396,22 @@ function approvalPrompt(method, params, items) {
     };
 }
 
+/**
+ * The prompt as Codex takes it. Images are handed over by path, which it reads
+ * itself; text files are inlined and anything else is named by path.
+ */
+function turnInput(prompt, attachments) {
+    if (!attachments?.length) return [{ type: "text", text: prompt, text_elements: [] }];
+    const images = attachments.filter(a => a.kind === "image");
+    const { text } = expandAttachments(prompt, attachments.filter(a => a.kind !== "image"), { paths: true });
+    return [
+        { type: "text", text: text || "See the attached images.", text_elements: [] },
+        ...images.map(a => ({ type: "localImage", path: a.path })),
+    ];
+}
+
 /** One turn: start (or resume) the thread, send the prompt, relay until it completes. */
-async function* runTurn({ cli, prompt, sessionId, model, settings, signal, toolless, requestPermission, trace }) {
+async function* runTurn({ cli, prompt, attachments, sessionId, model, settings, signal, toolless, requestPermission, trace }) {
     const root = workspaceDir();
     const mode = toolless ? null : resolveMode(settings);
     // Drafting only wants text back: no writes, no commands, nothing kept.
@@ -404,8 +419,8 @@ async function* runTurn({ cli, prompt, sessionId, model, settings, signal, tooll
         ? { sandbox: "read-only", approvalPolicy: "never", approvalsReviewer: "user" }
         : MODE_POLICY[mode];
 
-    // Without a Windows sandbox chosen, Codex refuses every command outright —
-    // read-only or not — and says so only on stderr. The unelevated one needs
+    // Without a Windows sandbox chosen, Codex refuses every command outright,
+    // read-only or not, and says so only on stderr. The unelevated one needs
     // no admin prompt and enforces the same policy.
     const args = ["app-server"];
     if (process.platform === "win32" && !configSetsWindowsSandbox()) {
@@ -607,7 +622,7 @@ async function* runTurn({ cli, prompt, sessionId, model, settings, signal, tooll
     });
 
     // Stopping: ask the turn to end, which lets Codex settle its items, and
-    // take the whole tree down if it doesn't — commands it started would
+    // take the whole tree down if it doesn't, commands it started would
     // outlive a plain kill.
     const onAbort = () => {
         if (threadId && turnId) rpc.call("turn/interrupt", { threadId, turnId }).catch(() => {});
@@ -632,12 +647,13 @@ async function* runTurn({ cli, prompt, sessionId, model, settings, signal, tooll
             ? await rpc.call("thread/resume", { threadId: sessionId, excludeTurns: true, ...threadParams })
             : await rpc.call("thread/start", { ...threadParams, ...(toolless ? { ephemeral: true } : {}) });
         threadId = opened?.thread?.id ?? sessionId;
+        if (threadId && !toolless) yield { type: "session", sessionId: threadId };
         if (opened?.model) yield { type: "stats", stats: { model: opened.model } };
 
         const effort = allowedEffort(model, settings?.effort);
         const started = await rpc.call("turn/start", {
             threadId,
-            input: [{ type: "text", text: prompt, text_elements: [] }],
+            input: turnInput(prompt, attachments),
             cwd: root,
             ...(modelId ? { model: modelId } : {}),
             ...(effort ? { effort } : {}),

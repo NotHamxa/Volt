@@ -1,6 +1,7 @@
 import { registerProvider, trimHistory } from "./provider.js";
 import { getKey } from "./credentials.js";
 import { sseEvents } from "./sse.js";
+import { expandAttachments, hasContent } from "./attachments.js";
 
 /**
  * Google Gemini over its REST API.
@@ -8,7 +9,7 @@ import { sseEvents } from "./sse.js";
  * Unlike the OpenAI-compatible vendors this needs its own adapter: roles are
  * "user"/"model" rather than "user"/"assistant", turns are `parts` arrays, and
  * the key goes in a header rather than a bearer token. Streaming is still SSE
- * once `alt=sse` is asked for — without it the endpoint returns a JSON array.
+ * once `alt=sse` is asked for, without it the endpoint returns a JSON array.
  */
 
 const BASE = "https://generativelanguage.googleapis.com/v1beta";
@@ -31,7 +32,7 @@ async function describeFailure(response) {
         const message = json?.error?.message ?? json?.[0]?.error?.message;
         if (message) return message;
     } catch { /* not JSON */ }
-    if (response.status === 400) return "Gemini rejected the request — the key may be invalid.";
+    if (response.status === 400) return "Gemini rejected the request. The key may be invalid.";
     if (response.status === 429) return "Rate limited by Google.";
     return text.slice(0, 200) || `Request failed (HTTP ${response.status}).`;
 }
@@ -58,7 +59,7 @@ export const geminiProvider = registerProvider({
             if (!response.ok) return FALLBACK_MODELS;
             const json = await response.json();
             const ids = (json?.models ?? [])
-                // Only models that can actually answer a prompt — the list also
+                // Only models that can actually answer a prompt, the list also
                 // carries embedding and vision-only entries.
                 .filter(m => (m?.supportedGenerationMethods ?? []).includes("generateContent"))
                 .map(m => String(m?.name ?? "").replace(/^models\//, ""))
@@ -74,23 +75,30 @@ export const geminiProvider = registerProvider({
         return [];
     },
 
-    async *send({ prompt, history, model, signal }) {
+    async *send({ prompt, attachments, history, model, signal }) {
         const key = getKey(ID);
         if (!key) {
             yield { type: "error", message: "No API key saved for Gemini." };
             return;
         }
 
-        const turns = (history ?? []).filter(m => m.content?.trim());
+        const turns = (history ?? []).filter(hasContent).map(m => ({ ...m }));
         const last = turns.at(-1);
         if (!last || last.role !== "user" || last.content !== prompt) {
-            turns.push({ role: "user", content: prompt });
+            turns.push({ role: "user", content: prompt, attachments });
+        } else {
+            last.attachments = attachments;
         }
-        const contents = trimHistory(turns).map(m => ({
+        const contents = trimHistory(turns).map(m => {
             // Gemini calls the assistant "model".
-            role: m.role === "assistant" ? "model" : "user",
-            parts: [{ text: m.content }],
-        }));
+            if (m.role === "assistant") return { role: "model", parts: [{ text: m.content }] };
+            // No thread is kept, so images go again with every turn they belong to.
+            const { text, images } = expandAttachments(m.content, m.attachments, { images: true });
+            return {
+                role: "user",
+                parts: [{ text }, ...images.map(i => ({ inlineData: { mimeType: i.mimeType, data: i.data } }))],
+            };
+        });
 
         const chosen = model || FALLBACK_MODELS[0].id;
         let response;

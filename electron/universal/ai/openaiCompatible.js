@@ -1,10 +1,11 @@
 import { registerProvider, trimHistory } from "./provider.js";
 import { getKey } from "./credentials.js";
 import { sseEvents } from "./sse.js";
+import { expandAttachments, hasContent } from "./attachments.js";
 
 /**
  * One adapter for every vendor that speaks the OpenAI chat-completions dialect
- * — OpenAI, DeepSeek, xAI. They differ only by base URL and model catalogue, so
+ *, OpenAI, DeepSeek, xAI. They differ only by base URL and model catalogue, so
  * a factory beats three near-identical files.
  *
  * These endpoints are stateless: there is no server-side thread to resume, so
@@ -13,6 +14,24 @@ import { sseEvents } from "./sse.js";
  * Raw fetch rather than the vendor SDK: streaming chat completions is a dozen
  * lines of SSE, and the installer already carries an Electron runtime.
  */
+
+/**
+ * A turn in the chat-completions shape. Images ride along as data URLs on
+ * every turn that had them, the endpoint keeps no thread, so an image sent
+ * once would otherwise be forgotten by the next question about it.
+ */
+function toMessage(m) {
+    if (m.role !== "user" || !m.attachments?.length) return { role: m.role, content: m.content };
+    const { text, images } = expandAttachments(m.content, m.attachments, { images: true });
+    if (!images.length) return { role: "user", content: text };
+    return {
+        role: "user",
+        content: [
+            { type: "text", text },
+            ...images.map(i => ({ type: "image_url", image_url: { url: `data:${i.mimeType};base64,${i.data}` } })),
+        ],
+    };
+}
 
 /** Vendors return errors as JSON, plain text, or an HTML error page. */
 async function describeFailure(response) {
@@ -67,8 +86,8 @@ function createOpenAiCompatible({
                 });
                 if (!response.ok) return fallbackModels;
                 const json = await response.json();
-                // Newest first. These catalogues are long — OpenAI's runs to
-                // dozens — and alphabetical put gpt-3.5 above gpt-5, which is
+                // Newest first. These catalogues are long, OpenAI's runs to
+                // dozens, and alphabetical put gpt-3.5 above gpt-5, which is
                 // the wrong end of the list to lead with. `created` is the
                 // vendor's own release stamp, so this doesn't go stale.
                 const models = (json?.data ?? [])
@@ -86,7 +105,7 @@ function createOpenAiCompatible({
             return [];
         },
 
-        async *send({ prompt, history, model, signal }) {
+        async *send({ prompt, attachments, history, model, signal }) {
             if (needsKey && !getKey(id)) {
                 yield { type: "error", message: `No API key saved for ${label}.` };
                 return;
@@ -94,12 +113,15 @@ function createOpenAiCompatible({
 
             // The caller appends an empty assistant turn to stream into; it
             // must not be sent back as part of the conversation.
-            const priorTurns = (history ?? []).filter(m => m.content?.trim());
-            let messages = priorTurns.map(m => ({ role: m.role, content: m.content }));
-            if (messages.at(-1)?.role !== "user" || messages.at(-1)?.content !== prompt) {
-                messages.push({ role: "user", content: prompt });
+            const priorTurns = (history ?? []).filter(hasContent);
+            const turns = priorTurns.map(m => ({ role: m.role, content: m.content, attachments: m.attachments }));
+            if (turns.at(-1)?.role !== "user" || turns.at(-1)?.content !== prompt) {
+                turns.push({ role: "user", content: prompt, attachments });
+            } else {
+                // The turn's own list was re-checked on the way in.
+                turns.at(-1).attachments = attachments;
             }
-            messages = trimHistory(messages);
+            const messages = trimHistory(turns).map(toMessage);
 
             let response;
             try {
@@ -157,7 +179,7 @@ function createOpenAiCompatible({
     });
 }
 
-// Chat models only — the catalogues also list embeddings, audio and images.
+// Chat models only, the catalogues also list embeddings, audio and images.
 const CHAT_ONLY = (modelId) =>
     !/embed|whisper|tts|dall-e|moderation|image|audio|realtime|transcribe/i.test(modelId);
 

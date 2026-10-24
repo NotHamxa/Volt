@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require("electron");
+const { contextBridge, ipcRenderer, webUtils } = require("electron");
 
 // Subscribes `callback` to a main-process event (without the IPC event object)
 // and returns the unsubscribe, so a component can detach on unmount.
@@ -109,7 +109,7 @@ contextBridge.exposeInMainWorld('ai', {
     cancel: (requestId) => ipcRenderer.invoke('ai-cancel', requestId),
     setMode: (active) => ipcRenderer.send('ai-set-mode', active),
     setKeepOpen: (keepOpen) => ipcRenderer.send('ai-set-keep-open', keepOpen),
-    // Presence only — the key itself never crosses this bridge.
+    // Presence only, the key itself never crosses this bridge.
     keyStatus: () => ipcRenderer.invoke('ai-key-status'),
     setKey: (providerId, key) => ipcRenderer.invoke('ai-set-key', providerId, key),
     clearKey: (providerId) => ipcRenderer.invoke('ai-clear-key', providerId),
@@ -131,6 +131,14 @@ contextBridge.exposeInMainWorld('ai', {
     activeTurn: (chatId) => ipcRenderer.invoke('ai-active-turn', chatId),
     activeTurns: () => ipcRenderer.invoke('ai-active-turns'),
     openTrace: (traceId) => ipcRenderer.invoke('ai-open-trace', traceId),
+    // Where a pasted or dropped file lives on disk; "" for data with no file
+    // behind it, like a screenshot on the clipboard.
+    pathForFile: (file) => {
+        try { return webUtils.getPathForFile(file); } catch { return ""; }
+    },
+    saveAttachments: (chatId, items) => ipcRenderer.invoke('ai-save-attachments', chatId, items),
+    openAttachment: (chatId, path) => ipcRenderer.invoke('ai-open-attachment', chatId, path),
+    attachmentImage: (chatId, path, maxSize) => ipcRenderer.invoke('ai-attachment-image', chatId, path, maxSize),
     // The user's answer to a tool-approval prompt: "allow", "allow-chat" or "deny".
     respondPermission: (requestId, permissionId, decision) =>
         ipcRenderer.invoke('ai-permission-respond', requestId, permissionId, decision),

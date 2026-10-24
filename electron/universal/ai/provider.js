@@ -3,8 +3,8 @@
  *
  * Three kinds sit behind it:
  *   - "subscription-sdk"  an official SDK driving a CLI the user already has
- *                         (Claude via claude.exe) — no API key
- *   - "subscription-cli"  a binary spawned directly (codex, ollama) — no API key
+ *                         (Claude via claude.exe), no API key
+ *   - "subscription-cli"  a binary spawned directly (codex, ollama), no API key
  *   - "api"               an API key the user supplies, for wider provider choice
  *
  * `controls()` exists because the knobs are not universal: Claude has effort,
@@ -12,14 +12,18 @@
  * renders what the adapter declares rather than a fixed set, so no provider
  * shows a control it will silently ignore.
  *
- * Controls can also vary *within* a provider — Claude's Haiku accepts no effort
- * level while Opus accepts five — so a model may carry its own list. When it
+ * Controls can also vary *within* a provider, Claude's Haiku accepts no effort
+ * level while Opus accepts five, so a model may carry its own list. When it
  * does, that wins over the provider-wide one.
  *
  * `done.sessionId` is three-state: a string replaces the stored thread id,
  * null clears it (the thread is gone), and undefined leaves it alone.
  *
+ * `session` reports the thread id as soon as it exists, so a turn stopped
+ * before its "done" still keeps it.
+ *
  * @typedef {{ type: "text", text: string }
+ *          | { type: "session", sessionId: string }
  *          | { type: "error", message: string }
  *          | { type: "done", sessionId?: string | null }} Chunk
  *
@@ -33,18 +37,20 @@
  *   controls: () => Array<{ id: string, label: string, type: "select", options: Array<{ id: string, label: string }>, default: string }>,
  *   billing?: () => { mode: "subscription" | "api-key" | "unknown", label: string },
  *   send: (opts: {
- *     prompt: string, sessionId?: string|null, history?: Array<{ role: string, content: string }>,
+ *     prompt: string, sessionId?: string|null, history?: Array<{ role: string, content: string, attachments?: object[] }>,
+ *     attachments?: Array<{ name: string, path: string, mimeType: string, size: number, kind: "image" | "text" | "file" }>,
  *     model?: string, settings?: Record<string,string>, signal?: AbortSignal,
  *     toolless?: boolean,
  *     requestPermission?: (req: { toolName: string, title: string, detail?: string, signal?: AbortSignal }) => Promise<"allow" | "allow-chat" | "deny">,
  *   }) => AsyncIterable<Chunk>,
  * }} AiProvider
  *
- * `toolless` asks for a pure completion — no tools, no session — for callers
+ * `toolless` asks for a pure completion, no tools, no session, for callers
  * like command drafting that only want text back.
  */
 
 import Store from "electron-store";
+import { hasContent } from "./attachments.js";
 
 const registry = new Map();
 
@@ -63,7 +69,7 @@ export function allProviders() {
 
 /**
  * Provider list for the UI. Availability is probed per provider and failures are
- * reported rather than thrown — one missing CLI must not blank the whole list.
+ * reported rather than thrown, one missing CLI must not blank the whole list.
  */
 export async function describeProviders() {
     const described = await Promise.all(allProviders().map(async (p) => {
@@ -87,9 +93,9 @@ export async function describeProviders() {
             billing,
             available: availability.available,
             detail: availability.detail ?? null,
-            // Deliberately empty. Reading a catalogue costs a CLI spawn —
+            // Deliberately empty. Reading a catalogue costs a CLI spawn,
             // measured at two seconds for the set of providers registered here
-            // — and the view blocked on all of them before it could paint.
+            //, and the view blocked on all of them before it could paint.
             // Callers ask for the one provider they're using, via providerModels.
             models: [],
             controls: p.controls(),
@@ -107,8 +113,8 @@ export async function describeProviders() {
 export const HISTORY_BUDGET_CHARS = 200_000;
 
 /**
- * The newest turns that fit the budget. The last message — the prompt being
- * asked — is always kept, and the result never opens on an assistant turn,
+ * The newest turns that fit the budget. The last message, the prompt being
+ * asked, is always kept, and the result never opens on an assistant turn,
  * which some APIs (Gemini) reject.
  */
 export function trimHistory(messages, budget = HISTORY_BUDGET_CHARS) {
@@ -129,15 +135,15 @@ export function trimHistory(messages, budget = HISTORY_BUDGET_CHARS) {
 
 /** The stored transcript minus the prompt being asked now, if it is the tail. */
 export function priorTurns(history, prompt) {
-    const turns = (history ?? []).filter(m => m.content?.trim());
+    const turns = (history ?? []).filter(hasContent);
     const last = turns.at(-1);
     if (last?.role === "user" && last.content === prompt) turns.pop();
     return turns;
 }
 
 /**
- * A session-based CLI starting a thread partway through a conversation — the
- * chat began on another provider, or its old session is gone — would otherwise
+ * A session-based CLI starting a thread partway through a conversation, the
+ * chat began on another provider, or its old session is gone, would otherwise
  * answer with no idea what came before. The earlier turns ride along in the
  * prompt instead.
  */
@@ -147,7 +153,10 @@ export function withReplayedContext(prompt, history, budget = HISTORY_BUDGET_CHA
     const kept = trimHistory([...prior, { role: "user", content: "" }], budget).slice(0, -1);
     if (!kept.length) return prompt;
     const transcript = kept
-        .map(m => `${m.role === "assistant" ? "Assistant" : "User"}: ${m.content}`)
+        .map(m => {
+            const files = m.attachments?.length ? `\n[Attached: ${m.attachments.map(a => a.path).join(", ")}]` : "";
+            return `${m.role === "assistant" ? "Assistant" : "User"}: ${m.content}${files}`;
+        })
         .join("\n\n");
     return [
         "Earlier in this conversation (continued from before this session started):",
@@ -167,7 +176,7 @@ const STALE_SESSION = /no conversation found|(?:session|thread|conversation|roll
  *
  * A dead session id used to break a chat for good: every later turn resumed
  * it, failed, and wrote the same id back. When the CLI says the thread doesn't
- * exist — before anything was produced — the turn runs once more from scratch
+ * exist, before anything was produced, the turn runs once more from scratch
  * with the transcript replayed, and the new thread id replaces the old one.
  *
  * `run({ sessionId, prompt })` is the adapter's own single attempt.
@@ -183,6 +192,7 @@ export async function* withResumeFallback({ sessionId, prompt, history, run }) {
     const held = [];
     let produced = false;
     for await (const chunk of run({ sessionId, prompt })) {
+        if (chunk.type === "session") { yield chunk; continue; }
         if (!produced && chunk.type === "error") { held.push(chunk); continue; }
         if (!produced && chunk.type === "done" && held.some(c => STALE_SESSION.test(c.message ?? ""))) {
             for await (const retry of run({ sessionId: null, prompt: withReplayedContext(prompt, history) })) {

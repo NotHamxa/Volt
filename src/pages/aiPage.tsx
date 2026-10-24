@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { useSearchParams } from "react-router";
 import {
     Square, PanelLeft, Pin, PinOff, Plus, Trash2, ArrowUp, ArrowDown, MessageCircle, RotateCcw, Pencil, Check, ShieldAlert,
-    ScrollText,
+    ScrollText, Paperclip, X, FileText, File as FileIcon, Image as ImageIcon,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import {
@@ -16,10 +16,12 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { Kbd } from "@/components/ui/kbd.tsx";
 import { useChat, stepsOf, thoughtsOf } from "@/ai/useChat.ts";
+import { useDrafts, NEW_DRAFT } from "@/ai/useDrafts.ts";
 import { useSmoothText } from "@/ai/useSmoothText.ts";
 import { ModelPicker } from "@/ai/modelPicker.tsx";
 import { Markdown, StreamingMarkdown } from "@/ai/markdown.tsx";
 import { CopyButton } from "@/ai/copyButton.tsx";
+import { SentImage, PendingImage } from "@/ai/attachmentPreview.tsx";
 import logo from "@/assets/icon.png";
 import { providerLogo, providerLogoTint } from "@/ai/providerLogos.ts";
 import { TurnTrace, TurnStats } from "@/ai/turnTrace.tsx";
@@ -35,13 +37,71 @@ import { getBinding } from "@/hooks/useKeybindings.ts";
 function controlsFor(provider: AiProviderInfo | null | undefined, modelId: string): AiControl[] {
     if (!provider) return [];
     // No model picked means the CLI's default, which Claude lists as
-    // "default" — without this the mode picker vanished until one was chosen.
+    // "default", without this the mode picker vanished until one was chosen.
     const entry = provider.models.find(m => m.id === (modelId || "default"));
     return entry?.controls ?? provider.controls;
 }
 
+/** Matches the main process, which drops anything past it. */
+const MAX_ATTACHMENTS = 10;
+/** Pasted data crosses IPC as base64; a file on disk is only referenced. */
+const MAX_PASTED_BYTES = 20 * 1024 * 1024;
+
+type PendingAttachment = {
+    id: string;
+    name: string;
+    size: number;
+    image: boolean;
+    input: AiAttachmentInput;
+    /** An image's thumbnail, as an object URL, revoked once it's gone. */
+    preview?: string;
+};
+
+function readBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result).split(",", 2)[1] ?? "");
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+    });
+}
+
 /**
- * AI lives inside the launcher, not a second window — same 800x550 frame, same
+ * A pasted, dropped or picked file, ready to send. One from disk keeps its
+ * path; a screenshot on the clipboard has none, so its bytes come along.
+ */
+async function toPending(file: File): Promise<PendingAttachment | null> {
+    const image = file.type.startsWith("image/");
+    const path = window.ai.pathForFile(file);
+    const base = { id: crypto.randomUUID(), size: file.size, image };
+    if (path) {
+        return { ...base, name: file.name, input: { path, name: file.name }, preview: image ? URL.createObjectURL(file) : undefined };
+    }
+    if (file.size > MAX_PASTED_BYTES) return null;
+    try {
+        const data = await readBase64(file);
+        // Chromium names every clipboard image "image.png".
+        const ext = file.type.split("/")[1]?.replace("jpeg", "jpg") || "bin";
+        const name = !file.name || file.name === "image.png" ? `Pasted image.${ext}` : file.name;
+        return {
+            ...base,
+            name,
+            input: { name, mimeType: file.type || "application/octet-stream", data },
+            preview: image ? URL.createObjectURL(file) : undefined,
+        };
+    } catch {
+        return null;
+    }
+}
+
+function formatSize(bytes: number) {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/**
+ * AI lives inside the launcher, not a second window, same 800x550 frame, same
  * footer. Built on the same primitives shadcn's AI chat components use
  * (input-group for the prompt, select for the toolbar dropdowns), so it
  * inherits their keyboard and focus behaviour rather than re-implementing it
@@ -70,13 +130,39 @@ export default function AiPage() {
     const [following, setFollowing] = useState(true);
 
     const scrollRef = useRef<HTMLDivElement>(null);
-    // The composer grows — a long prompt, an approval docked on top — and
+    // The composer grows, a long prompt, an approval docked on top, and
     // the transcript has to clear whatever height it has right now.
     const composerRef = useRef<HTMLDivElement>(null);
     const [composerHeight, setComposerHeight] = useState(112);
     const inputRef = useRef<HTMLTextAreaElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
+    // A file being dragged over the view, so the composer can say it'll take it.
+    const [dragging, setDragging] = useState(false);
+    const dragDepth = useRef(0);
     const seededRef = useRef(false);
     const lastChatIdRef = useRef<string | null>(null);
+
+    // Each conversation has its own prompt box contents. `shownKeyRef` names
+    // whose draft is in the box right now: a chat id, or the unsaved new
+    // chat. It moves the moment a switch is asked for, not when the chat
+    // finishes loading, so stepping quickly can't file one chat's text under
+    // another.
+    const { load: loadDrafts, get: getDraft, set: setDraft, move: moveDraft, clear: clearDrafts } = useDrafts();
+    const shownKeyRef = useRef(NEW_DRAFT);
+    const promptRef = useRef("");
+    // Files waiting in chats you've stepped away from. Session only: pasted
+    // data can run to megabytes, which is no thing to keep in the settings file.
+    const stashedFiles = useRef(new Map<string, PendingAttachment[]>());
+    // Set when a send is about to give the new chat its id; what was typed
+    // meanwhile belongs to that chat, not to the next new one.
+    const carryToNewChat = useRef(false);
+    // Arrived with a question to send, so the box starts empty rather than
+    // showing the saved new-chat draft over it.
+    const seededOnMount = useRef(searchParams.has("prompt"));
+    // The conversation list shown briefly while stepping through it.
+    const [peeking, setPeeking] = useState(false);
+    const peekTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Whose answer this is. The Volt logo said nothing about which backend was
     // running, and with several configured that is the one thing the mark
@@ -90,8 +176,8 @@ export default function AiPage() {
         [providers, providerId],
     );
 
-    // A model can narrow its provider's knobs — Claude's Haiku takes no effort
-    // level at all — so the model's own list wins when it declares one.
+    // A model can narrow its provider's knobs, Claude's Haiku takes no effort
+    // level at all, so the model's own list wins when it declares one.
     const controls = useMemo(() => controlsFor(provider, model), [provider, model]);
 
     // What a turn "cost" is only real money on an API key; on a plan it's a
@@ -202,6 +288,44 @@ export default function AiPage() {
         return () => { cancelled = true; };
     }, [chat?.updatedAt]);
 
+    const showPrompt = useCallback((text: string) => {
+        promptRef.current = text;
+        setPrompt(text);
+    }, []);
+
+    // The new chat's draft, from the last session.
+    useEffect(() => {
+        let cancelled = false;
+        loadDrafts().then(() => {
+            if (cancelled || seededOnMount.current || shownKeyRef.current !== NEW_DRAFT) return;
+            if (!promptRef.current) showPrompt(getDraft(NEW_DRAFT));
+        });
+        return () => { cancelled = true; };
+    }, [loadDrafts, getDraft, showPrompt]);
+
+    // A new chat getting its id on its first send keeps whatever was typed
+    // while that was happening.
+    useEffect(() => {
+        const id = chat?.id;
+        if (!id || !carryToNewChat.current) return;
+        carryToNewChat.current = false;
+        moveDraft(shownKeyRef.current, id);
+        shownKeyRef.current = id;
+    }, [chat?.id, moveDraft]);
+
+    /** Puts away the box's contents and brings out `target`'s. */
+    const showDraft = useCallback((target: string) => {
+        const from = shownKeyRef.current;
+        if (from === target) return;
+        shownKeyRef.current = target;
+        setDraft(from, promptRef.current);
+        showPrompt(getDraft(target));
+        setAttachments(current => {
+            stashedFiles.current.set(from, current);
+            return stashedFiles.current.get(target) ?? [];
+        });
+    }, [setDraft, getDraft, showPrompt]);
+
     useLayoutEffect(() => {
         const el = composerRef.current;
         if (!el) return;
@@ -210,7 +334,7 @@ export default function AiPage() {
         return () => observer.disconnect();
     }, []);
 
-    // Hold the launcher open while this view is mounted — clicking away mid
+    // Hold the launcher open while this view is mounted, clicking away mid
     // answer must not dismiss the window and lose the stream.
     useEffect(() => {
         window.ai.setMode(true);
@@ -226,37 +350,62 @@ export default function AiPage() {
         window.ai.setPrefs({ keepOpen: next });
     }, [keepOpen]);
 
-    // The new-chat shortcut (Ctrl+N unless rebound) starts a fresh
-    // conversation. Read per keypress, so a rebinding applies at once. A
-    // running turn is left alone: it is owned by the main process and still
-    // writes its answer to its own chat.
-    useEffect(() => {
-        const onKeyDown = (e: KeyboardEvent) => {
-            if (!matchesCombo(e, getBinding("ai-new-chat"))) return;
-            e.preventDefault();
-            newChat();
-            setFollowing(true);
-            setPrompt("");
-            inputRef.current?.focus();
-        };
-        window.addEventListener("keydown", onKeyDown);
-        return () => window.removeEventListener("keydown", onKeyDown);
-    }, [newChat]);
+    const addFiles = useCallback(async (files: File[]) => {
+        if (!files.length) return;
+        const ready = await Promise.all(files.map(toPending));
+        const kept = ready.filter((a): a is PendingAttachment => a !== null);
+        if (kept.length < files.length) {
+            window.electron.notify("Some files weren't attached", "Pasted data over 20 MB can't be sent. Save it to a file and attach that instead.");
+        }
+        setAttachments(current => {
+            const next = [...current, ...kept];
+            if (next.length <= MAX_ATTACHMENTS) return next;
+            for (const dropped of next.slice(MAX_ATTACHMENTS)) if (dropped.preview) URL.revokeObjectURL(dropped.preview);
+            window.electron.notify("Too many files", `Up to ${MAX_ATTACHMENTS} files can go with one message.`);
+            return next.slice(0, MAX_ATTACHMENTS);
+        });
+        inputRef.current?.focus();
+    }, []);
 
+    const removeAttachment = useCallback((id: string) => {
+        setAttachments(current => {
+            const gone = current.find(a => a.id === id);
+            if (gone?.preview) URL.revokeObjectURL(gone.preview);
+            return current.filter(a => a.id !== id);
+        });
+    }, []);
+
+    // Thumbnails still in the composer, or put away with another chat's
+    // draft, when the view is left.
+    const attachmentsRef = useRef(attachments);
+    useEffect(() => { attachmentsRef.current = attachments; }, [attachments]);
+    useEffect(() => {
+        const stash = stashedFiles.current;
+        return () => {
+            const all = [...attachmentsRef.current, ...[...stash.values()].flat()];
+            for (const a of all) if (a.preview) URL.revokeObjectURL(a.preview);
+        };
+    }, []);
+
+    /** Sends what's in the box. */
     const submit = useCallback((text: string) => {
-        if (!providerId || !text.trim() || streaming) return;
+        if (!providerId || (!text.trim() && !attachments.length) || streaming) return;
         // Sending is an explicit request to see what comes back, so re-follow
         // the bottom even if you had scrolled away to re-read something.
         setFollowing(true);
-        send(text, { providerId, model: model || undefined, settings })
+        if (!chat) carryToNewChat.current = true;
+        send(text, { providerId, model: model || undefined, settings }, attachments.map(a => a.input))
             .then(refreshChats);
-        setPrompt("");
-    }, [providerId, streaming, send, model, settings, refreshChats]);
+        showPrompt("");
+        setDraft(shownKeyRef.current, "");
+        for (const a of attachments) if (a.preview) URL.revokeObjectURL(a.preview);
+        setAttachments([]);
+    }, [providerId, streaming, send, model, settings, refreshChats, attachments, chat, showPrompt, setDraft]);
 
     /**
      * A conversation remembers its own setup. Changing provider or model is a
      * deliberate choice for *this* thread, so it's written to the chat rather
-     * than to the global defaults — reopening it lands you back where you were.
+     * than to the global defaults, reopening it lands you back where you were.
      */
     const applyConfig = useCallback((patch: {
         providerId?: string;
@@ -293,6 +442,7 @@ export default function AiPage() {
     // Opening a stored chat restores the provider, model and controls it was
     // last used with. Guarded against a provider that has since gone away.
     const openStoredChat = useCallback(async (id: string) => {
+        showDraft(id);
         const loaded = await openChat(id);
         if (!loaded) return;
         const provider = providers.find(p => p.id === loaded.providerId);
@@ -302,22 +452,87 @@ export default function AiPage() {
         setModel(loaded.model ?? "");
         setSettings(loaded.settings ?? {});
         ensureModels(provider.id);
-    }, [openChat, providers, ensureModels]);
+    }, [openChat, providers, ensureModels, showDraft]);
+
+    /** A blank conversation, with whatever was left typed in the last one. */
+    const startNewChat = useCallback(() => {
+        showDraft(NEW_DRAFT);
+        newChat();
+        startFromDefaults();
+        setFollowing(true);
+        inputRef.current?.focus();
+    }, [showDraft, newChat, startFromDefaults]);
+
+    /**
+     * Steps through the conversation list: up toward the newest and then a
+     * new chat, down toward the oldest. The list peeks open while the keys are
+     * held, so you can see where you've landed.
+     */
+    const stepChat = useCallback((direction: 1 | -1) => {
+        const order = [NEW_DRAFT, ...chats.map(c => c.id)];
+        const at = Math.max(0, order.indexOf(shownKeyRef.current));
+        const target = order[Math.min(order.length - 1, Math.max(0, at + direction))];
+        setPeeking(true);
+        if (peekTimer.current) clearTimeout(peekTimer.current);
+        // In case the key-up is never seen, the window lost focus mid-press.
+        peekTimer.current = setTimeout(() => setPeeking(false), 2000);
+        if (target === shownKeyRef.current) return;
+        if (target === NEW_DRAFT) startNewChat();
+        else openStoredChat(target);
+        inputRef.current?.focus();
+    }, [chats, startNewChat, openStoredChat]);
+
+    useEffect(() => () => { if (peekTimer.current) clearTimeout(peekTimer.current); }, []);
+
+    // The new-chat and step shortcuts (Ctrl+N, Alt+Up/Down unless rebound).
+    // Read per keypress, so a rebinding applies at once. A running turn is
+    // left alone: it is owned by the main process and still writes its answer
+    // to its own chat.
+    useEffect(() => {
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (matchesCombo(e, getBinding("ai-new-chat"))) {
+                e.preventDefault();
+                startNewChat();
+            } else if (matchesCombo(e, getBinding("ai-prev-chat"))) {
+                e.preventDefault();
+                stepChat(-1);
+            } else if (matchesCombo(e, getBinding("ai-next-chat"))) {
+                e.preventDefault();
+                stepChat(1);
+            }
+        };
+        // The list closes once every modifier is let go, like Alt+Tab.
+        const onKeyUp = (e: KeyboardEvent) => {
+            if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+            if (peekTimer.current) clearTimeout(peekTimer.current);
+            setPeeking(false);
+        };
+        window.addEventListener("keydown", onKeyDown);
+        window.addEventListener("keyup", onKeyUp);
+        return () => {
+            window.removeEventListener("keydown", onKeyDown);
+            window.removeEventListener("keyup", onKeyUp);
+        };
+    }, [startNewChat, stepChat]);
 
     // Arrived from the launcher's "Ask AI" row with a question already typed.
+    // It goes straight out, leaving the box, and any new-chat draft, alone.
     useEffect(() => {
         const seed = searchParams.get("prompt");
-        if (!seed || seededRef.current || !providerId) return;
+        if (!seed || seededRef.current || !providerId || streaming) return;
         seededRef.current = true;
-        submit(seed);
+        shownKeyRef.current = "seed";
+        carryToNewChat.current = true;
+        setFollowing(true);
+        send(seed, { providerId, model: model || undefined, settings }).then(refreshChats);
         setSearchParams({}, { replace: true });
-    }, [searchParams, providerId, submit, setSearchParams]);
+    }, [searchParams, providerId, streaming, send, model, settings, refreshChats, setSearchParams]);
 
     /**
      * Whether the view is following the bottom.
      *
      * Scroll events are dispatched asynchronously, but a live answer rewrites
-     * scrollTop every frame — so a wheel-up was undone by the next frame before
+     * scrollTop every frame, so a wheel-up was undone by the next frame before
      * its own event could unstick it, and the event then read "at bottom" and
      * kept following. That is the fighting.
      *
@@ -385,28 +600,63 @@ export default function AiPage() {
         const frame = requestAnimationFrame(() => scrollToBottom(viewport));
         return () => cancelAnimationFrame(frame);
         // updatedAt covers a message's content changing without the count
-        // changing — committing a streamed answer over its placeholder.
+        // changing, committing a streamed answer over its placeholder.
         // An approval prompt, or a step drawn below the text, must scroll
         // into view like new text.
     }, [chat?.id, chat?.messages.length, chat?.updatedAt, revealed, steps, thoughts, permissions.length, composerHeight, following, scrollToBottom]);
 
 
+    // Files can be dropped anywhere in the view, not just on the box.
+    const hasFiles = (e: DragEvent<HTMLDivElement>) => e.dataTransfer.types.includes("Files");
+
     return (
-        <div className="relative flex-1 min-h-0 flex">
+        <div
+            className="relative flex-1 min-h-0 flex"
+            onDragEnter={(e) => {
+                if (!hasFiles(e)) return;
+                e.preventDefault();
+                dragDepth.current++;
+                setDragging(true);
+            }}
+            onDragOver={(e) => {
+                if (!hasFiles(e)) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "copy";
+            }}
+            onDragLeave={(e) => {
+                if (!hasFiles(e)) return;
+                dragDepth.current = Math.max(0, dragDepth.current - 1);
+                if (dragDepth.current === 0) setDragging(false);
+            }}
+            onDrop={(e) => {
+                if (!hasFiles(e)) return;
+                e.preventDefault();
+                dragDepth.current = 0;
+                setDragging(false);
+                addFiles(Array.from(e.dataTransfer.files));
+            }}
+        >
             <ChatSidebar
                 chats={chats}
                 activeId={chat?.id ?? null}
                 running={running}
+                peek={peeking}
                 onOpen={(id) => { openStoredChat(id); inputRef.current?.focus(); }}
-                onNew={() => { newChat(); startFromDefaults(); setFollowing(true); inputRef.current?.focus(); }}
+                onNew={startNewChat}
                 onDelete={async (id) => {
                     await window.ai.deleteChat(id);
-                    if (chat?.id === id) newChat();
+                    if (shownKeyRef.current === id) startNewChat();
+                    setDraft(id, "");
+                    stashedFiles.current.delete(id);
                     refreshChats();
                 }}
                 onDeleteAll={async () => {
                     await window.ai.deleteAllChats();
-                    newChat();
+                    startNewChat();
+                    clearDrafts(NEW_DRAFT);
+                    for (const key of [...stashedFiles.current.keys()]) {
+                        if (key !== NEW_DRAFT) stashedFiles.current.delete(key);
+                    }
                     refreshChats();
                 }}
                 onRename={async (id, title) => {
@@ -432,7 +682,7 @@ export default function AiPage() {
                 ) : (
                     <ScrollArea ref={scrollRef} className="flex-1 min-h-0 w-full px-4">
                         {/* Bottom padding clears the floating prompt box, so the
-                            last message can still be read — and earlier ones
+                            last message can still be read, and earlier ones
                             slide under the glass rather than stopping at it. */}
                         <div className="flex flex-col gap-3.5 pt-4" style={{ paddingBottom: composerHeight + 16 }}>
                             {messages.map((m, i) => {
@@ -441,13 +691,41 @@ export default function AiPage() {
 
                                 if (m.role === "user") {
                                     return (
-                                        <div key={i} className="group/msg self-end flex items-start gap-1 max-w-[82%]">
-                                            <div className="opacity-0 group-hover/msg:opacity-100 focus-within:opacity-100 transition-opacity mt-1">
-                                                <CopyButton getText={() => m.content} label="Copy message" />
-                                            </div>
-                                            <div className="rounded-2xl rounded-br-md bg-fill-070 border border-line-060 px-3.5 py-2 text-12.5 leading-relaxed text-tone-850 whitespace-pre-wrap break-words">
-                                                {m.content}
-                                            </div>
+                                        <div key={i} className="group/msg self-end flex flex-col items-end gap-1 max-w-[82%] min-w-0">
+                                            {!!m.attachments?.length && (
+                                                <div className="flex flex-wrap items-end justify-end gap-1.5 max-w-full">
+                                                    {/* Pictures as themselves; other files as chips. */}
+                                                    {m.attachments.map((a, j) => a.kind === "image" ? (
+                                                        <SentImage key={j} chatId={chat?.id} attachment={a} />
+                                                    ) : (
+                                                        <AttachmentChip
+                                                            key={j}
+                                                            name={a.name}
+                                                            size={a.size}
+                                                            kind={a.kind}
+                                                            onOpen={async () => {
+                                                                const opened = chat ? await window.ai.openAttachment(chat.id, a.path) : false;
+                                                                if (!opened) window.electron.notify("File unavailable", `${a.name} has been moved or deleted.`);
+                                                            }}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            )}
+                                            {m.content && (
+                                                <div className="flex items-start gap-1 max-w-full min-w-0">
+                                                    <div className="opacity-0 group-hover/msg:opacity-100 focus-within:opacity-100 transition-opacity mt-1">
+                                                        <CopyButton getText={() => m.content} label="Copy message" />
+                                                    </div>
+                                                    {/* wrap-anywhere, not break-words: break-words
+                                                        doesn't lower a flex item's minimum width,
+                                                        so one long unbroken string (a key, a URL)
+                                                        stretched the bubble off the side instead
+                                                        of wrapping. */}
+                                                    <div className="min-w-0 rounded-2xl rounded-br-md bg-fill-070 border border-line-060 px-3.5 py-2 text-12.5 leading-relaxed text-tone-850 whitespace-pre-wrap wrap-anywhere">
+                                                        {m.content}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 }
@@ -531,7 +809,7 @@ export default function AiPage() {
                                                                     if (!opened) window.electron.notify("Trace unavailable", "Only the most recent 40 turns keep a raw log.");
                                                                 }}
                                                                 aria-label="Open raw trace"
-                                                                title="Open raw trace — every event the CLI sent"
+                                                                title="Open raw trace (every event the CLI sent)"
                                                                 className="flex items-center justify-center w-6 h-6 rounded-md text-tone-350 hover:text-tone-800 transition-colors cursor-pointer"
                                                             >
                                                                 <ScrollText size={11} />
@@ -568,7 +846,7 @@ export default function AiPage() {
                     </ScrollArea>
                 )}
 
-                {/* Its own prompt box — the launcher's search input stays out of
+                {/* Its own prompt box, the launcher's search input stays out of
                     the way while this view is open. */}
                 {/* Offered while the reader has scrolled away, so following can
                     be resumed without hunting for the bottom by hand. */}
@@ -596,13 +874,49 @@ export default function AiPage() {
                     <TooltipProvider delayDuration={300}>
                         <InputGroup
                             data-walkthrough="ai-composer"
-                            className={`mx-auto w-full rounded-2xl border-line-090 bg-surface-float/[0.6] backdrop-blur-2xl backdrop-saturate-150 shadow-[0_6px_26px_var(--shadow-1)] transition-colors focus-within:border-ink/[0.18] has-[[data-slot=input-group-control]:focus-visible]:ring-0 ${empty ? "max-w-140" : ""}`}
+                            className={`mx-auto w-full rounded-2xl border-line-090 bg-surface-float/[0.6] backdrop-blur-2xl backdrop-saturate-150 shadow-[0_6px_26px_var(--shadow-1)] transition-colors focus-within:border-ink/[0.18] has-[[data-slot=input-group-control]:focus-visible]:ring-0 ${empty ? "max-w-140" : ""} ${dragging ? "border-dashed border-sky-300/50" : ""}`}
                         >
+                            {attachments.length > 0 && (
+                                <InputGroupAddon align="block-start" className="flex-wrap items-end gap-1.5 px-2.5 pt-2.5 pb-0 cursor-default">
+                                    {attachments.map(a => a.preview ? (
+                                        <PendingImage
+                                            key={a.id}
+                                            name={a.name}
+                                            src={a.preview}
+                                            onRemove={() => removeAttachment(a.id)}
+                                        />
+                                    ) : (
+                                        <AttachmentChip
+                                            key={a.id}
+                                            name={a.name}
+                                            size={a.size}
+                                            kind={a.image ? "image" : "file"}
+                                            preview={a.preview}
+                                            onRemove={() => removeAttachment(a.id)}
+                                        />
+                                    ))}
+                                </InputGroupAddon>
+                            )}
                             <InputGroupTextarea
                                 ref={inputRef}
                                 value={prompt}
                                 autoFocus
-                                onChange={(e) => setPrompt(e.target.value)}
+                                onChange={(e) => {
+                                    showPrompt(e.target.value);
+                                    setDraft(shownKeyRef.current, e.target.value);
+                                }}
+                                onPaste={(e) => {
+                                    const files = Array.from(e.clipboardData.files);
+                                    if (!files.length) return;
+                                    // Copying from Word or a web page puts a picture of
+                                    // the selection on the clipboard beside the text.
+                                    // Files from disk are always attachments; a bare
+                                    // image only when there's no text to paste instead.
+                                    const fromDisk = files.some(f => window.ai.pathForFile(f));
+                                    if (!fromDisk && e.clipboardData.getData("text/plain")) return;
+                                    e.preventDefault();
+                                    addFiles(files);
+                                }}
                                 onKeyDown={(e) => {
                                     if (e.key === "Enter" && !e.shiftKey) {
                                         e.preventDefault();
@@ -611,14 +925,43 @@ export default function AiPage() {
                                     // Escape falls through to the launcher's global
                                     // handler, which routes back to the search view.
                                 }}
-                                placeholder="Ask anything…"
+                                placeholder={dragging ? "Drop to attach…" : "Ask anything…"}
                                 // field-sizing grows the box with the text instead
                                 // of scrolling inside a fixed two rows.
                                 className="field-sizing-content scrollbar-thin-shadcn min-h-11.5 max-h-32 px-3.5 pt-3 pb-1 text-12.5 leading-relaxed text-tone-850 placeholder:text-tone-250"
                             />
 
                             <InputGroupAddon align="block-end" className="gap-1 border-t border-line-050 px-2.5">
-                                {/* Provider and model in one control — the
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <InputGroupButton
+                                            size="icon-xs"
+                                            onClick={() => fileInputRef.current?.click()}
+                                            disabled={attachments.length >= MAX_ATTACHMENTS}
+                                            aria-label="Attach files"
+                                            className="rounded-md text-tone-400 hover:text-tone-800 hover:bg-fill-070"
+                                        >
+                                            <Paperclip className="size-3.25" />
+                                        </InputGroupButton>
+                                    </TooltipTrigger>
+                                    <TooltipContent
+                                        side="top"
+                                        className="border border-line-100 bg-surface/[0.98] px-2 py-1 text-11 text-tone-700"
+                                    >
+                                        Attach files, or paste or drop them in
+                                    </TooltipContent>
+                                </Tooltip>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    multiple
+                                    hidden
+                                    onChange={(e) => {
+                                        addFiles(Array.from(e.target.files ?? []));
+                                        e.target.value = "";
+                                    }}
+                                />
+                                {/* Provider and model in one control, the
                                     provider list is only useful next to what it
                                     offers. */}
                                 <div data-walkthrough="ai-model" className="flex items-center">
@@ -667,7 +1010,7 @@ export default function AiPage() {
                                 ))}
 
                                 {/* One button for all three states, the way
-                                    shadcn's prompt input does it — the stop
+                                    shadcn's prompt input does it, the stop
                                     target is exactly where you clicked send.
                                     Each state looks different, so pressing stop
                                     is visibly acknowledged instead of leaving
@@ -678,7 +1021,7 @@ export default function AiPage() {
                                             size="icon-xs"
                                             variant="default"
                                             onClick={() => (streaming ? cancel() : submit(prompt))}
-                                            disabled={stopping || (!streaming && !prompt.trim())}
+                                            disabled={stopping || (!streaming && !prompt.trim() && !attachments.length)}
                                             aria-label={stopping ? "Stopping" : streaming ? "Stop" : "Send"}
                                             className={`ml-auto relative rounded-full transition-colors disabled:opacity-100 ${
                                                 stopping
@@ -764,9 +1107,11 @@ export default function AiPage() {
  * left the trigger, so a conversation could never actually be clicked. Closing
  * is deferred instead, and clicking the rail pins the panel open.
  */
-function ChatSidebar({ chats, activeId, running, onOpen, onNew, onDelete, onDeleteAll, onRename }: {
+function ChatSidebar({ chats, activeId, running, peek, onOpen, onNew, onDelete, onDeleteAll, onRename }: {
     chats: AiChatSummary[];
     activeId: string | null;
+    /** Shown while stepping through conversations from the keyboard. */
+    peek: boolean;
     /** Conversations with a turn still in flight, including unopened ones. */
     running: string[];
     onOpen: (id: string) => void;
@@ -785,7 +1130,14 @@ function ChatSidebar({ chats, activeId, running, onOpen, onNew, onDelete, onDele
     // An armed delete, a rename in progress or a pending clear-all keeps the
     // panel up, so the panel can't vanish out from under a half-finished action.
     const busy = confirmId !== null || renamingId !== null || confirmingAll;
-    const open = hovering || pinned || busy;
+    const open = hovering || pinned || busy || peek;
+    const listRef = useRef<HTMLDivElement>(null);
+
+    // Stepping past the bottom of what's visible scrolls the list along.
+    useEffect(() => {
+        if (!open || !activeId) return;
+        listRef.current?.querySelector(`[data-chat-id="${activeId}"]`)?.scrollIntoView({ block: "nearest" });
+    }, [open, activeId]);
 
     // The panel overlaps the rail, so crossing between them fires a leave then
     // an enter. Deferring the close lets the enter cancel it.
@@ -844,7 +1196,9 @@ function ChatSidebar({ chats, activeId, running, onOpen, onNew, onDelete, onDele
 
                     <button
                         onClick={onNew}
-                        className="mx-2 flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-12 text-tone-750 hover:bg-fill-070 transition-colors cursor-pointer"
+                        className={`mx-2 flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-12 text-tone-750 hover:bg-fill-070 transition-colors cursor-pointer ${
+                            peek && !activeId ? "bg-fill-080" : ""
+                        }`}
                     >
                         <Plus size={14} className="text-tone-450" />
                         New chat
@@ -852,12 +1206,13 @@ function ChatSidebar({ chats, activeId, running, onOpen, onNew, onDelete, onDele
 
                     <p className="px-4 pt-3 pb-1 text-10 text-tone-250">Recents</p>
 
-                    <ScrollArea className="flex-1 min-h-0 px-2 pb-2">
+                    <ScrollArea ref={listRef} className="flex-1 min-h-0 px-2 pb-2">
                         {chats.length === 0 ? (
                             <p className="px-2 py-1.5 text-11 text-tone-200">No conversations yet</p>
                         ) : chats.map(c => (
                             <div
                                 key={c.id}
+                                data-chat-id={c.id}
                                 // Leaving the row disarms it, so a half-pressed
                                 // delete can't keep the panel pinned open.
                                 onMouseLeave={() => setConfirmId(id => (id === c.id ? null : id))}
@@ -902,7 +1257,7 @@ function ChatSidebar({ chats, activeId, running, onOpen, onNew, onDelete, onDele
                                             <span className="block truncate text-left text-11.5 text-tone-700">{c.title}</span>
                                         </button>
                                         {/* Both live on the row itself rather
-                                            than behind a menu — one click to
+                                            than behind a menu, one click to
                                             rename, two to delete. */}
                                         <div className={`flex items-center shrink-0 mr-1 transition-opacity ${
                                             confirmId === c.id ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"
@@ -979,10 +1334,64 @@ function ChatSidebar({ chats, activeId, running, onOpen, onNew, onDelete, onDele
 }
 
 /**
+ * One attached file. In the composer it can be removed; in the transcript it
+ * opens the file. Images show their thumbnail while it's still to hand.
+ */
+function AttachmentChip({ name, size, kind, preview, onRemove, onOpen }: {
+    name: string;
+    size: number;
+    kind: AiAttachment["kind"];
+    preview?: string;
+    onRemove?: () => void;
+    onOpen?: () => void;
+}) {
+    const Icon = kind === "image" ? ImageIcon : kind === "text" ? FileText : FileIcon;
+    const body = (
+        <>
+            {preview ? (
+                <img src={preview} alt="" className="w-6 h-6 shrink-0 rounded object-cover" />
+            ) : (
+                <span className="flex w-6 h-6 shrink-0 items-center justify-center rounded bg-fill-070 text-tone-450">
+                    <Icon size={12} />
+                </span>
+            )}
+            <span className="min-w-0 flex flex-col items-start leading-tight">
+                <span className="max-w-36 truncate text-11 text-tone-750">{name}</span>
+                <span className="text-9.5 text-tone-300 tabular-nums">{formatSize(size)}</span>
+            </span>
+        </>
+    );
+    return (
+        <div className="relative flex items-center max-w-full rounded-lg border border-line-080 bg-fill-040">
+            {onOpen ? (
+                <button
+                    onClick={onOpen}
+                    title={`Open ${name}`}
+                    className="flex items-center gap-2 min-w-0 py-1 pl-1 pr-2.5 rounded-lg hover:bg-fill-060 transition-colors cursor-pointer"
+                >
+                    {body}
+                </button>
+            ) : (
+                <div className="flex items-center gap-2 min-w-0 py-1 pl-1 pr-6">{body}</div>
+            )}
+            {onRemove && (
+                <button
+                    onClick={onRemove}
+                    aria-label={`Remove ${name}`}
+                    className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 rounded text-tone-300 hover:text-tone-800 hover:bg-fill-080 transition-colors cursor-pointer"
+                >
+                    <X size={11} />
+                </button>
+            )}
+        </div>
+    );
+}
+
+/**
  * Tool calls waiting on the reader, attached to the top of the composer.
  *
  * They used to sit at the foot of the transcript, where the floating prompt
- * box covered them — on a short window the buttons ended up beneath it and
+ * box covered them, on a short window the buttons ended up beneath it and
  * couldn't be clicked at all. Docked to the composer they grow it instead,
  * and the transcript makes room. One request at a time, oldest first; the
  * full command or path is shown, since a summary is not something you can
@@ -1051,8 +1460,8 @@ function PermissionTray({ requests, onDecide }: {
 /**
  * Toolbar dropdown: a real listbox rather than a native <select>, so the popup
  * is themed with the rest of the app instead of being drawn by Windows. An
- * option's `detail` explains it in the menu only — the trigger stays one word
- * — and a dangerous choice tints the trigger so it can't be left on unnoticed.
+ * option's `detail` explains it in the menu only, the trigger stays one word
+ *, and a dangerous choice tints the trigger so it can't be left on unnoticed.
  */
 function ControlSelect({ value, onChange, options }: {
     value: string;

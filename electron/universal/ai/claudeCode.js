@@ -7,6 +7,7 @@ import { claudeAuthMode } from "./cliAuth.js";
 import { workspaceDir } from "./workspace.js";
 import { describeTool, clipOutput, toolResultText, PLANNING_TOOLS, QUIET_TOOLS } from "./trace.js";
 import { resolveCli, killTree, track } from "./cliProcess.js";
+import { expandAttachments } from "./attachments.js";
 
 /**
  * Claude via the Agent SDK, driving the user's *already installed* claude.exe.
@@ -16,7 +17,7 @@ import { resolveCli, killTree, track } from "./cliProcess.js";
  * installer, so `pathToClaudeCodeExecutable` points at the installed one and the
  * bundled copy is excluded in package.json → build.files.
  *
- * Auth comes from the user's existing Claude CLI login — no API key.
+ * Auth comes from the user's existing Claude CLI login, no API key.
  */
 
 const BIN_NAME = process.platform === "win32" ? "claude.exe" : "claude";
@@ -40,7 +41,7 @@ export function findClaudeBinary() {
  * Starts the CLI for the SDK instead of letting it spawn its own.
  *
  * Two reasons. An npm install is a .js entry the SDK runs with bare "node",
- * which needn't be on PATH — the node found beside the shim is used instead.
+ * which needn't be on PATH, the node found beside the shim is used instead.
  * And the SDK's own kill ends only claude.exe: Bash commands it started on the
  * model's behalf carried on after Stop. Here the process id is known, so the
  * SDK's force-kill (and its signal, which fires after its graceful-close
@@ -89,8 +90,8 @@ const EFFORT_LABELS = {
 
 /**
  * How much Claude may do without asking, chosen per conversation from the
- * composer — and remembered as the default for the next one. permissionGate
- * below is what enforces it — the CLI's own mode is set to match, but never
+ * composer, and remembered as the default for the next one. permissionGate
+ * below is what enforces it, the CLI's own mode is set to match, but never
  * trusted on its own.
  */
 const MODE_CONTROL = {
@@ -109,7 +110,7 @@ const MODE_CONTROL = {
 };
 const MODES = new Set(MODE_CONTROL.options.map(o => o.id));
 
-/** Used only if the SDK can't be asked — an offline or broken install. */
+/** Used only if the SDK can't be asked, an offline or broken install. */
 const FALLBACK_MODELS = [
     { id: "default", label: "Default (recommended)", controls: [...effortControl(["low", "medium", "high", "xhigh"]), MODE_CONTROL] },
     { id: "sonnet", label: "Sonnet", controls: [...effortControl(["low", "medium", "high", "xhigh"]), MODE_CONTROL] },
@@ -131,7 +132,7 @@ function effortControl(levels) {
 }
 
 /**
- * The real catalogue, straight from the CLI — which models exist, and which
+ * The real catalogue, straight from the CLI, which models exist, and which
  * effort levels each one actually accepts. Hard-coding this was wrong in a way
  * that showed: Haiku supports no effort at all, so offering the control there
  * was offering a knob that does nothing.
@@ -164,7 +165,7 @@ async function fetchModels() {
         modelCache = infos.map(info => ({
             id: info.value,
             label: info.displayName ?? info.value,
-            // The CLI advertises aliases — "Opus", "Sonnet" — which say nothing
+            // The CLI advertises aliases, "Opus", "Sonnet", which say nothing
             // about which version they currently point at. resolvedModel is the
             // wire id behind the alias, so it answers that without this having
             // to guess at version numbers that would go stale.
@@ -190,7 +191,7 @@ async function fetchModels() {
  * through the answer.
  */
 const READ_ONLY = new Set(["Read", "Glob", "Grep", "LS", "NotebookRead"]);
-// Claude's own bookkeeping — its plan, its tool index. Touches nothing on
+// Claude's own bookkeeping, its plan, its tool index. Touches nothing on
 // disk or the network. Newer CLIs plan with TaskCreate/TaskUpdate rather than
 // TodoWrite, and every one of those used to stop and ask.
 const INERT = QUIET_TOOLS;
@@ -223,7 +224,7 @@ function readStaysInside(toolName, input, root) {
     return true;
 }
 
-/** What the approval prompt shows — the full command, not a one-line summary. */
+/** What the approval prompt shows, the full command, not a one-line summary. */
 function toolDetail(input = {}) {
     const primary = input.command ?? input.url ?? input.file_path ?? input.notebook_path
         ?? input.query ?? input.path ?? input.pattern;
@@ -235,8 +236,8 @@ const allow = (input) => ({ behavior: "allow", updatedInput: input });
 const deny = (message) => ({ behavior: "deny", message });
 
 /**
- * Anything that can change the machine or reach the network — Bash, Write,
- * Edit, WebFetch, MCP tools — waits for the person at the keyboard. A chat
+ * Anything that can change the machine or reach the network, Bash, Write,
+ * Edit, WebFetch, MCP tools, waits for the person at the keyboard. A chat
  * turn can carry pasted text or fetched pages written by someone else, and
  * running with permissions bypassed let that text run commands anywhere on
  * disk.
@@ -250,12 +251,21 @@ function editStaysInside(input, root) {
     return typeof target === "string" && target !== "" && inside(root, target);
 }
 
-function permissionGate(root, requestPermission, mode) {
+/** Reading a file the user attached is what attaching it asked for. */
+function readsAttached(toolName, input, attached) {
+    if (toolName !== "Read" || typeof input?.file_path !== "string") return false;
+    return attached.has(pathKey(input.file_path));
+}
+
+const pathKey = (p) => (process.platform === "win32" ? path.resolve(p).toLowerCase() : path.resolve(p));
+
+function permissionGate(root, requestPermission, mode, attached) {
     return async (toolName, input, { signal, title, blockedPath }) => {
         if (INERT.has(toolName)) return allow(input);
         if (READ_ONLY.has(toolName) && !blockedPath && readStaysInside(toolName, input, root)) {
             return allow(input);
         }
+        if (readsAttached(toolName, input, attached)) return allow(input);
         if (mode === "edits" && EDIT_TOOLS.has(toolName) && !blockedPath && editStaysInside(input, root)) {
             return allow(input);
         }
@@ -276,10 +286,10 @@ function permissionGate(root, requestPermission, mode) {
     };
 }
 
-function permissionOptions({ toolless, root, requestPermission, mode }) {
+function permissionOptions({ toolless, root, requestPermission, mode, attached }) {
     if (toolless) {
         return {
-            // No tools at all — not merely none approved — so nothing the
+            // No tools at all, not merely none approved, so nothing the
             // model writes can act on the machine. User settings (hooks, MCP
             // servers) stay unloaded for the same reason.
             tools: [],
@@ -300,12 +310,12 @@ function permissionOptions({ toolless, root, requestPermission, mode }) {
     // In Auto the CLI's classifier decides first; whatever it won't approve
     // on its own still comes through the gate, and so to the user.
     const permissionMode = { plan: "plan", edits: "acceptEdits", auto: "auto" }[mode] ?? "default";
-    return { permissionMode, canUseTool: permissionGate(root, requestPermission, mode) };
+    return { permissionMode, canUseTool: permissionGate(root, requestPermission, mode, attached) };
 }
 
 /**
  * The conversation's mode. A chat saved before modes existed has none, and
- * the composer shows those as Ask first — so that is what they get, rather
+ * the composer shows those as Ask first, so that is what they get, rather
  * than something the picker doesn't say. Anything unrecognised is the same.
  */
 function resolveMode(settings) {
@@ -362,7 +372,7 @@ function planTracker() {
 // --- provider --------------------------------------------------------------
 
 export const claudeCodeProvider = registerProvider({
-    // The id is persisted in saved chats and prefs — renaming it would
+    // The id is persisted in saved chats and prefs, renaming it would
     // orphan every existing conversation. Only the label changed.
     id: "claude-code",
     label: "Claude CLI",
@@ -392,14 +402,14 @@ export const claudeCodeProvider = registerProvider({
     },
 
     // Effort differs per model and comes with the catalogue; the mode applies
-    // to all of them, so it's offered before the catalogue has been read —
+    // to all of them, so it's offered before the catalogue has been read,
     // the CLI takes a few seconds to answer, and the picker used to be
     // missing until it did.
     controls() {
         return [MODE_CONTROL];
     },
 
-    async *send({ prompt, sessionId, history, model, settings, signal, toolless, requestPermission, trace }) {
+    async *send({ prompt, attachments, sessionId, history, model, settings, signal, toolless, requestPermission, trace }) {
         let query;
         try {
             ({ query } = await loadSdk());
@@ -417,7 +427,7 @@ export const claudeCodeProvider = registerProvider({
         }
 
         const run = (turn) => runTurn({
-            query, cli, ...turn, model, settings, signal, toolless, requestPermission, trace,
+            query, cli, ...turn, attachments, model, settings, signal, toolless, requestPermission, trace,
         });
         // A one-shot completion has no thread to resume or transcript to replay.
         if (toolless) yield* run({ sessionId: null, prompt });
@@ -437,8 +447,9 @@ function thinksAdaptively(model) {
 }
 
 /** One query() against the CLI. */
-async function* runTurn({ query, cli, prompt, sessionId, model, settings, signal, toolless, requestPermission, trace }) {
+async function* runTurn({ query, cli, prompt, attachments, sessionId, model, settings, signal, toolless, requestPermission, trace }) {
     const root = workspaceDir();
+    const attached = new Set((attachments ?? []).map(a => pathKey(a.path)));
 
     // The CLI's stderr, which the SDK can't see once it isn't the one
     // spawning: a failed resume explains itself only there.
@@ -465,16 +476,16 @@ async function* runTurn({ query, cli, prompt, sessionId, model, settings, signal
         // Continue an existing thread rather than resending the transcript.
         ...(sessionId ? { resume: sessionId } : {}),
         ...(signal ? { abortController: toController(signal) } : {}),
-        ...permissionOptions({ toolless, root, requestPermission, mode: resolveMode(settings) }),
+        ...permissionOptions({ toolless, root, requestPermission, mode: resolveMode(settings), attached }),
     };
 
-    // A first-class option, not an env var — it accepts the same levels the
+    // A first-class option, not an env var, it accepts the same levels the
     // model reported as supported.
     if (settings?.effort) options.effort = settings.effort;
 
     // Recent models think with their display "omitted": the blocks arrive,
     // but empty, so a long pause had nothing behind it. Summaries are asked
-    // for explicitly — on the models that think adaptively, and through the
+    // for explicitly, on the models that think adaptively, and through the
     // CLI's own setting for the rest.
     if (!toolless) {
         options.settings = { showThinkingSummaries: true };
@@ -492,8 +503,11 @@ async function* runTurn({ query, cli, prompt, sessionId, model, settings, signal
     let retrying = null;
     const plan = planTracker();
     try {
-        for await (const message of query({ prompt, options })) {
-            if (message?.session_id && !resolvedSession) resolvedSession = message.session_id;
+        for await (const message of query({ prompt: promptInput(prompt, attachments), options })) {
+            if (message?.session_id && !resolvedSession) {
+                resolvedSession = message.session_id;
+                yield { type: "session", sessionId: resolvedSession };
+            }
 
             // Anything after a retry means the retry went through.
             if (retrying && message?.type !== "system") {
@@ -583,7 +597,7 @@ async function* runTurn({ query, cli, prompt, sessionId, model, settings, signal
                 continue;
             }
 
-            // How much of the plan's rolling window is spent — the number a
+            // How much of the plan's rolling window is spent, the number a
             // subscription user actually runs out of.
             if (message?.type === "rate_limit_event") {
                 const info = message.rate_limit_info;
@@ -654,7 +668,7 @@ async function* runTurn({ query, cli, prompt, sessionId, model, settings, signal
                     stats: {
                         // No duration: ai.ipc times every provider the same way.
                         turns: message.num_turns,
-                        // Everything the model read, cached or not — the
+                        // Everything the model read, cached or not, the
                         // cache only changes what it cost.
                         inputTokens: (usage.input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0),
                         outputTokens: usage.output_tokens,
@@ -674,7 +688,7 @@ async function* runTurn({ query, cli, prompt, sessionId, model, settings, signal
         }
     } catch (err) {
         // A cancelled turn is a normal outcome, not a failure. Trust our own
-        // signal rather than the SDK's error shape — it raises a plain
+        // signal rather than the SDK's error shape, it raises a plain
         // "Operation aborted" whose name is not AbortError.
         const aborted = signal?.aborted
             || err?.name === "AbortError"
@@ -694,6 +708,24 @@ async function* runTurn({ query, cli, prompt, sessionId, model, settings, signal
     }
 
     yield { type: "done", sessionId: resolvedSession ?? undefined };
+}
+
+/**
+ * The prompt as the SDK takes it. Images go as content blocks, which only a
+ * streamed user message can carry; text files are inlined and anything else is
+ * named by path for Claude to read, the gate lets it, without asking.
+ */
+function promptInput(prompt, attachments) {
+    if (!attachments?.length) return prompt;
+    const { text, images } = expandAttachments(prompt, attachments, { images: true, paths: true });
+    if (!images.length) return text;
+    const content = [
+        ...images.map(i => ({ type: "image", source: { type: "base64", media_type: i.mimeType, data: i.data } })),
+        { type: "text", text },
+    ];
+    return (async function* () {
+        yield { type: "user", message: { role: "user", content }, parent_tool_use_id: null };
+    })();
 }
 
 // The SDK takes an AbortController rather than a bare signal.

@@ -16,14 +16,14 @@ declare global {
     }
 
     /**
-     * One step a provider reported on its way to an answer — a file it read, a
+     * One step a provider reported on its way to an answer, a file it read, a
      * command it ran, a search it made. Kept separate from `reasoning` because
      * these are discrete events rather than a stream of tokens.
      */
     type AiActivity = {
         /** Verb, already in the present tense: "Reading", "Running". */
         label: string;
-        /** What it acted on — a path, a command, a query. May be long. */
+        /** What it acted on, a path, a command, a query. May be long. */
         detail?: string;
     };
 
@@ -31,13 +31,13 @@ declare global {
     type AiStepKind = "command" | "read" | "write" | "search" | "web" | "agent" | "tool";
 
     /**
-     * One piece of work a CLI did — a command, a file read, a search. Sent as
+     * One piece of work a CLI did, a command, a file read, a search. Sent as
      * it starts and again as it ends; the main process merges the two by id
      * and times them.
      */
     type AiStep = {
         id: string;
-        /** The step that started this one — a subagent's own tool calls. */
+        /** The step that started this one, a subagent's own tool calls. */
         parentId?: string;
         kind?: AiStepKind;
         label: string;
@@ -49,7 +49,7 @@ declare global {
         exitCode?: number;
         startedAt?: number;
         endedAt?: number;
-        /** How much of the answer had been written when it began — where it's drawn. */
+        /** How much of the answer had been written when it began, where it's drawn. */
         at?: number;
         /** Orders steps and thoughts that share an `at`. */
         seq?: number;
@@ -94,7 +94,7 @@ declare global {
         | { requestId: string; type: "thought"; thought: Omit<AiThought, "text"> & { text?: string } }
         | { requestId: string; type: "step"; step: AiStep }
         | { requestId: string; type: "plan"; items: AiPlanItem[] | null }
-        /** The turn's figures so far, merged — each one replaces the last. */
+        /** The turn's figures so far, merged, each one replaces the last. */
         | { requestId: string; type: "stats"; stats: AiTurnStats }
         | { requestId: string; type: "error"; message: string }
         /** A tool is waiting for the user's approval. */
@@ -111,7 +111,7 @@ declare global {
         toolName: string;
         /** A full sentence: "Claude wants to run …". */
         title: string;
-        /** The command, path or URL in full — what is actually being approved. */
+        /** The command, path or URL in full, what is actually being approved. */
         detail?: string;
     };
 
@@ -122,13 +122,30 @@ declare global {
         /** `detail` explains the option in the menu; `danger` marks one that removes the safety net. */
         options: Array<{ id: string; label: string; detail?: string; danger?: boolean }>;
         default: string;
-        /** Choosing a value also makes it the default for new conversations — the access mode. */
+        /** Choosing a value also makes it the default for new conversations, the access mode. */
         sticky?: boolean;
     };
+
+    /** A file sent with a prompt. Files on disk are referenced where they are. */
+    type AiAttachment = {
+        name: string;
+        path: string;
+        mimeType: string;
+        size: number;
+        /** Images go natively, text is inlined, the rest is given by path. */
+        kind: "image" | "text" | "file";
+    };
+
+    /** What the composer hands over: a file on disk, or pasted data (base64). */
+    type AiAttachmentInput =
+        | { path: string; name?: string }
+        | { name: string; mimeType: string; data: string };
 
     type AiMessage = {
         role: "user" | "assistant";
         content: string;
+        /** Files sent with a user turn. */
+        attachments?: AiAttachment[];
         /** How the answer was reached. Absent on user turns and older chats. */
         thoughts?: AiThought[];
         /** All of a turn's thinking in one piece, as older chats saved it. */
@@ -142,7 +159,7 @@ declare global {
         stats?: AiTurnStats;
         /** Names the raw log of the turn that produced this answer. */
         traceId?: string;
-        /** Why the turn failed, when it did — kept so it reopens as a failure. */
+        /** Why the turn failed, when it did, kept so it reopens as a failure. */
         error?: string;
     };
 
@@ -168,7 +185,7 @@ declare global {
         messageCount: number;
     };
 
-    /** How a CLI provider pays for a turn — a plan you already have, or per token. */
+    /** How a CLI provider pays for a turn, a plan you already have, or per token. */
     type AiBilling = {
         mode: "subscription" | "api-key" | "unknown";
         label: string;
@@ -183,7 +200,7 @@ declare global {
         available: boolean;
         detail: string | null;
         /**
-         * `detail` is the wire id behind an alias — Claude's "Opus" says nothing
+         * `detail` is the wire id behind an alias, Claude's "Opus" says nothing
          * about which version it resolves to. A model may also narrow the
          * provider's controls, or drop them entirely.
          */
@@ -209,7 +226,7 @@ declare global {
     interface Window {
         ai: {
             listProviders: () => Promise<AiProviderInfo[]>;
-            /** Models arrive separately — reading a catalogue costs a CLI spawn. */
+            /** Models arrive separately, reading a catalogue costs a CLI spawn. */
             providerModels: (id: string) => Promise<AiProviderInfo["models"]>;
             keyStatus: () => Promise<{ encryptionAvailable: boolean; keys: Record<string, boolean> }>;
             setKey: (providerId: string, key: string) => Promise<{ ok: boolean; detail?: string }>;
@@ -228,12 +245,18 @@ declare global {
                 requestId: string;
                 providerId: string;
                 prompt: string;
+                attachments?: AiAttachment[];
                 sessionId?: string | null;
                 chatId?: string;
                 model?: string;
                 settings?: Record<string, string>;
             }) => Promise<{ ok: boolean; detail?: string }>;
             cancel: (requestId: string) => Promise<boolean>;
+            pathForFile: (file: File) => string;
+            saveAttachments: (chatId: string, items: AiAttachmentInput[]) => Promise<AiAttachment[]>;
+            openAttachment: (chatId: string, path: string) => Promise<boolean>;
+            /** An attached image as a data URL, scaled to `maxSize` on its longest side. */
+            attachmentImage: (chatId: string, path: string, maxSize: number) => Promise<{ url: string; width: number | null; height: number | null } | null>;
             onChunk: (cb: (chunk: AiChunk) => void) => () => void;
             setMode: (active: boolean) => void;
             /** Whether the open AI view holds the window up when you click away. */
@@ -266,7 +289,7 @@ declare global {
                 /** Approvals still waiting on an answer. */
                 permissions: AiPermissionRequest[];
             } | null>;
-            /** Chat ids with a turn in flight — more than one can run at a time. */
+            /** Chat ids with a turn in flight, more than one can run at a time. */
             activeTurns: () => Promise<string[]>;
             respondPermission: (requestId: string, permissionId: string, decision: AiPermissionDecision) => Promise<boolean>;
             /** Opens a turn's raw event log. False once it has been pruned. */
@@ -305,7 +328,7 @@ declare global {
             onUpdateNotAvailable:(callback:()=>void)=>() => void;
             onUpdateError:(callback:(data:{message:string})=>void)=>() => void;
             quitAndInstall:()=>void;
-            /** ok false: no check started (unpackaged build, or it failed) — no event will follow. */
+            /** ok false: no check started (unpackaged build, or it failed), no event will follow. */
             checkForUpdates:()=>Promise<{ok:boolean; message?:string}>;
             getFolderFileCounts:()=>Promise<Record<string, number>>;
             getUpdateModalInfo:()=>Promise<{show:boolean; previousVersion?:string; currentVersion?:string}>;

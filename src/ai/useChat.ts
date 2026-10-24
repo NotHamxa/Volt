@@ -16,7 +16,7 @@ export function thoughtsOf(message: Pick<AiMessage, "thoughts" | "reasoning">): 
  * Owns one conversation: streaming, persistence, and cancellation.
  *
  * The streamed answer is held in local state while it arrives and only written
- * to disk when the turn completes — a partial answer isn't worth a file write
+ * to disk when the turn completes, a partial answer isn't worth a file write
  * per token, and a cancelled turn still commits whatever arrived.
  */
 export function useChat() {
@@ -39,13 +39,17 @@ export function useChat() {
     const [permissions, setPermissions] = useState<AiPermissionRequest[]>([]);
 
     const requestIdRef = useRef<string | null>(null);
+    // Bumped by every open and new chat. Stepping through conversations fires
+    // opens faster than they load, and one finishing late must not replace
+    // the chat that was asked for after it.
+    const viewSeqRef = useRef(0);
     const partialRef = useRef("");
     const chatRef = useRef<AiChat | null>(null);
     useEffect(() => { chatRef.current = chat; }, [chat]);
 
     // Tokens arrive faster than the screen refreshes, so they're accumulated and
     // handed to React once per frame. Rendering per token meant a full markdown
-    // re-parse per token — the work that made streaming feel like it was
+    // re-parse per token, the work that made streaming feel like it was
     // struggling, and it got worse the longer the answer ran.
     const bufferRef = useRef("");
     // Thinking is buffered the same way: edited in place here, copied out
@@ -163,7 +167,7 @@ export function useChat() {
 
                 // Read the committed transcript *before* clearing the live
                 // buffer. Clearing first rendered the answer as an empty
-                // placeholder for a frame — the transcript collapsed, the
+                // placeholder for a frame, the transcript collapsed, the
                 // viewport clamped, and the restored content never scrolled
                 // back because none of the effect's dependencies had changed.
                 let updated: AiChat | null = null;
@@ -195,16 +199,18 @@ export function useChat() {
     /**
      * Returns the loaded chat so the caller can restore its provider setup.
      *
-     * A turn may still be running for this conversation in the main process —
-     * you can leave the view mid-answer and come back — so reopening reattaches
+     * A turn may still be running for this conversation in the main process,
+     * you can leave the view mid-answer and come back, so reopening reattaches
      * to it and picks the stream up from whatever has arrived so far.
      */
     const openChat = useCallback(async (id: string) => {
+        const seq = ++viewSeqRef.current;
         const loaded = await window.ai.getChat(id);
         if (!loaded) return null;
+        const active = await window.ai.activeTurn(id);
+        if (seq !== viewSeqRef.current) return null;
         setError(null);
 
-        const active = await window.ai.activeTurn(id);
         // Whatever the trail was for a *previous* turn belongs to a message
         // that is already on disk; only a turn still running has one to show.
         resetStream(active?.text ?? "", active?.thoughts ?? []);
@@ -234,12 +240,13 @@ export function useChat() {
     /**
      * Starts a blank conversation, detaching from any turn being watched.
      *
-     * The turn itself keeps running — the main process owns it and still writes
-     * its answer to its own chat — so this only stops *viewing* it. Leaving the
+     * The turn itself keeps running, the main process owns it and still writes
+     * its answer to its own chat, so this only stops *viewing* it. Leaving the
      * streaming flag set meant a running answer blocked every new conversation,
      * because send() refuses to start one while it thinks a turn is in flight.
      */
     const newChat = useCallback(() => {
+        viewSeqRef.current++;
         setChat(null);
         setError(null);
         resetStream();
@@ -255,7 +262,7 @@ export function useChat() {
     type SendOpts = { providerId: string; model?: string; settings?: Record<string, string> };
 
     /** Fires the request for a chat whose transcript is already in the right shape. */
-    const startTurn = useCallback(async (active: AiChat, text: string, opts: SendOpts) => {
+    const startTurn = useCallback(async (active: AiChat, text: string, opts: SendOpts, attachments: AiAttachment[] = []) => {
         const requestId = crypto.randomUUID();
         requestIdRef.current = requestId;
         // The previous turn's trail belongs to the answer above, which is
@@ -271,6 +278,7 @@ export function useChat() {
             requestId,
             providerId: opts.providerId,
             prompt: text,
+            attachments,
             sessionId: active.sessionId,
             // Stateless providers need the transcript; main reads it by id
             // rather than having it re-sent over IPC each turn.
@@ -286,9 +294,9 @@ export function useChat() {
         }
     }, [resetStream]);
 
-    const send = useCallback(async (prompt: string, opts: SendOpts) => {
+    const send = useCallback(async (prompt: string, opts: SendOpts, files: AiAttachmentInput[] = []) => {
         const text = prompt.trim();
-        if (!text || streaming) return;
+        if ((!text && !files.length) || streaming) return;
 
         setError(null);
 
@@ -303,7 +311,18 @@ export function useChat() {
             });
         }
 
-        const withUser = await window.ai.appendMessage(active.id, { role: "user", content: text });
+        // Pasted data needs the chat to exist first: it is stored under it.
+        const attachments = files.length ? await window.ai.saveAttachments(active.id, files) : [];
+        if (!text && !attachments.length) {
+            setError("None of the attached files could be read.");
+            return;
+        }
+
+        const withUser = await window.ai.appendMessage(active.id, {
+            role: "user",
+            content: text,
+            ...(attachments.length ? { attachments } : {}),
+        });
         if (withUser) {
             // An empty assistant turn gives the transcript something to stream into.
             withUser.messages.push({ role: "assistant", content: "" });
@@ -311,7 +330,7 @@ export function useChat() {
             active = withUser;
         }
 
-        await startTurn(active, text, opts);
+        await startTurn(active, text, opts, attachments);
     }, [streaming, startTurn]);
 
     /**
@@ -324,7 +343,7 @@ export function useChat() {
         if (!current || streaming) return;
 
         const lastUser = [...current.messages].reverse().find(m => m.role === "user");
-        if (!lastUser?.content.trim()) return;
+        if (!lastUser?.content.trim() && !lastUser?.attachments?.length) return;
 
         setError(null);
         const trimmed = await window.ai.trimForRerun(current.id);
@@ -333,7 +352,7 @@ export function useChat() {
         trimmed.messages.push({ role: "assistant", content: "" });
         setChat({ ...trimmed });
 
-        await startTurn(trimmed, lastUser.content, opts);
+        await startTurn(trimmed, lastUser.content, opts, lastUser.attachments ?? []);
     }, [streaming, startTurn]);
 
     /**

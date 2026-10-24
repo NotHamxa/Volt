@@ -3,6 +3,7 @@ import fs from "fs";
 import { randomUUID } from "node:crypto";
 import { app } from "electron";
 import { withCodexMode } from "./prefs.js";
+import { sanitizeAttachments } from "./attachments.js";
 
 /**
  * Chats live as one JSON file each under userData/chats, not in electron-store.
@@ -47,7 +48,7 @@ export function createChat({ providerId, model, settings }) {
         // The provider's own knobs (effort, sandbox) as they stood for this
         // conversation, so reopening it restores the setup it was written with.
         settings: settings ?? {},
-        // The provider's own thread id — lets a follow-up resume rather than
+        // The provider's own thread id, lets a follow-up resume rather than
         // resend the whole transcript.
         sessionId: null,
         createdAt: Date.now(),
@@ -71,7 +72,7 @@ export function readChat(id) {
 /**
  * Written beside the real file and renamed over it. writeFileSync truncates
  * first, so a crash or power cut mid-write used to leave an empty or half
- * file — and the whole conversation with it.
+ * file, and the whole conversation with it.
  */
 export function writeChat(chat) {
     let temp = null;
@@ -92,9 +93,14 @@ export function writeChat(chat) {
 export function appendMessage(id, message) {
     const chat = readChat(id);
     if (!chat) return null;
-    chat.messages.push(message);
+    const attachments = sanitizeAttachments(message?.attachments);
+    const stored = { ...message };
+    if (attachments.length) stored.attachments = attachments;
+    else delete stored.attachments;
+    chat.messages.push(stored);
+    // A prompt that is only a file is named after the file.
     if (chat.messages.length === 1 && message.role === "user") {
-        chat.title = deriveTitle(message.content);
+        chat.title = deriveTitle(message.content?.trim() ? message.content : attachments[0]?.name);
     }
     writeChat(chat);
     return chat;
@@ -104,7 +110,7 @@ export function appendMessage(id, message) {
 const MAX_STORED_REASONING = 20_000;
 
 /**
- * Replaces the last assistant message — used to commit a streamed answer.
+ * Replaces the last assistant message, used to commit a streamed answer.
  *
  * `providerId` is the provider the turn ran on. The session id is only kept
  * if the chat still uses that provider: switching mid-answer clears the old
@@ -177,7 +183,7 @@ export function finishAssistantMessage(id, { content, sessionId, providerId, rea
  * For stateless providers this genuinely regenerates: the transcript sent
  * upstream no longer contains the discarded answer. Session-based CLIs still
  * hold it in their own thread, so there a rerun reads as "ask that again"
- * rather than a clean retry — which is the closest they offer without throwing
+ * rather than a clean retry, which is the closest they offer without throwing
  * away the conversation's context.
  */
 export function trimForRerun(id) {
@@ -200,7 +206,7 @@ export function updateChatConfig(id, { providerId, model, settings }) {
     const chat = readChat(id);
     if (!chat) return null;
 
-    // A provider swap invalidates the old provider's thread id — resuming a
+    // A provider swap invalidates the old provider's thread id, resuming a
     // Claude session against Codex would either fail or reply out of context.
     // Compared before the assignment, or it could never be true.
     const switchedProvider = providerId !== undefined && providerId !== chat.providerId;
@@ -214,7 +220,7 @@ export function updateChatConfig(id, { providerId, model, settings }) {
     return chat;
 }
 
-/** Sidebar index: metadata only, newest first — transcripts are not loaded. */
+/** Sidebar index: metadata only, newest first, transcripts are not loaded. */
 export function listChats() {
     let files = [];
     try {
@@ -244,7 +250,7 @@ export function renameChat(id, title) {
     if (!chat) return null;
     const trimmed = String(title ?? "").trim();
     // An empty rename falls back to the opening prompt rather than a blank row.
-    chat.title = trimmed ? trimmed.slice(0, 80) : deriveTitle(chat.messages[0]?.content);
+    chat.title = trimmed ? trimmed.slice(0, 80) : deriveTitle(chat.messages[0]?.content?.trim() ? chat.messages[0].content : chat.messages[0]?.attachments?.[0]?.name);
     writeChat(chat);
     return chat;
 }

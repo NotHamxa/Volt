@@ -10,6 +10,7 @@ import { keyStatus, setKey, clearKey, encryptionAvailable } from "../universal/a
 import { getPrefs, setPrefs } from "../universal/ai/prefs.js";
 import { workspaceDir, defaultWorkspace } from "../universal/ai/workspace.js";
 import { draftCommand } from "../universal/ai/commandDraft.js";
+import { openSetupTerminal } from "../universal/ai/setup.js";
 import { killAllTrees } from "../universal/ai/cliProcess.js";
 import { openTrace, traceFile, deleteTraces } from "../universal/ai/traceLog.js";
 import {
@@ -17,6 +18,7 @@ import {
 } from "../universal/ai/attachments.js";
 // Importing an adapter registers it.
 import "../universal/ai/claudeCode.js";
+import "../universal/ai/anthropicApi.js";
 import "../universal/ai/openaiCompatible.js";
 import "../universal/ai/gemini.js";
 import "../universal/ai/codexCli.js";
@@ -472,6 +474,9 @@ export function registerAiIpc({ mainWindow, appStates }) {
     }));
     ipcMain.handle("ai-set-key", (_, providerId, key) => setKey(providerId, key));
     ipcMain.handle("ai-clear-key", (_, providerId) => clearKey(providerId));
+
+    // The setup guide's "Run it for me": a named step, never a command line.
+    ipcMain.handle("ai-run-setup", (_, stepId) => openSetupTerminal(stepId));
 
     // --- preferences -------------------------------------------------------
     ipcMain.handle("ai-get-prefs", () => getPrefs());

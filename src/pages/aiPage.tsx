@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent } from "react";
-import { useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import {
     Square, PanelLeft, Pin, PinOff, Plus, Trash2, ArrowUp, ArrowDown, MessageCircle, RotateCcw, Pencil, Check, ShieldAlert,
     ScrollText, Paperclip, X, FileText, File as FileIcon, Image as ImageIcon,
@@ -17,6 +17,7 @@ import { Spinner } from "@/components/ui/spinner.tsx";
 import { Kbd } from "@/components/ui/kbd.tsx";
 import { useChat, stepsOf, thoughtsOf } from "@/ai/useChat.ts";
 import { useDrafts, NEW_DRAFT } from "@/ai/useDrafts.ts";
+import { isReady } from "@/ai/readiness.ts";
 import { useSmoothText } from "@/ai/useSmoothText.ts";
 import { ModelPicker } from "@/ai/modelPicker.tsx";
 import { Markdown, StreamingMarkdown } from "@/ai/markdown.tsx";
@@ -115,6 +116,7 @@ export default function AiPage() {
         send, rerun, cancel, openChat, newChat, respondPermission,
     } = useChat();
     const [searchParams, setSearchParams] = useSearchParams();
+    const navigate = useNavigate();
 
     const [providers, setProviders] = useState<AiProviderInfo[]>([]);
     const [providerId, setProviderId] = useState("");
@@ -255,27 +257,32 @@ export default function AiPage() {
                 window.ai.listProviders(),
                 window.ai.getPrefs(),
             ]);
+            // Nothing to chat with yet. The setup guide is in Settings, so
+            // that's where this goes instead of an empty box that can only fail.
+            if (!list.some(isReady)) {
+                navigate("/settings?section=ai&setup=1", { replace: true });
+                return;
+            }
             setProviders(list);
             setKeepOpen(prefs.keepOpen);
             window.ai.setKeepOpen(prefs.keepOpen);
 
             // Settings pick the starting point; fall back to whatever is usable
-            // if the saved provider has since disappeared.
-            const chosen = list.find(p => p.id === prefs.providerId)
-                ?? list.find(p => p.available)
-                ?? list[0];
+            // if the saved provider has since gone away or been signed out.
+            const saved = list.find(p => p.id === prefs.providerId);
+            const chosen = saved && isReady(saved) ? saved : list.find(isReady);
             if (chosen) {
                 setProviderId(chosen.id);
                 // The saved id is enough to label the control immediately; the
                 // catalogue only matters once the picker is opened.
-                setModel(prefs.model ?? "");
+                setModel(chosen === saved ? prefs.model ?? "" : "");
                 setSettings(prefs.settings[chosen.id] ?? {});
                 ensureModels(chosen.id);
             }
             setCustomModels(prefs.customModels ?? {});
             await refreshChats();
         })();
-    }, [refreshChats, ensureModels]);
+    }, [refreshChats, ensureModels, navigate]);
 
     // Reload the history list whenever the active chat is written to. Guarded so
     // a slow read can't set state after the view has been left.

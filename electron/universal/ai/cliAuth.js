@@ -4,7 +4,7 @@ import path from "path";
 
 /**
  * Works out whether a CLI provider is billing against a subscription or an API
- * key — the two look identical once you're chatting, but one draws on a plan
+ * key, the two look identical once you're chatting, but one draws on a plan
  * you've already paid for and the other bills per token.
  *
  * Only non-secret descriptors are read: the mode, and the plan name. Tokens and
@@ -33,7 +33,10 @@ export function claudeAuthMode() {
     if (process.env.ANTHROPIC_API_KEY) {
         return { mode: "api-key", label: "Billing to ANTHROPIC_API_KEY" };
     }
-    const creds = readJson(path.join(os.homedir(), ".claude", ".credentials.json"));
+    // Both CLIs can be pointed at another config folder; a sign-in kept
+    // there is still a sign-in.
+    const dir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), ".claude");
+    const creds = readJson(path.join(dir, ".credentials.json"));
     const oauth = creds?.claudeAiOauth;
     if (!oauth) return UNKNOWN;
 
@@ -42,11 +45,11 @@ export function claudeAuthMode() {
 }
 
 /**
- * Codex records the choice explicitly in auth.json — "chatgpt" for a plan,
+ * Codex records the choice explicitly in auth.json, "chatgpt" for a plan,
  * "apikey" for pay-as-you-go.
  */
 export function codexAuthMode() {
-    const auth = readJson(path.join(os.homedir(), ".codex", "auth.json"));
+    const auth = readJson(path.join(process.env.CODEX_HOME || path.join(os.homedir(), ".codex"), "auth.json"));
     if (!auth) {
         if (process.env.OPENAI_API_KEY) return { mode: "api-key", label: "Billing to OPENAI_API_KEY" };
         return UNKNOWN;

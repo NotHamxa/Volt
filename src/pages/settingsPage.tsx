@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, ReactNode, useLayoutEffect, useMemo, useCallback } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { Settings, Hash, FolderOpen, Info, Terminal, Lightbulb, Sparkles, ArrowLeft, Search, CornerDownLeft, RefreshCw, Check, Keyboard, AlertTriangle, LayoutGrid, Link2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { Spinner } from "@/components/ui/spinner.tsx";
@@ -42,7 +42,7 @@ const NAV: NavItem[] = [
 ];
 
 function AnimatedSection({ active, children }: { active: boolean; children: ReactNode }) {
-    // Only the active section participates in layout — prevents the content
+    // Only the active section participates in layout, prevents the content
     // area from briefly doubling in height during a tab switch (which pushes
     // the app footer around).
     const [fadeIn, setFadeIn] = useState(false);
@@ -96,7 +96,7 @@ function UpdateChip({ version }: { version: string }) {
     }
     if (state === "error") {
         return (
-            <button onClick={check} title={`${error ?? "Update check failed"} — click to retry`}
+            <button onClick={check} title={`${error ?? "Update check failed"} (click to retry)`}
                 className={`${base} text-amber-300/80 hover:bg-fill-040 cursor-pointer`}>
                 <AlertTriangle size={10} /> Update failed
             </button>
@@ -111,7 +111,14 @@ function UpdateChip({ version }: { version: string }) {
 }
 
 export default function SettingsPage() {
-    const [activeSection, setActiveSection] = useState<SectionId>("settings");
+    const [searchParams] = useSearchParams();
+    // Opened at a section when sent here for one, the AI view does this when
+    // nothing is set up yet.
+    const [activeSection, setActiveSection] = useState<SectionId>(() => {
+        const asked = searchParams.get("section");
+        return NAV.find(n => n.id === asked)?.id ?? "settings";
+    });
+    const setupAi = searchParams.get("setup") === "1";
     const [pendingSection, setPendingSection] = useState<SectionId | null>(null);
     // Where "Discard" goes when the unsaved edit was in the way of leaving
     // Settings altogether rather than of switching section.
@@ -201,8 +208,8 @@ export default function SettingsPage() {
     const cancelDiscard = () => { setPendingSection(null); setPendingLeave(null); };
 
     /**
-     * Leaving Settings from anywhere — Esc, the settings shortcut, the footer
-     * button, a window hide — goes through App.tsx, which asks first with a
+     * Leaving Settings from anywhere, Esc, the settings shortcut, the footer
+     * button, a window hide, goes through App.tsx, which asks first with a
      * cancelable "settingsLeave" event. Cancelling it keeps the edit, and the
      * prompt's Discard runs the leave App would have done.
      */
@@ -266,7 +273,7 @@ export default function SettingsPage() {
             }
 
             // Ctrl+1..9 jumps straight to a section, matching how the rest of
-            // the app is driven. Ctrl, not bare digits — a settings pane has
+            // the app is driven. Ctrl, not bare digits, a settings pane has
             // text fields in it. (Ctrl+0 never arrives: main blocks it as a
             // zoom key, so the tenth section is reached by arrow or click.)
             if (e.ctrlKey && /^[1-9]$/.test(e.key)) {
@@ -285,7 +292,7 @@ export default function SettingsPage() {
             }
 
             // Arrows walk the rail, but only when the focus isn't in a field
-            // — otherwise Up/Down would fight the caret in a text input.
+            //, otherwise Up/Down would fight the caret in a text input.
             const active = document.activeElement;
             const typing = active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement;
             if (typing) return;
@@ -308,7 +315,7 @@ export default function SettingsPage() {
 
     return (
         <div className="flex flex-col w-full h-full text-tone-800">
-            {/* ── Top bar — just the way out. The section names moved to the
+            {/* ── Top bar, just the way out. The section names moved to the
                    rail, so this no longer has to label the page. ──────────── */}
             <header className="flex items-center gap-3 px-3.5 h-11 shrink-0">
                 <button
@@ -459,7 +466,7 @@ export default function SettingsPage() {
                             <QuickBangsSection />
                         </AnimatedSection>
                         <AnimatedSection active={activeSection === "ai"}>
-                            <AiSection />
+                            <AiSection arrivedForSetup={setupAi} />
                         </AnimatedSection>
                         <AnimatedSection active={activeSection === "tips"}>
                             <TipsSection />

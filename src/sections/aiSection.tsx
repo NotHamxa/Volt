@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Eye, EyeOff, KeyRound, ShieldAlert, Trash2, RefreshCw, FolderOpen } from "lucide-react";
+import { Check, Eye, EyeOff, KeyRound, ShieldAlert, Trash2, RefreshCw, FolderOpen, ChevronRight, Info } from "lucide-react";
+import { useNavigate } from "react-router";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
 import {
@@ -8,13 +9,15 @@ import {
 import { SectionLead, GroupLabel } from "@/components/settingsLayout.tsx";
 import { providerLogo, providerLogoTint } from "@/ai/providerLogos.ts";
 import { ModelPicker } from "@/ai/modelPicker.tsx";
+import { isReady, needsSignIn } from "@/ai/readiness.ts";
+import { AiSetupGuide } from "@/components/aiSetupGuide.tsx";
 
 /**
  * Setup for the AI view: which backends are usable, keys for the ones that need
  * them, and what the prompt bar opens with.
  *
  * Keys are written through the main process into the OS keychain and are never
- * read back here — the bridge reports only whether one exists.
+ * read back here, the bridge reports only whether one exists.
  */
 /** needsKey is the honest split: sign in with a tool you have, or paste a key. */
 const GROUPS = [
@@ -22,8 +25,16 @@ const GROUPS = [
     { title: "API keys", hint: "billed per token", needsKey: true },
 ];
 
-export default function AiSection() {
+/**
+ * `arrivedForSetup`: the AI view sent you here because nothing could answer
+ * yet, so the guide leads and says why.
+ */
+export default function AiSection({ arrivedForSetup = false }: { arrivedForSetup?: boolean }) {
+    const navigate = useNavigate();
     const [providers, setProviders] = useState<AiProviderInfo[]>([]);
+    const [checking, setChecking] = useState(false);
+    const [guideOpen, setGuideOpen] = useState(false);
+    const keysRef = useRef<HTMLDivElement>(null);
     const [loading, setLoading] = useState(true);
     const [keys, setKeys] = useState<Record<string, boolean>>({});
     const [canEncrypt, setCanEncrypt] = useState(true);
@@ -59,8 +70,15 @@ export default function AiSection() {
         setLoading(false);
     }, []);
 
-    /** Re-read everything — used by the refresh button and after a key changes. */
-    const load = useCallback(async () => apply(await fetchAll()), [apply, fetchAll]);
+    /** Re-read everything, used by the refresh button and after a key changes. */
+    const load = useCallback(async () => {
+        setChecking(true);
+        try {
+            apply(await fetchAll());
+        } finally {
+            setChecking(false);
+        }
+    }, [apply, fetchAll]);
 
     // Guarded so a slow probe can't land after the section is switched away.
     useEffect(() => {
@@ -84,7 +102,7 @@ export default function AiSection() {
         ? defaultProvider.models.find(m => m.id === defaultModelId)?.controls ?? defaultProvider.controls
         : [];
 
-    // The dangerous option picked as a default, if any — Full access.
+    // The dangerous option picked as a default, if any, Full access.
     const defaultDanger = defaultProvider
         ? defaultControls
             .map(c => c.options.find(o => o.id === (prefs.settings[defaultProvider.id]?.[c.id] ?? c.default)))
@@ -95,7 +113,7 @@ export default function AiSection() {
         setPrefsState(await window.ai.setPrefs(patch));
     };
 
-    // Catalogues are read only for providers actually browsed in the picker —
+    // Catalogues are read only for providers actually browsed in the picker,
     // each one costs a CLI spawn.
     const loadingModels = useRef(new Set<string>());
     const ensureModels = useCallback(async (id: string) => {
@@ -107,6 +125,10 @@ export default function AiSection() {
     }, [providers]);
 
     const customModels = prefs.customModels ?? {};
+    const anyReady = providers.some(isReady);
+    // Leads the section until something works; after that it folds away,
+    // still there for adding a second provider.
+    const showGuide = !anyReady || arrivedForSetup || guideOpen;
 
     if (loading) return <AiSectionSkeleton />;
 
@@ -117,6 +139,14 @@ export default function AiSection() {
                     Ask questions without leaving Volt. Press <span className="text-tone-600">Tab</span> from
                     the search bar, or pick <span className="text-tone-600">Ask AI</span> in the results.
                 </SectionLead>
+                {arrivedForSetup && !anyReady && (
+                    <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-sky-400/[0.07] border border-sky-400/20">
+                        <Info size={13} className="mt-px shrink-0 text-sky-300/70" />
+                        <p className="text-11 text-sky-100/75 leading-relaxed">
+                            AI needs somewhere to send your questions first. Pick one of the options below. It only takes a couple of minutes.
+                        </p>
+                    </div>
+                )}
                 {!canEncrypt && (
                     <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-400/[0.07] border border-amber-400/20">
                         <ShieldAlert size={13} className="mt-px shrink-0 text-amber-300/70" />
@@ -127,6 +157,23 @@ export default function AiSection() {
                     </div>
                 )}
             </div>
+
+            {showGuide ? (
+                <AiSetupGuide
+                    providers={providers}
+                    checking={checking}
+                    onRecheck={load}
+                    onJumpToKeys={() => keysRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                    onStart={anyReady ? () => navigate("/ai") : undefined}
+                />
+            ) : (
+                <button
+                    onClick={() => setGuideOpen(true)}
+                    className="-my-4 self-start flex items-center gap-1 text-11 text-tone-300 hover:text-tone-650 transition-colors cursor-pointer"
+                >
+                    Setup guide: add another provider <ChevronRight size={11} />
+                </button>
+            )}
 
             <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between">
@@ -149,7 +196,7 @@ export default function AiSection() {
                     const members = providers.filter(p => p.needsKey === group.needsKey);
                     if (members.length === 0) return null;
                     return (
-                        <div key={group.title} className="flex flex-col gap-2">
+                        <div key={group.title} ref={group.needsKey ? keysRef : undefined} className="flex flex-col gap-2 scroll-mt-4">
                             <div className="flex items-baseline gap-2 mt-1">
                                 <span className="text-11 font-medium text-tone-450">{group.title}</span>
                                 <span className="text-10 text-tone-200">{group.hint}</span>
@@ -266,7 +313,7 @@ export default function AiSection() {
                         <ShieldAlert size={12} className="mt-px shrink-0 text-red-300/70" />
                         <p className="text-10.5 text-red-200/70 leading-relaxed">
                             New conversations start in {defaultDanger.label}. {defaultProvider.label} can run any
-                            command, edit or delete any file your account can reach, and send data anywhere —
+                            command, edit or delete any file your account can reach, and send data anywhere,
                             including when instructions hidden in pasted text or a web page tell it to.
                         </p>
                     </div>
@@ -310,7 +357,7 @@ function ProviderCard({ provider, hasKey, canEncrypt, onChanged }: {
 
     // A key-based provider is only really usable once a key is stored, whatever
     // its own reachability check says.
-    const ready = provider.needsKey ? hasKey : provider.available;
+    const ready = provider.needsKey ? hasKey : isReady(provider);
     const logo = providerLogo(provider.id);
 
     return (
@@ -321,10 +368,12 @@ function ProviderCard({ provider, hasKey, canEncrypt, onChanged }: {
                         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${ready ? "bg-emerald-400/70" : "bg-ink/20"}`} />
                         {logo && <img src={logo} alt="" className={`w-4 h-4 shrink-0 object-contain ${providerLogoTint(provider.id)}`} />}
                         <h3 className="text-12.5 font-medium text-tone-800 tracking-tight">{provider.label}</h3>
-                        {/* For a CLI, what matters is which wallet it draws on —
+                        {/* For a CLI, what matters is which wallet it draws on,
                             a plan you already pay for, or per-token billing. */}
                         {provider.needsKey ? (
                             <Badge tone="neutral">API key</Badge>
+                        ) : needsSignIn(provider) ? (
+                            <Badge tone="warn">Not signed in</Badge>
                         ) : provider.billing?.mode === "subscription" ? (
                             <Badge tone="good">{provider.billing.label}</Badge>
                         ) : provider.billing?.mode === "api-key" ? (
@@ -336,7 +385,9 @@ function ProviderCard({ provider, hasKey, canEncrypt, onChanged }: {
                     <p className="text-11 text-tone-350 leading-relaxed mt-1 break-all">
                         {provider.needsKey
                             ? (hasKey ? "Key stored in your system keychain." : "Add a key to enable this provider.")
-                            : (provider.detail ?? (ready ? "Ready." : "Not detected."))}
+                            : needsSignIn(provider)
+                                ? "Installed, but not signed in yet. The setup guide above walks you through it."
+                                : (provider.detail ?? (ready ? "Ready." : "Not detected."))}
                     </p>
                     {!provider.needsKey && provider.billing?.mode === "api-key" && (
                         <p className="text-10.5 text-amber-300/55 leading-relaxed mt-1">
@@ -397,14 +448,14 @@ function ProviderCard({ provider, hasKey, canEncrypt, onChanged }: {
 /**
  * Shaped like the section it stands in for, so nothing jumps when the real
  * thing arrives. The provider counts mirror the adapters registered in
- * electron/universal/ai — three that sign in through a CLI, four that take a
- * key — which is what makes the swap seamless rather than merely busy.
+ * electron/universal/ai, three that sign in through a CLI, five that take a
+ * key, which is what makes the swap seamless rather than merely busy.
  *
  * Worth having because this section is genuinely slow to load: it spawns the
  * Claude CLI and the Codex app-server to read their model catalogues.
  */
 const CLI_PROVIDERS = 3;
-const KEY_PROVIDERS = 4;
+const KEY_PROVIDERS = 5;
 
 function ProviderCardSkeleton() {
     return (

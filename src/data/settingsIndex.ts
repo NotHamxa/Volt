@@ -9,7 +9,7 @@ export type SettingsEntry = {
     /**
      * Words people reach for that aren't in the title. "dark mode" has to find
      * Appearance, and nobody calls the activation shortcut an "activation
-     * shortcut" — they call it the hotkey.
+     * shortcut", they call it the hotkey.
      */
     keywords?: string[];
     /** Matches `data-setting` on the row, when the section marks one. */
@@ -21,7 +21,7 @@ export type SettingsEntry = {
  *
  * Hand-written rather than collected from the rendered tree: only the open
  * section is mounted, so at any moment six sevenths of the settings don't
- * exist to be scraped — and searching only what you can already see is not
+ * exist to be scraped, and searching only what you can already see is not
  * worth building. The cost is that a new setting has to be added here too.
  */
 export const SETTINGS_INDEX: SettingsEntry[] = [
@@ -111,7 +111,12 @@ export const SETTINGS_INDEX: SettingsEntry[] = [
     {
         section: "ai", title: "AI Providers",
         hint: "Which backends are available, and keys for the ones that need them",
-        keywords: ["claude", "codex", "openai", "gemini", "ollama", "api key", "cli", "chatgpt"],
+        keywords: ["claude", "codex", "openai", "gemini", "ollama", "api key", "cli", "chatgpt", "anthropic"],
+    },
+    {
+        section: "ai", title: "Set up AI",
+        hint: "Step-by-step: use a Claude or ChatGPT plan, or an API key",
+        keywords: ["setup", "install", "sign in", "login", "subscription", "plan", "tutorial", "guide", "get started"],
     },
     {
         section: "ai", title: "AI Defaults",

@@ -234,6 +234,7 @@ declare global {
             getPrefs: () => Promise<AiPrefs>;
             setPrefs: (patch: Partial<AiPrefs>) => Promise<AiPrefs>;
             workspace: () => Promise<{ path: string; isDefault: boolean; defaultPath: string }>;
+            runSetup: (stepId: "claude-install" | "claude-login" | "codex-install" | "codex-login") => Promise<boolean>;
             draftCommand: (request: {
                 providerId: string;
                 model?: string;

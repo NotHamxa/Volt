@@ -18,6 +18,7 @@ import grok from "@/assets/logos/grok.svg";
  */
 export const PROVIDER_LOGOS: Record<string, string> = {
     "claude-code": claude,
+    anthropic: claude,
     codex: openai,
     openai,
     gemini,
@@ -30,7 +31,7 @@ export const PROVIDER_LOGOS: Record<string, string> = {
  * The marks that are a single flat white, with no colour of their own. They
  * were picked to read on a dark panel, so on a light one they turn invisible.
  * Inverting a pure-white glyph gives pure black, which is exactly the light
- * variant these vendors ship — so no second copy of the artwork is needed.
+ * variant these vendors ship, so no second copy of the artwork is needed.
  *
  * The colourful marks (Claude, Gemini, DeepSeek) must never be inverted: it
  * would misrepresent the brand rather than adapt it.

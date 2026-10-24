@@ -116,6 +116,8 @@ contextBridge.exposeInMainWorld('ai', {
     getPrefs: () => ipcRenderer.invoke('ai-get-prefs'),
     setPrefs: (patch) => ipcRenderer.invoke('ai-set-prefs', patch),
     workspace: () => ipcRenderer.invoke('ai-workspace'),
+    // Opens a PowerShell window running one of the setup guide's steps.
+    runSetup: (stepId) => ipcRenderer.invoke('ai-run-setup', stepId),
     draftCommand: (request) => ipcRenderer.invoke('ai-draft-command', request),
     listChats: () => ipcRenderer.invoke('ai-list-chats'),
     getChat: (id) => ipcRenderer.invoke('ai-get-chat', id),

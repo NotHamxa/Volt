@@ -44,8 +44,14 @@ declare global {
         detail?: string;
         /** "stopped" means the turn ended before the step reported back. */
         status: "running" | "done" | "failed" | "stopped";
-        /** The tail of what it printed or returned. */
+        /** The tail of what it printed or returned (a file read keeps its start). */
         output?: string;
+        /** What it was given: the whole command, what it wrote, the change it made. */
+        input?: string;
+        /** "diff" draws `input` as removed and added lines. */
+        inputFormat?: "diff" | "code" | "text";
+        /** Thumbnails, as data URLs, of pictures it looked at. */
+        images?: string[];
         exitCode?: number;
         startedAt?: number;
         endedAt?: number;

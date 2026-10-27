@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import type { TraceItem } from "@/ai/timeline.ts";
+import { ImageViewer } from "@/ai/attachmentPreview.tsx";
 
 /**
  * How an answer was reached: the steps a CLI took, the plan it kept, and what
@@ -240,14 +241,31 @@ function ThoughtRow({ thought, now }: { thought: AiThought; now: number }) {
     );
 }
 
+/** What a step's input is called, by the kind of step it is. */
+function inputLabel(step: AiStep) {
+    if (step.inputFormat === "diff") return "Changes";
+    switch (step.kind) {
+        case "command": return "Command";
+        case "write": return "Content";
+        case "agent": return "Prompt";
+        case "search":
+        case "web": return "Query";
+        default: return "Arguments";
+    }
+}
+
 /**
- * One step: what it did, how it ended, how long it took. Output is behind a
- * click, useful when something went wrong, noise when it didn't.
+ * One step: what it did, how it ended, how long it took. The details are
+ * behind a click: what it was given (the full command, what it wrote, the
+ * change it made), any pictures it looked at, and what came back.
  */
 function StepRow({ step, now, bare = false }: { step: AiStep; now: number; bare?: boolean }) {
     const [showOutput, setShowOutput] = useState(false);
     const Icon = KIND_ICON[step.kind ?? "tool"] ?? Wrench;
-    const hasOutput = Boolean(step.output?.trim());
+    const output = step.output?.trim() ? step.output : "";
+    const input = step.input?.trim() ? step.input : "";
+    const images = step.images ?? [];
+    const hasOutput = Boolean(output || input || images.length);
     // A running step counts up against the ticking clock.
     const end = step.endedAt ?? (step.status === "running" ? now : undefined);
     const duration = step.startedAt && end ? formatDuration(end - step.startedAt) : "";
@@ -277,13 +295,60 @@ function StepRow({ step, now, bare = false }: { step: AiStep; now: number; bare?
                 </span>
             </button>
             {showOutput && hasOutput && (
-                <pre className="mb-1 max-h-40 overflow-auto scrollbar-thin-shadcn px-2 py-1.5 rounded-md bg-[var(--code-bg)] border border-line-070 font-mono text-10 leading-relaxed text-tone-600 whitespace-pre-wrap break-all">
-                    {step.output}
-                </pre>
+                <div className="mb-1.5 flex flex-col gap-1.5">
+                    {input && <StepText label={inputLabel(step)} text={input} diff={step.inputFormat === "diff"} />}
+                    {images.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                            {images.map((src, i) => <StepImage key={i} src={src} name={step.detail || "Image"} />)}
+                        </div>
+                    )}
+                    {output && <StepText label={input ? "Output" : undefined} text={output} />}
+                </div>
             )}
         </>
     );
     return bare ? row : <li className="flex flex-col">{row}</li>;
+}
+
+/** A block of a step's text; a diff colours its added and removed lines. */
+function StepText({ label, text, diff = false }: { label?: string; text: string; diff?: boolean }) {
+    return (
+        <div className="flex flex-col gap-0.5 min-w-0">
+            {label && <span className="text-9.5 uppercase tracking-wide text-tone-250">{label}</span>}
+            <pre className="max-h-48 overflow-auto scrollbar-thin-shadcn px-2 py-1.5 rounded-md bg-[var(--code-bg)] border border-line-070 font-mono text-10 leading-relaxed text-tone-600 whitespace-pre-wrap break-all">
+                {diff
+                    ? text.split("\n").map((line, i) => (
+                        <span key={i} className={`block ${diffLineClass(line)}`}>{line || " "}</span>
+                    ))
+                    : text}
+            </pre>
+        </div>
+    );
+}
+
+function diffLineClass(line: string) {
+    if (line.startsWith("+++") || line.startsWith("---")) return "text-tone-400";
+    if (line.startsWith("+")) return "bg-emerald-400/[0.09] text-emerald-200/90";
+    if (line.startsWith("-")) return "bg-red-400/[0.09] text-red-200/85";
+    if (line.startsWith("@@")) return "text-sky-300/70";
+    return "";
+}
+
+/** A picture a step looked at; click for full size. */
+function StepImage({ src, name }: { src: string; name: string }) {
+    const [open, setOpen] = useState(false);
+    return (
+        <>
+            <button
+                onClick={() => setOpen(true)}
+                aria-label={`View ${name}`}
+                className="block overflow-hidden rounded-md border border-line-080 bg-fill-040 hover:border-ink/[0.2] transition-colors cursor-zoom-in"
+            >
+                <img src={src} alt={name} className="block max-h-40 max-w-60 object-contain" />
+            </button>
+            {open && <ImageViewer name={name} placeholder={src} onClose={() => setOpen(false)} />}
+        </>
+    );
 }
 
 function PlanList({ items }: { items: AiPlanItem[] }) {

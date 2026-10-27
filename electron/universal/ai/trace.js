@@ -10,6 +10,11 @@ import path from "path";
  * A step is `{ id, parentId?, kind, label, detail?, status, output? }`, sent
  * as it starts and again as it ends; ai.ipc merges the two by id and stamps
  * the times. `kind` picks the icon in the view.
+ *
+ * Expanded, a step also shows what it was given: `input` (the whole command,
+ * what was written, the change an edit made, as a diff when `inputFormat` is
+ * "diff") and `images` (thumbnails of pictures it read). Without them a write
+ * said only "File created successfully" and an image read said "[image]".
  */
 
 /** Last two segments of a path, enough to recognise, short enough to fit. */
@@ -35,14 +40,98 @@ export function clipOutput(text, max = 2000) {
     return trimmed.length > max ? "…" + trimmed.slice(-max) : trimmed;
 }
 
-/** A tool result's content as text: a string, or an array of content blocks. */
-export function toolResultText(content) {
+/**
+ * The start of a long text, for things read top-down: a file's contents, what
+ * was written to one. A command's output keeps its tail instead (clipOutput).
+ */
+export function clipHead(text, max = 3000) {
+    if (typeof text !== "string") return "";
+    const trimmed = text.replace(/\r\n/g, "\n").trimEnd();
+    return trimmed.length > max ? trimmed.slice(0, max) + "\n…" : trimmed;
+}
+
+/**
+ * A tool result's content as text: a string, or an array of content blocks.
+ * Images become "[image]" unless they're being shown as pictures instead.
+ */
+export function toolResultText(content, { imagePlaceholder = true } = {}) {
     if (typeof content === "string") return content;
     if (!Array.isArray(content)) return "";
     return content
-        .map(block => (block?.type === "text" ? block.text : block?.type === "image" ? "[image]" : ""))
+        .map(block => (block?.type === "text" ? block.text : block?.type === "image" && imagePlaceholder ? "[image]" : ""))
         .filter(Boolean)
         .join("\n");
+}
+
+const INPUT_MAX = 4000;
+
+/** An edit as removed and added lines, the way a diff reads. */
+function editDiff(before, after) {
+    const lines = (text, mark) => (typeof text === "string" && text ? text.replace(/\r\n/g, "\n").split("\n").map(l => mark + l) : []);
+    return [...lines(before, "-"), ...lines(after, "+")].join("\n");
+}
+
+function asInput(text, inputFormat = "code") {
+    const input = clipHead(typeof text === "string" ? text : "", INPUT_MAX);
+    return input ? { input, inputFormat } : {};
+}
+
+/** What a Claude tool call was given, for its expanded step. */
+export function describeToolInput(name, input) {
+    input = input ?? {};
+    switch (name) {
+        case "Write":        return asInput(input.content);
+        case "Edit":         return asInput(editDiff(input.old_string, input.new_string), "diff");
+        case "MultiEdit":
+            return asInput((input.edits ?? []).map(e => editDiff(e?.old_string, e?.new_string)).join("\n@@\n"), "diff");
+        case "NotebookEdit": return asInput(input.new_source);
+        case "Bash":
+        case "PowerShell":   return asInput(input.command);
+        case "Grep":
+            return asInput([input.pattern, input.path && `in ${input.path}`, input.glob && `files ${input.glob}`].filter(Boolean).join("\n"), "text");
+        case "Glob":         return asInput([input.pattern, input.path && `in ${input.path}`].filter(Boolean).join("\n"), "text");
+        case "WebFetch":     return asInput([input.url, input.prompt].filter(Boolean).join("\n\n"), "text");
+        case "Task":
+        case "Agent":        return asInput(input.prompt, "text");
+        case "Read":
+        case "BashOutput":
+        case "KillShell":
+        case "TaskStop":
+        case "WebSearch":
+        case "Skill":
+        case "ExitPlanMode":
+        case "EnterPlanMode":
+            // The one-line detail already says all there is.
+            return {};
+        default:
+            // MCP and anything new: the arguments, which is what there is.
+            return Object.keys(input).length ? asInput(JSON.stringify(input, null, 2)) : {};
+    }
+}
+
+/** What a Codex item was given, for its expanded step. */
+export function describeCodexInput(item = {}) {
+    switch (item.type) {
+        case "commandExecution":
+        case "command_execution":
+            return asInput(unwrapShell(item.command ?? item.parsed_cmd));
+        case "fileChange":
+        case "file_change":
+            // Each change carries a unified diff of what it did to its file.
+            return asInput((item.changes ?? [])
+                .map(c => [`${c?.kind?.type ?? c?.kind ?? "edit"} ${c?.path ?? ""}`.trim(), typeof c?.diff === "string" ? c.diff : ""].filter(Boolean).join("\n"))
+                .join("\n\n"), "diff");
+        case "mcpToolCall":
+        case "mcp_tool_call":
+        case "dynamicToolCall":
+            return item.arguments && typeof item.arguments === "object" && Object.keys(item.arguments).length
+                ? asInput(JSON.stringify(item.arguments, null, 2))
+                : {};
+        case "collabAgentToolCall":
+            return asInput(item.prompt, "text");
+        default:
+            return {};
+    }
 }
 
 /**

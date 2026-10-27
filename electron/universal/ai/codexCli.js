@@ -5,7 +5,8 @@ import { spawn } from "child_process";
 import { registerProvider, withResumeFallback } from "./provider.js";
 import { codexAuthMode } from "./cliAuth.js";
 import { workspaceDir } from "./workspace.js";
-import { describeCodexItem, clipOutput } from "./trace.js";
+import { describeCodexItem, describeCodexInput, clipOutput } from "./trace.js";
+import { fileImages } from "./stepImages.js";
 import { resolveCli, killTree, track } from "./cliProcess.js";
 import { expandAttachments } from "./attachments.js";
 
@@ -556,6 +557,8 @@ async function* runTurn({ cli, prompt, attachments, sessionId, model, settings, 
                     step: {
                         id: item.id,
                         ...describeCodexItem(item),
+                        ...describeCodexInput(item),
+                        ...(completed && item.type === "imageView" ? { images: fileImages(item.path) } : {}),
                         status: completed ? (failed ? "failed" : "done") : "running",
                         ...(completed && typeof output === "string" ? { output: clipOutput(output) } : {}),
                         ...(completed && item.status === "declined" && !output ? { output: "Declined." } : {}),

@@ -5,7 +5,8 @@ import { spawn } from "child_process";
 import { registerProvider, withResumeFallback } from "./provider.js";
 import { claudeAuthMode } from "./cliAuth.js";
 import { workspaceDir } from "./workspace.js";
-import { describeTool, clipOutput, toolResultText, PLANNING_TOOLS, QUIET_TOOLS } from "./trace.js";
+import { describeTool, describeToolInput, clipOutput, clipHead, toolResultText, PLANNING_TOOLS, QUIET_TOOLS } from "./trace.js";
+import { resultImages } from "./stepImages.js";
 import { resolveCli, killTree, track } from "./cliProcess.js";
 import { expandAttachments } from "./attachments.js";
 
@@ -619,7 +620,12 @@ async function* runTurn({ query, cli, prompt, attachments, sessionId, model, set
                     if (QUIET_TOOLS.has(block.name)) continue;
                     yield {
                         type: "step",
-                        step: { id: block.id, parentId: message.parent_tool_use_id ?? undefined, ...describeTool(block.name, block.input) },
+                        step: {
+                            id: block.id,
+                            parentId: message.parent_tool_use_id ?? undefined,
+                            ...describeTool(block.name, block.input),
+                            ...describeToolInput(block.name, block.input),
+                        },
                     };
                 }
                 if (message.parent_tool_use_id) {
@@ -649,12 +655,17 @@ async function* runTurn({ query, cli, prompt, attachments, sessionId, model, set
                         continue;
                     }
                     if (QUIET_TOOLS.has(name)) continue;
+                    // A picture it read is shown as the picture, not "[image]".
+                    const images = resultImages(block.content);
+                    const text = toolResultText(block.content, { imagePlaceholder: !images.length });
                     yield {
                         type: "step",
                         step: {
                             id: block.tool_use_id,
                             status: block.is_error ? "failed" : "done",
-                            output: clipOutput(toolResultText(block.content)),
+                            // A file reads from the top; a command ends at the bottom.
+                            output: name === "Read" ? clipHead(text) : clipOutput(text),
+                            ...(images.length ? { images } : {}),
                         },
                     };
                 }

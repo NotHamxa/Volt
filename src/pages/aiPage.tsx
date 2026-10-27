@@ -19,7 +19,7 @@ import { useChat, stepsOf, thoughtsOf } from "@/ai/useChat.ts";
 import { useDrafts, NEW_DRAFT } from "@/ai/useDrafts.ts";
 import { isReady } from "@/ai/readiness.ts";
 import { isTouring } from "@/components/walkthroughState.ts";
-import { useSmoothText } from "@/ai/useSmoothText.ts";
+import { LiveReveal } from "@/ai/liveReveal.tsx";
 import { ModelPicker } from "@/ai/modelPicker.tsx";
 import { Markdown, StreamingMarkdown } from "@/ai/markdown.tsx";
 import { CopyButton } from "@/ai/copyButton.tsx";
@@ -54,7 +54,8 @@ type PendingAttachment = {
     name: string;
     size: number;
     image: boolean;
-    input: AiAttachmentInput;
+    /** Null while a pasted file's bytes are still being read. */
+    input: AiAttachmentInput | null;
     /** An image's thumbnail, as an object URL, revoked once it's gone. */
     preview?: string;
 };
@@ -69,28 +70,29 @@ function readBase64(file: File): Promise<string> {
 }
 
 /**
- * A pasted, dropped or picked file, ready to send. One from disk keeps its
- * path; a screenshot on the clipboard has none, so its bytes come along.
+ * A pasted, dropped or picked file, shown in the composer at once. One from
+ * disk keeps its path and is ready; a screenshot on the clipboard has none, so
+ * its bytes come along, read afterwards by readPasted.
  */
-async function toPending(file: File): Promise<PendingAttachment | null> {
+function toPending(file: File): PendingAttachment {
     const image = file.type.startsWith("image/");
     const path = window.ai.pathForFile(file);
-    const base = { id: crypto.randomUUID(), size: file.size, image };
-    if (path) {
-        return { ...base, name: file.name, input: { path, name: file.name }, preview: image ? URL.createObjectURL(file) : undefined };
-    }
-    if (file.size > MAX_PASTED_BYTES) return null;
+    // Chromium names every clipboard image "image.png".
+    const ext = file.type.split("/")[1]?.replace("jpeg", "jpg") || "bin";
+    const name = path || (file.name && file.name !== "image.png") ? file.name : `Pasted image.${ext}`;
+    return {
+        id: crypto.randomUUID(),
+        name,
+        size: file.size,
+        image,
+        input: path ? { path, name } : null,
+        preview: image ? URL.createObjectURL(file) : undefined,
+    };
+}
+
+async function readPasted(file: File, name: string): Promise<AiAttachmentInput | null> {
     try {
-        const data = await readBase64(file);
-        // Chromium names every clipboard image "image.png".
-        const ext = file.type.split("/")[1]?.replace("jpeg", "jpg") || "bin";
-        const name = !file.name || file.name === "image.png" ? `Pasted image.${ext}` : file.name;
-        return {
-            ...base,
-            name,
-            input: { name, mimeType: file.type || "application/octet-stream", data },
-            preview: image ? URL.createObjectURL(file) : undefined,
-        };
+        return { name, mimeType: file.type || "application/octet-stream", data: await readBase64(file) };
     } catch {
         return null;
     }
@@ -157,6 +159,9 @@ export default function AiPage() {
     // Files waiting in chats you've stepped away from. Session only: pasted
     // data can run to megabytes, which is no thing to keep in the settings file.
     const stashedFiles = useRef(new Map<string, PendingAttachment[]>());
+    const attachmentsRef = useRef(attachments);
+    useEffect(() => { attachmentsRef.current = attachments; }, [attachments]);
+    const attachmentsLoading = attachments.some(a => !a.input);
     // Set when a send is about to give the new chat its id; what was typed
     // meanwhile belongs to that chat, not to the next new one.
     const carryToNewChat = useRef(false);
@@ -187,11 +192,6 @@ export default function AiPage() {
     // notional figure that would read as a bill.
     const showCost = provider?.billing?.mode === "api-key";
 
-    // Providers deliver in slabs, not tokens; this paces the reveal so the
-    // answer reads as it is written.
-    // `stopping` settles it too: once you've asked it to stop, text must not
-    // carry on appearing from the buffer while the provider winds down.
-    const revealed = useSmoothText(partial, !streaming || stopping);
 
     // Declared before the hooks below, which use them as dependencies. A `const`
     // is in its temporal dead zone until this line runs, so leaving these at the
@@ -359,23 +359,6 @@ export default function AiPage() {
         window.ai.setPrefs({ keepOpen: next });
     }, [keepOpen]);
 
-    const addFiles = useCallback(async (files: File[]) => {
-        if (!files.length) return;
-        const ready = await Promise.all(files.map(toPending));
-        const kept = ready.filter((a): a is PendingAttachment => a !== null);
-        if (kept.length < files.length) {
-            window.electron.notify("Some files weren't attached", "Pasted data over 20 MB can't be sent. Save it to a file and attach that instead.");
-        }
-        setAttachments(current => {
-            const next = [...current, ...kept];
-            if (next.length <= MAX_ATTACHMENTS) return next;
-            for (const dropped of next.slice(MAX_ATTACHMENTS)) if (dropped.preview) URL.revokeObjectURL(dropped.preview);
-            window.electron.notify("Too many files", `Up to ${MAX_ATTACHMENTS} files can go with one message.`);
-            return next.slice(0, MAX_ATTACHMENTS);
-        });
-        inputRef.current?.focus();
-    }, []);
-
     const removeAttachment = useCallback((id: string) => {
         setAttachments(current => {
             const gone = current.find(a => a.id === id);
@@ -384,10 +367,54 @@ export default function AiPage() {
         });
     }, []);
 
+    /**
+     * A pasted file's bytes, read in. Its tile may since have been put away
+     * with another chat's draft, so the stash is updated too; one removed
+     * in the meantime is simply not found.
+     */
+    const settleAttachment = useCallback((id: string, input: AiAttachmentInput | null) => {
+        if (!input) {
+            for (const [key, list] of stashedFiles.current) {
+                const gone = list.find(a => a.id === id);
+                if (!gone) continue;
+                if (gone.preview) URL.revokeObjectURL(gone.preview);
+                stashedFiles.current.set(key, list.filter(a => a.id !== id));
+            }
+            removeAttachment(id);
+            window.electron.notify("File not attached", "It couldn't be read. Save it to a file and attach that instead.");
+            return;
+        }
+        const fill = (list: PendingAttachment[]) => list.map(a => (a.id === id ? { ...a, input } : a));
+        for (const [key, list] of stashedFiles.current) stashedFiles.current.set(key, fill(list));
+        setAttachments(fill);
+    }, [removeAttachment]);
+
+    // Tiles go in as soon as files arrive, a large paste takes a moment to
+    // read, and until now nothing showed it had been taken at all.
+    const addFiles = useCallback((files: File[]) => {
+        if (!files.length) return;
+        const fits = files.filter(f => window.ai.pathForFile(f) || f.size <= MAX_PASTED_BYTES);
+        if (fits.length < files.length) {
+            window.electron.notify("Some files weren't attached", "Pasted data over 20 MB can't be sent. Save it to a file and attach that instead.");
+        }
+        if (!fits.length) return;
+
+        const room = MAX_ATTACHMENTS - attachmentsRef.current.length;
+        if (fits.length > room) window.electron.notify("Too many files", `Up to ${MAX_ATTACHMENTS} files can go with one message.`);
+        const added = fits.slice(0, Math.max(0, room)).map(file => ({ file, pending: toPending(file) }));
+        if (!added.length) return;
+
+        // Ahead of the re-render, so a second paste straight after counts these.
+        attachmentsRef.current = [...attachmentsRef.current, ...added.map(a => a.pending)];
+        setAttachments(current => [...current, ...added.map(a => a.pending)]);
+        for (const { file, pending } of added) {
+            if (!pending.input) readPasted(file, pending.name).then(input => settleAttachment(pending.id, input));
+        }
+        inputRef.current?.focus();
+    }, [settleAttachment]);
+
     // Thumbnails still in the composer, or put away with another chat's
     // draft, when the view is left.
-    const attachmentsRef = useRef(attachments);
-    useEffect(() => { attachmentsRef.current = attachments; }, [attachments]);
     useEffect(() => {
         const stash = stashedFiles.current;
         return () => {
@@ -398,18 +425,18 @@ export default function AiPage() {
 
     /** Sends what's in the box. */
     const submit = useCallback((text: string) => {
-        if (!providerId || (!text.trim() && !attachments.length) || streaming) return;
+        if (!providerId || (!text.trim() && !attachments.length) || streaming || attachmentsLoading) return;
         // Sending is an explicit request to see what comes back, so re-follow
         // the bottom even if you had scrolled away to re-read something.
         setFollowing(true);
         if (!chat) carryToNewChat.current = true;
-        send(text, { providerId, model: model || undefined, settings }, attachments.map(a => a.input))
+        send(text, { providerId, model: model || undefined, settings }, attachments.flatMap(a => (a.input ? [a.input] : [])))
             .then(refreshChats);
         showPrompt("");
         setDraft(shownKeyRef.current, "");
         for (const a of attachments) if (a.preview) URL.revokeObjectURL(a.preview);
         setAttachments([]);
-    }, [providerId, streaming, send, model, settings, refreshChats, attachments, chat, showPrompt, setDraft]);
+    }, [providerId, streaming, attachmentsLoading, send, model, settings, refreshChats, attachments, chat, showPrompt, setDraft]);
 
     /**
      * A conversation remembers its own setup. Changing provider or model is a
@@ -612,11 +639,134 @@ export default function AiPage() {
         // changing, committing a streamed answer over its placeholder.
         // An approval prompt, or a step drawn below the text, must scroll
         // into view like new text.
-    }, [chat?.id, chat?.messages.length, chat?.updatedAt, revealed, steps, thoughts, permissions.length, composerHeight, following, scrollToBottom]);
+    }, [chat?.id, chat?.messages.length, chat?.updatedAt, steps, thoughts, permissions.length, composerHeight, following, scrollToBottom]);
+
+    // The reveal grows the answer between the view's own renders, so it asks
+    // for the follow itself, once per frame it draws.
+    const followingRef = useRef(following);
+    useEffect(() => { followingRef.current = following; }, [following]);
+    const followStream = useCallback(() => {
+        if (!followingRef.current) return;
+        const viewport = scrollRef.current?.querySelector<HTMLElement>("[data-radix-scroll-area-viewport]");
+        if (viewport) scrollToBottom(viewport);
+    }, [scrollToBottom]);
 
 
     // Files can be dropped anywhere in the view, not just on the box.
     const hasFiles = (e: DragEvent<HTMLDivElement>) => e.dataTransfer.types.includes("Files");
+
+    /**
+     * One assistant turn. The live one is drawn through LiveReveal, which
+     * re-renders only this, every frame of the reveal, rather than the
+     * whole view: the composer, its menus and every earlier message used to
+     * re-render sixty times a second for as long as an answer streamed.
+     */
+    const renderAnswer = (m: AiMessage, i: number, isLast: boolean, live: boolean, body: string) => {
+        // Live values while the turn runs; afterwards the
+        // copy saved with the message, so every answer
+        // keeps its own trail across reopens.
+        const trailThoughts = live ? thoughts : thoughtsOf(m);
+        const trailSteps = live ? steps : stepsOf(m);
+        const trailPlan = live ? plan : m.plan;
+        const turnStats = live ? stats : m.stats;
+        // Text and the work between its pieces, in the
+        // order they happened.
+        const { parts, children } = buildTimeline(body, trailSteps, trailThoughts);
+        // The plan is the turn's, not one stretch's: it
+        // rides on the latest stretch of work, or gets
+        // one of its own when there was no other.
+        let planAt = parts.map(p => p.type).lastIndexOf("trace");
+        if (planAt === -1 && (trailPlan?.length ?? 0) > 0) {
+            parts.unshift({ type: "trace", key: "plan", items: [] });
+            planAt = 0;
+        }
+        const firstTrace = parts.findIndex(p => p.type === "trace");
+        const showTrail = parts.some(p => p.type === "trace");
+        return (
+            // min-w-0 so a wide table scrolls inside its
+            // own box instead of stretching the row.
+            <div key={i} className="group/msg self-start flex gap-2.5 w-full min-w-0">
+                <img src={mark} alt="" className={`w-4 h-4 mt-0.5 shrink-0 object-contain opacity-50 ${markTint}`} />
+                {live && !body && !showTrail ? (
+                    <span className="flex items-center gap-1.5 text-11.5 text-tone-350">
+                        <Spinner className="size-3" /> Thinking…
+                    </span>
+                ) : (
+                    <div className="min-w-0 flex-1">
+                        {parts.map((part, p) => {
+                            const isTail = p === parts.length - 1;
+                            if (part.type === "trace") {
+                                return (
+                                    <TurnTrace
+                                        key={part.key}
+                                        items={part.items}
+                                        childSteps={children}
+                                        hiddenSteps={!live && p === firstTrace ? m.hiddenSteps : 0}
+                                        plan={p === planAt ? trailPlan : null}
+                                        // Only the stretch the turn is in now;
+                                        // once text follows it, it is done.
+                                        running={live && isTail}
+                                    />
+                                );
+                            }
+                            // While streaming, only the block being
+                            // written is re-parsed; earlier pieces
+                            // are finished and memoised.
+                            return live && isTail
+                                ? <StreamingMarkdown key={part.key}>{part.text}</StreamingMarkdown>
+                                : <Markdown key={part.key}>{part.text}</Markdown>;
+                        })}
+                        {live && (
+                            <span className="inline-block w-1.75 h-3.25 -mt-0.5 rounded-[1px] bg-ink/40 animate-pulse" />
+                        )}
+                        {/* Saved with the answer, so a failed
+                            turn reopens as one rather than
+                            as a blank reply. */}
+                        {!live && m.error && (
+                            <p className="mt-1 text-10.5 text-red-300/80 whitespace-pre-wrap break-words">{m.error}</p>
+                        )}
+                        {/* The figures stay in view; the
+                            actions wait for a hover, so a
+                            quiet transcript stays quiet. */}
+                        {!live && (body || m.error || turnStats) && (
+                            <div className="flex items-center gap-2 mt-1 min-w-0">
+                            {turnStats && <TurnStats stats={turnStats} showCost={showCost} />}
+                            <div className="flex items-center gap-0.5 -ml-1 opacity-0 group-hover/msg:opacity-100 focus-within:opacity-100 transition-opacity">
+                                {body && <CopyButton getText={() => body} label="Copy message" />}
+                                {m.traceId && (
+                                    <button
+                                        onClick={async () => {
+                                            const opened = await window.ai.openTrace(m.traceId!);
+                                            if (!opened) window.electron.notify("Trace unavailable", "Only the most recent 40 turns keep a raw log.");
+                                        }}
+                                        aria-label="Open raw trace"
+                                        title="Open raw trace (every event the CLI sent)"
+                                        className="flex items-center justify-center w-6 h-6 rounded-md text-tone-350 hover:text-tone-800 transition-colors cursor-pointer"
+                                    >
+                                        <ScrollText size={11} />
+                                    </button>
+                                )}
+                                {isLast && !streaming && (
+                                    <button
+                                        onClick={() => {
+                                            setFollowing(true);
+                                            rerun({ providerId, model: model || undefined, settings });
+                                        }}
+                                        aria-label="Ask again"
+                                        title="Ask again"
+                                        className="flex items-center justify-center w-6 h-6 rounded-md text-tone-350 hover:text-tone-800 transition-colors cursor-pointer"
+                                    >
+                                        <RotateCcw size={11} />
+                                    </button>
+                                )}
+                            </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+        );
+    };
 
     return (
         <div
@@ -739,110 +889,11 @@ export default function AiPage() {
                                     );
                                 }
 
-                                const body = live ? revealed : m.content;
-                                // Live values while the turn runs; afterwards the
-                                // copy saved with the message, so every answer
-                                // keeps its own trail across reopens.
-                                const trailThoughts = live ? thoughts : thoughtsOf(m);
-                                const trailSteps = live ? steps : stepsOf(m);
-                                const trailPlan = live ? plan : m.plan;
-                                const turnStats = live ? stats : m.stats;
-                                // Text and the work between its pieces, in the
-                                // order they happened.
-                                const { parts, children } = buildTimeline(body, trailSteps, trailThoughts);
-                                // The plan is the turn's, not one stretch's: it
-                                // rides on the latest stretch of work, or gets
-                                // one of its own when there was no other.
-                                let planAt = parts.map(p => p.type).lastIndexOf("trace");
-                                if (planAt === -1 && (trailPlan?.length ?? 0) > 0) {
-                                    parts.unshift({ type: "trace", key: "plan", items: [] });
-                                    planAt = 0;
-                                }
-                                const firstTrace = parts.findIndex(p => p.type === "trace");
-                                const showTrail = parts.some(p => p.type === "trace");
+                                if (!live) return renderAnswer(m, i, isLast, false, m.content);
                                 return (
-                                    // min-w-0 so a wide table scrolls inside its
-                                    // own box instead of stretching the row.
-                                    <div key={i} className="group/msg self-start flex gap-2.5 w-full min-w-0">
-                                        <img src={mark} alt="" className={`w-4 h-4 mt-0.5 shrink-0 object-contain opacity-50 ${markTint}`} />
-                                        {live && !body && !showTrail ? (
-                                            <span className="flex items-center gap-1.5 text-11.5 text-tone-350">
-                                                <Spinner className="size-3" /> Thinking…
-                                            </span>
-                                        ) : (
-                                            <div className="min-w-0 flex-1">
-                                                {parts.map((part, p) => {
-                                                    const isTail = p === parts.length - 1;
-                                                    if (part.type === "trace") {
-                                                        return (
-                                                            <TurnTrace
-                                                                key={part.key}
-                                                                items={part.items}
-                                                                childSteps={children}
-                                                                hiddenSteps={!live && p === firstTrace ? m.hiddenSteps : 0}
-                                                                plan={p === planAt ? trailPlan : null}
-                                                                // Only the stretch the turn is in now;
-                                                                // once text follows it, it is done.
-                                                                running={live && isTail}
-                                                            />
-                                                        );
-                                                    }
-                                                    // While streaming, only the block being
-                                                    // written is re-parsed; earlier pieces
-                                                    // are finished and memoised.
-                                                    return live && isTail
-                                                        ? <StreamingMarkdown key={part.key}>{part.text}</StreamingMarkdown>
-                                                        : <Markdown key={part.key}>{part.text}</Markdown>;
-                                                })}
-                                                {live && (
-                                                    <span className="inline-block w-1.75 h-3.25 -mt-0.5 rounded-[1px] bg-ink/40 animate-pulse" />
-                                                )}
-                                                {/* Saved with the answer, so a failed
-                                                    turn reopens as one rather than
-                                                    as a blank reply. */}
-                                                {!live && m.error && (
-                                                    <p className="mt-1 text-10.5 text-red-300/80 whitespace-pre-wrap break-words">{m.error}</p>
-                                                )}
-                                                {/* The figures stay in view; the
-                                                    actions wait for a hover, so a
-                                                    quiet transcript stays quiet. */}
-                                                {!live && (body || m.error || turnStats) && (
-                                                    <div className="flex items-center gap-2 mt-1 min-w-0">
-                                                    {turnStats && <TurnStats stats={turnStats} showCost={showCost} />}
-                                                    <div className="flex items-center gap-0.5 -ml-1 opacity-0 group-hover/msg:opacity-100 focus-within:opacity-100 transition-opacity">
-                                                        {body && <CopyButton getText={() => body} label="Copy message" />}
-                                                        {m.traceId && (
-                                                            <button
-                                                                onClick={async () => {
-                                                                    const opened = await window.ai.openTrace(m.traceId!);
-                                                                    if (!opened) window.electron.notify("Trace unavailable", "Only the most recent 40 turns keep a raw log.");
-                                                                }}
-                                                                aria-label="Open raw trace"
-                                                                title="Open raw trace (every event the CLI sent)"
-                                                                className="flex items-center justify-center w-6 h-6 rounded-md text-tone-350 hover:text-tone-800 transition-colors cursor-pointer"
-                                                            >
-                                                                <ScrollText size={11} />
-                                                            </button>
-                                                        )}
-                                                        {isLast && !streaming && (
-                                                            <button
-                                                                onClick={() => {
-                                                                    setFollowing(true);
-                                                                    rerun({ providerId, model: model || undefined, settings });
-                                                                }}
-                                                                aria-label="Ask again"
-                                                                title="Ask again"
-                                                                className="flex items-center justify-center w-6 h-6 rounded-md text-tone-350 hover:text-tone-800 transition-colors cursor-pointer"
-                                                            >
-                                                                <RotateCcw size={11} />
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
+                                    <LiveReveal key={i} text={partial} settled={!streaming || stopping} onReveal={followStream}>
+                                        {shown => renderAnswer(m, i, isLast, true, shown)}
+                                    </LiveReveal>
                                 );
                             })}
                         </div>
@@ -863,7 +914,7 @@ export default function AiPage() {
                     <button
                         onClick={jumpToLatest}
                         style={{ bottom: composerHeight + 8 }}
-                        className="absolute left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-line-100 bg-surface-float/[0.92] backdrop-blur-md shadow-[0_4px_14px_var(--shadow-1)] text-10.5 text-tone-650 hover:text-tone-900 hover:border-ink/[0.18] transition-colors cursor-pointer animate-in fade-in slide-in-from-bottom-1 duration-150"
+                        className="absolute left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-line-100 bg-surface-float/[0.92] shadow-[0_4px_14px_var(--shadow-1)] text-10.5 text-tone-650 hover:text-tone-900 hover:border-ink/[0.18] transition-colors cursor-pointer animate-in fade-in slide-in-from-bottom-1 duration-150"
                     >
                         <ArrowDown size={11} />
                         {streaming ? "Jump to latest" : "Jump to bottom"}
@@ -892,6 +943,7 @@ export default function AiPage() {
                                             key={a.id}
                                             name={a.name}
                                             src={a.preview}
+                                            loading={!a.input}
                                             onRemove={() => removeAttachment(a.id)}
                                         />
                                     ) : (
@@ -901,6 +953,7 @@ export default function AiPage() {
                                             size={a.size}
                                             kind={a.image ? "image" : "file"}
                                             preview={a.preview}
+                                            loading={!a.input}
                                             onRemove={() => removeAttachment(a.id)}
                                         />
                                     ))}
@@ -1030,7 +1083,7 @@ export default function AiPage() {
                                             size="icon-xs"
                                             variant="default"
                                             onClick={() => (streaming ? cancel() : submit(prompt))}
-                                            disabled={stopping || (!streaming && !prompt.trim() && !attachments.length)}
+                                            disabled={stopping || (!streaming && ((!prompt.trim() && !attachments.length) || attachmentsLoading))}
                                             aria-label={stopping ? "Stopping" : streaming ? "Stop" : "Send"}
                                             className={`ml-auto relative rounded-full transition-colors disabled:opacity-100 ${
                                                 stopping
@@ -1062,7 +1115,9 @@ export default function AiPage() {
                                             ? "Stopping…"
                                             : streaming
                                                 ? "Stop generating"
-                                                : <>Send <Kbd className="bg-fill-100 text-tone-550">Enter</Kbd></>}
+                                                : attachmentsLoading
+                                                    ? "Attaching files…"
+                                                    : <>Send <Kbd className="bg-fill-100 text-tone-550">Enter</Kbd></>}
                                     </TooltipContent>
                                 </Tooltip>
                             </InputGroupAddon>
@@ -1346,18 +1401,24 @@ function ChatSidebar({ chats, activeId, running, peek, onOpen, onNew, onDelete, 
  * One attached file. In the composer it can be removed; in the transcript it
  * opens the file. Images show their thumbnail while it's still to hand.
  */
-function AttachmentChip({ name, size, kind, preview, onRemove, onOpen }: {
+function AttachmentChip({ name, size, kind, preview, loading, onRemove, onOpen }: {
     name: string;
     size: number;
     kind: AiAttachment["kind"];
     preview?: string;
+    /** Still being read in, so not ready to send. */
+    loading?: boolean;
     onRemove?: () => void;
     onOpen?: () => void;
 }) {
     const Icon = kind === "image" ? ImageIcon : kind === "text" ? FileText : FileIcon;
     const body = (
         <>
-            {preview ? (
+            {loading ? (
+                <span className="flex w-6 h-6 shrink-0 items-center justify-center rounded bg-fill-070 text-tone-450">
+                    <Spinner className="size-3" />
+                </span>
+            ) : preview ? (
                 <img src={preview} alt="" className="w-6 h-6 shrink-0 rounded object-cover" />
             ) : (
                 <span className="flex w-6 h-6 shrink-0 items-center justify-center rounded bg-fill-070 text-tone-450">
@@ -1366,7 +1427,7 @@ function AttachmentChip({ name, size, kind, preview, onRemove, onOpen }: {
             )}
             <span className="min-w-0 flex flex-col items-start leading-tight">
                 <span className="max-w-36 truncate text-11 text-tone-750">{name}</span>
-                <span className="text-9.5 text-tone-300 tabular-nums">{formatSize(size)}</span>
+                <span className="text-9.5 text-tone-300 tabular-nums">{loading ? "Reading…" : formatSize(size)}</span>
             </span>
         </>
     );

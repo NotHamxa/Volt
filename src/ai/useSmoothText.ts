@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 
+/** Shortest gap between reveal steps, a little under 33ms so a 60Hz frame isn't missed. */
+const STEP_MS = 30;
+
 /**
  * Reveals streamed text at a steady rate instead of in the lumps it arrives in.
  *
@@ -11,11 +14,17 @@ import { useEffect, useRef, useState } from "react";
  * The rate is derived from the backlog rather than fixed: catching up quickly
  * when far behind and easing off as it closes means a burst reads as typing,
  * and a slow provider never leaves the reveal stalled waiting on a timer.
+ *
+ * It advances about 30 times a second, not every frame. Each step re-renders
+ * the answer, re-parses its last block and lays the transcript out again;
+ * measured while streaming, 60 steps a second kept the renderer at 53-74% CPU
+ * and 30 brought it to 23%, with text that still reads as typing.
  */
 export function useSmoothText(target: string, settled: boolean): string {
     const [shown, setShown] = useState(0);
     const shownRef = useRef(0);
     const frameRef = useRef<number | null>(null);
+    const lastRef = useRef(0);
 
     useEffect(() => {
         // A finished turn is shown in full; the caller swaps to the committed
@@ -28,15 +37,21 @@ export function useSmoothText(target: string, settled: boolean): string {
             setShown(0);
         }
 
-        const step = () => {
+        const step = (time: number) => {
             const remaining = target.length - shownRef.current;
             if (remaining <= 0) {
                 frameRef.current = null;
                 return;
             }
-            // A gentle ease. At 60fps a 111-character burst lands in ~20
-            // frames, which is close to the interval before the next one.
-            shownRef.current += Math.max(1, Math.ceil(remaining / 8));
+            if (time - lastRef.current < STEP_MS) {
+                frameRef.current = requestAnimationFrame(step);
+                return;
+            }
+            lastRef.current = time;
+            // A gentle ease. A quarter of the backlog per step drains about as
+            // fast as an eighth did at 60 steps a second, so a 111-character
+            // burst still lands close to the interval before the next one.
+            shownRef.current += Math.max(1, Math.ceil(remaining / 4));
             setShown(shownRef.current);
             frameRef.current = requestAnimationFrame(step);
         };

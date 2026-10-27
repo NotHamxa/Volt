@@ -10,7 +10,8 @@
  * Two things make a blank line unsafe to cut at:
  *
  *  - it sits inside an unclosed code fence, where a split would render the
- *    fence's contents as prose;
+ *    fence's contents as prose, or inside a display formula (`$$` or `\[`),
+ *    which would come apart into two halves of source;
  *  - the block after it continues a list, which would restart the numbering
  *    at 1 until the answer finished.
  */
@@ -29,6 +30,8 @@ export function splitPoint(text: string): number {
 
         // An odd number of fences means the split would land inside one.
         const insideFence = (head.match(/^\s*```/gm) ?? []).length % 2 !== 0;
+        const insideMath = (head.match(/\$\$/g) ?? []).length % 2 !== 0
+            || (head.match(/^\s*\\\[/gm) ?? []).length > (head.match(/\\\]/g) ?? []).length;
         // Only a cut *within* a list is a problem. Cutting just before one
         // starts is fine, the tail begins the list, so it numbers from 1
         // exactly as it should.
@@ -36,7 +39,7 @@ export function splitPoint(text: string): number {
         // An indented continuation belongs to the block above it.
         const continuation = INDENTED.test(nextLine);
 
-        if (nextLine && !insideFence && !midList && !continuation) return blank + 2;
+        if (nextLine && !insideFence && !insideMath && !midList && !continuation) return blank + 2;
         from = blank;
     }
     return -1;

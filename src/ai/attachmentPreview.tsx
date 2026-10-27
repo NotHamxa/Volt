@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { ExternalLink, ImageOff, X } from "lucide-react";
 import { useEscape } from "@/hooks/useEscape.ts";
+import { Spinner } from "@/components/ui/spinner.tsx";
 
 type Preview = { url: string; width: number | null; height: number | null };
 
@@ -83,18 +84,41 @@ export function SentImage({ chatId, attachment }: { chatId: string | undefined; 
     );
 }
 
-/** A pasted or picked image still in the composer: its thumbnail, removable. */
-export function PendingImage({ name, src, onRemove }: { name: string; src: string; onRemove: () => void }) {
+/**
+ * A pasted or picked image still in the composer: its thumbnail, removable.
+ * A shimmer holds its place until the picture is decoded (and, for a paste,
+ * read in), a large screenshot otherwise popped in a beat after the paste.
+ */
+export function PendingImage({ name, src, loading, onRemove }: {
+    name: string;
+    src: string;
+    loading?: boolean;
+    onRemove: () => void;
+}) {
     const [open, setOpen] = useState(false);
+    const [decoded, setDecoded] = useState(false);
+    const busy = loading || !decoded;
     return (
         <div className="group/img relative">
             <button
                 onClick={() => setOpen(true)}
-                title={name}
+                title={loading ? `${name} (attaching…)` : name}
                 aria-label={`View ${name}`}
-                className="block w-14 h-14 overflow-hidden rounded-lg border border-line-080 bg-fill-040 cursor-zoom-in"
+                aria-busy={busy}
+                className="relative block w-14 h-14 overflow-hidden rounded-lg border border-line-080 bg-fill-040 cursor-zoom-in"
             >
-                <img src={src} alt={name} className="w-full h-full object-cover" />
+                <img
+                    src={src}
+                    alt={name}
+                    onLoad={() => setDecoded(true)}
+                    onError={() => setDecoded(true)}
+                    className={`w-full h-full object-cover transition-opacity duration-200 ${decoded ? "opacity-100" : "opacity-0"}`}
+                />
+                {busy && (
+                    <span className="absolute inset-0 flex items-center justify-center bg-fill-060 animate-pulse">
+                        <Spinner className="size-3.5 text-tone-450" />
+                    </span>
+                )}
             </button>
             <button
                 onClick={onRemove}
@@ -113,7 +137,7 @@ export function PendingImage({ name, src, onRemove }: { name: string; src: strin
  * at once, then swaps in the full-resolution copy when it arrives. Escape, a
  * click outside the picture, or the close button dismisses it.
  */
-function ImageViewer({ name, placeholder, load, onOpenExternal, onClose }: {
+export function ImageViewer({ name, placeholder, load, onOpenExternal, onClose }: {
     name: string;
     placeholder?: string;
     load?: () => Promise<Preview | null>;

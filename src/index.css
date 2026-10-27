@@ -433,3 +433,107 @@
 .scrollbar-thin-shadcn::-webkit-scrollbar-thumb:hover {
   background-color: color-mix(in oklab, var(--ink) 24%, transparent);
 }
+
+/* KaTeX in AI answers. Its default 1.21em is sized for body text in a
+   document; beside 12.5px chat text that read as a headline. A display
+   formula wider than the bubble scrolls in its own box like a code block. */
+.katex {
+  font-size: 1.08em;
+}
+.katex-display {
+  margin: 0.5rem 0;
+  padding: 0.25rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--ink) 14%, transparent) transparent;
+}
+.katex-display > .katex {
+  font-size: 1.12em;
+}
+
+/* Syntax highlighting in AI answers (highlight.js token classes). GitHub's
+   palettes, muted a touch for the dark one so code doesn't outshine prose. */
+[data-md] .hljs-comment,
+[data-md] .hljs-quote { color: #8b949e; font-style: italic; }
+[data-md] .hljs-keyword,
+[data-md] .hljs-selector-tag,
+[data-md] .hljs-doctag,
+[data-md] .hljs-template-tag { color: #ff8b82; }
+[data-md] .hljs-string,
+[data-md] .hljs-regexp,
+[data-md] .hljs-meta .hljs-string { color: #a5d6ff; }
+[data-md] .hljs-number,
+[data-md] .hljs-literal,
+[data-md] .hljs-attr,
+[data-md] .hljs-attribute,
+[data-md] .hljs-property,
+[data-md] .hljs-operator,
+[data-md] .hljs-selector-attr,
+[data-md] .hljs-selector-class,
+[data-md] .hljs-selector-id,
+[data-md] .hljs-variable.language_ { color: #79c0ff; }
+[data-md] .hljs-title,
+[data-md] .hljs-title.function_,
+[data-md] .hljs-section { color: #d2a8ff; }
+[data-md] .hljs-built_in,
+[data-md] .hljs-type,
+[data-md] .hljs-title.class_,
+[data-md] .hljs-variable,
+[data-md] .hljs-template-variable,
+[data-md] .hljs-params,
+[data-md] .hljs-symbol { color: #ffb070; }
+[data-md] .hljs-tag,
+[data-md] .hljs-name,
+[data-md] .hljs-selector-pseudo,
+[data-md] .hljs-bullet { color: #7ee787; }
+[data-md] .hljs-meta { color: #8b949e; }
+[data-md] .hljs-addition { color: #aff5b4; background: rgba(46, 160, 67, 0.15); }
+[data-md] .hljs-deletion { color: #ffdcd7; background: rgba(248, 81, 73, 0.15); }
+[data-md] .hljs-emphasis { font-style: italic; }
+[data-md] .hljs-strong { font-weight: 600; }
+
+:root:not(.dark) [data-md] .hljs-comment,
+:root:not(.dark) [data-md] .hljs-quote,
+:root:not(.dark) [data-md] .hljs-meta { color: #6e7781; }
+:root:not(.dark) [data-md] .hljs-keyword,
+:root:not(.dark) [data-md] .hljs-selector-tag,
+:root:not(.dark) [data-md] .hljs-doctag,
+:root:not(.dark) [data-md] .hljs-template-tag { color: #cf222e; }
+:root:not(.dark) [data-md] .hljs-string,
+:root:not(.dark) [data-md] .hljs-regexp,
+:root:not(.dark) [data-md] .hljs-meta .hljs-string { color: #0a3069; }
+:root:not(.dark) [data-md] .hljs-number,
+:root:not(.dark) [data-md] .hljs-literal,
+:root:not(.dark) [data-md] .hljs-attr,
+:root:not(.dark) [data-md] .hljs-attribute,
+:root:not(.dark) [data-md] .hljs-property,
+:root:not(.dark) [data-md] .hljs-operator,
+:root:not(.dark) [data-md] .hljs-selector-attr,
+:root:not(.dark) [data-md] .hljs-selector-class,
+:root:not(.dark) [data-md] .hljs-selector-id,
+:root:not(.dark) [data-md] .hljs-variable.language_ { color: #0550ae; }
+:root:not(.dark) [data-md] .hljs-title,
+:root:not(.dark) [data-md] .hljs-title.function_,
+:root:not(.dark) [data-md] .hljs-section { color: #8250df; }
+:root:not(.dark) [data-md] .hljs-built_in,
+:root:not(.dark) [data-md] .hljs-type,
+:root:not(.dark) [data-md] .hljs-title.class_,
+:root:not(.dark) [data-md] .hljs-variable,
+:root:not(.dark) [data-md] .hljs-template-variable,
+:root:not(.dark) [data-md] .hljs-params,
+:root:not(.dark) [data-md] .hljs-symbol { color: #953800; }
+:root:not(.dark) [data-md] .hljs-tag,
+:root:not(.dark) [data-md] .hljs-name,
+:root:not(.dark) [data-md] .hljs-selector-pseudo,
+:root:not(.dark) [data-md] .hljs-bullet { color: #116329; }
+:root:not(.dark) [data-md] .hljs-addition { color: #116329; background: #dafbe1; }
+:root:not(.dark) [data-md] .hljs-deletion { color: #82071e; background: #ffebe9; }
+
+/* Mermaid draws at its own fixed size; keep it inside the bubble. */
+.mermaid-diagram svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+}

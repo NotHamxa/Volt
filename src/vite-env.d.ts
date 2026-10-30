@@ -209,8 +209,7 @@ declare global {
     type AiProviderInfo = {
         id: string;
         label: string;
-        kind: "subscription-sdk" | "subscription-cli" | "api";
-        needsKey: boolean;
+        kind: "subscription-sdk" | "subscription-cli";
         billing: AiBilling | null;
         available: boolean;
         detail: string | null;
@@ -243,9 +242,6 @@ declare global {
             listProviders: () => Promise<AiProviderInfo[]>;
             /** Models arrive separately, reading a catalogue costs a CLI spawn. */
             providerModels: (id: string) => Promise<AiProviderInfo["models"]>;
-            keyStatus: () => Promise<{ encryptionAvailable: boolean; keys: Record<string, boolean> }>;
-            setKey: (providerId: string, key: string) => Promise<{ ok: boolean; detail?: string }>;
-            clearKey: (providerId: string) => Promise<boolean>;
             getPrefs: () => Promise<AiPrefs>;
             setPrefs: (patch: Partial<AiPrefs>) => Promise<AiPrefs>;
             workspace: () => Promise<{ path: string; isDefault: boolean; defaultPath: string }>;

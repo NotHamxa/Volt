@@ -1,9 +1,6 @@
 import claude from "@/assets/logos/claude.svg";
 import openai from "@/assets/logos/openai.svg";
 import gemini from "@/assets/logos/gemini.svg";
-import ollama from "@/assets/logos/ollama.svg";
-import deepseek from "@/assets/logos/deepseek.svg";
-import grok from "@/assets/logos/grok.svg";
 
 /**
  * Brand marks for the providers, from svgl.
@@ -18,13 +15,8 @@ import grok from "@/assets/logos/grok.svg";
  */
 export const PROVIDER_LOGOS: Record<string, string> = {
     "claude-code": claude,
-    anthropic: claude,
     codex: openai,
-    openai,
     gemini,
-    ollama,
-    deepseek,
-    grok,
 };
 
 /**
@@ -33,10 +25,10 @@ export const PROVIDER_LOGOS: Record<string, string> = {
  * Inverting a pure-white glyph gives pure black, which is exactly the light
  * variant these vendors ship, so no second copy of the artwork is needed.
  *
- * The colourful marks (Claude, Gemini, DeepSeek) must never be inverted: it
- * would misrepresent the brand rather than adapt it.
+ * The colourful marks (Claude, Gemini) must never be inverted: it would
+ * misrepresent the brand rather than adapt it.
  */
-const WHITE_ONLY = new Set(["openai", "codex", "ollama", "grok"]);
+const WHITE_ONLY = new Set(["codex"]);
 
 export function providerLogo(providerId: string): string | null {
     return PROVIDER_LOGOS[providerId] ?? null;

@@ -378,7 +378,6 @@ export const claudeCodeProvider = registerProvider({
     id: "claude-code",
     label: "Claude CLI",
     kind: "subscription-sdk",
-    needsKey: false,
 
     async isAvailable() {
         const cli = findClaudeBinary();

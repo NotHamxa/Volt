@@ -110,12 +110,12 @@ export const SETTINGS_INDEX: SettingsEntry[] = [
     // ── AI ───────────────────────────────────────────────────────────────
     {
         section: "ai", title: "AI Providers",
-        hint: "Which backends are available, and keys for the ones that need them",
-        keywords: ["claude", "codex", "openai", "gemini", "ollama", "api key", "cli", "chatgpt", "anthropic"],
+        hint: "Which AI CLIs are installed and signed in",
+        keywords: ["claude", "claude code", "codex", "openai", "cli", "chatgpt", "anthropic"],
     },
     {
         section: "ai", title: "Set up AI",
-        hint: "Step-by-step: use a Claude or ChatGPT plan, or an API key",
+        hint: "Step-by-step: use a Claude or ChatGPT plan",
         keywords: ["setup", "install", "sign in", "login", "subscription", "plan", "tutorial", "guide", "get started"],
     },
     {

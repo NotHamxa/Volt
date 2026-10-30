@@ -280,7 +280,6 @@ export const codexProvider = registerProvider({
     id: "codex",
     label: "Codex CLI",
     kind: "subscription-cli",
-    needsKey: false,
 
     async isAvailable() {
         const cli = findCodexBinary();

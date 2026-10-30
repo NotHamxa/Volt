@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 import { app, ipcMain, shell } from "electron";
 import { describeProviders, getProvider, providerModels } from "../universal/ai/provider.js";
 import {
@@ -6,7 +8,6 @@ import {
     appendMessage, finishAssistantMessage, updateChatConfig, trimForRerun,
     renameChat, deleteAllChats, isChatId,
 } from "../universal/ai/chatStore.js";
-import { keyStatus, setKey, clearKey, encryptionAvailable } from "../universal/ai/credentials.js";
 import { getPrefs, setPrefs } from "../universal/ai/prefs.js";
 import { workspaceDir, defaultWorkspace } from "../universal/ai/workspace.js";
 import { draftCommand } from "../universal/ai/commandDraft.js";
@@ -18,9 +19,6 @@ import {
 } from "../universal/ai/attachments.js";
 // Importing an adapter registers it.
 import "../universal/ai/claudeCode.js";
-import "../universal/ai/anthropicApi.js";
-import "../universal/ai/openaiCompatible.js";
-import "../universal/ai/gemini.js";
 import "../universal/ai/codexCli.js";
 
 // One controller per in-flight turn so a request can be cancelled individually.
@@ -512,15 +510,9 @@ export function registerAiIpc({ mainWindow, appStates }) {
         }
     });
 
-    // --- credentials -------------------------------------------------------
-    // Deliberately no "get key" channel. The renderer learns only whether a key
-    // exists; the value stays in the main process and is attached there.
-    ipcMain.handle("ai-key-status", () => ({
-        encryptionAvailable: encryptionAvailable(),
-        keys: keyStatus(),
-    }));
-    ipcMain.handle("ai-set-key", (_, providerId, key) => setKey(providerId, key));
-    ipcMain.handle("ai-clear-key", (_, providerId) => clearKey(providerId));
+    // API keys saved before the key-based providers were removed have nothing
+    // left to use them; they shouldn't sit on disk, encrypted or not.
+    fs.rm(path.join(app.getPath("userData"), "ai-keys.bin"), { force: true }, () => {});
 
     // The setup guide's "Run it for me": a named step, never a command line.
     ipcMain.handle("ai-run-setup", (_, stepId) => openSetupTerminal(stepId));

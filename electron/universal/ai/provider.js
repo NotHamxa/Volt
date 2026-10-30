@@ -1,14 +1,13 @@
 /**
  * The contract every AI backend implements.
  *
- * Three kinds sit behind it:
- *   - "subscription-sdk"  an official SDK driving a CLI the user already has
- *                         (Claude via claude.exe), no API key
- *   - "subscription-cli"  a binary spawned directly (codex, ollama), no API key
- *   - "api"               an API key the user supplies, for wider provider choice
+ * Every backend is a CLI the user already has and has signed in to; Volt
+ * never holds a key of its own. Two kinds sit behind it:
+ *   - "subscription-sdk"  an official SDK driving the CLI (Claude via claude.exe)
+ *   - "subscription-cli"  a binary spawned directly (codex)
  *
- * `controls()` exists because the knobs are not universal: Claude has effort,
- * the OpenAI-compatible providers have others, Ollama has none. The prompt bar
+ * `controls()` exists because the knobs are not universal: Claude has effort
+ * and permission modes, Codex has its own sandbox levels. The prompt bar
  * renders what the adapter declares rather than a fixed set, so no provider
  * shows a control it will silently ignore.
  *
@@ -30,8 +29,7 @@
  * @typedef {{
  *   id: string,
  *   label: string,
- *   kind: "subscription-sdk" | "subscription-cli" | "api",
- *   needsKey: boolean,
+ *   kind: "subscription-sdk" | "subscription-cli",
  *   isAvailable: () => Promise<{ available: boolean, detail?: string }>,
  *   models: () => Promise<Array<{ id: string, label: string, detail?: string, controls?: AiControl[] }>>,
  *   controls: () => Array<{ id: string, label: string, type: "select", options: Array<{ id: string, label: string }>, default: string }>,
@@ -89,7 +87,6 @@ export async function describeProviders() {
             id: p.id,
             label: p.label,
             kind: p.kind,
-            needsKey: p.needsKey,
             billing,
             available: availability.available,
             detail: availability.detail ?? null,
@@ -105,19 +102,18 @@ export async function describeProviders() {
 }
 
 /**
- * Stateless providers resend the transcript every turn, so a long chat grew
- * every request without limit until the vendor rejected it. Characters stand
- * in for tokens (roughly four to one): this keeps a turn near 50k tokens, well
- * inside every context window offered here, without a tokenizer per vendor.
+ * How much of a conversation is replayed when a CLI has to start a fresh
+ * thread partway through it. Characters stand in for tokens (roughly four to
+ * one): this keeps the replay near 50k tokens, well inside every context
+ * window offered here, without a tokenizer per vendor.
  */
 export const HISTORY_BUDGET_CHARS = 200_000;
 
 /**
  * The newest turns that fit the budget. The last message, the prompt being
- * asked, is always kept, and the result never opens on an assistant turn,
- * which some APIs (Gemini) reject.
+ * asked, is always kept, and the result never opens on an assistant turn.
  */
-export function trimHistory(messages, budget = HISTORY_BUDGET_CHARS) {
+function trimHistory(messages, budget = HISTORY_BUDGET_CHARS) {
     const list = messages ?? [];
     if (!list.length) return [];
     let used = list[list.length - 1].content?.length ?? 0;

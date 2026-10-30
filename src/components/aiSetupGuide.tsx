@@ -1,34 +1,24 @@
 import { useState } from "react";
-import { Check, ExternalLink, KeyRound, Play, RefreshCw, ArrowRight } from "lucide-react";
+import { Check, ExternalLink, Play, RefreshCw, ArrowRight } from "lucide-react";
 import { CopyButton } from "@/ai/copyButton.tsx";
 import { providerLogo, providerLogoTint } from "@/ai/providerLogos.ts";
 import { isReady } from "@/ai/readiness.ts";
 
 /**
  * Getting from nothing to a working AI view, for someone who has never opened
- * a terminal. Three ways in, a Claude plan, a ChatGPT plan, or an API key,
- * each laid out as steps that tick themselves off as Volt detects them.
+ * a terminal. Two ways in, a Claude plan or a ChatGPT plan, each laid out
+ * as steps that tick themselves off as Volt detects them.
  *
  * Every command is shown so it can be copied, and the CLI steps can also be
  * run for you: Volt opens PowerShell with the command already going.
  */
 
-type Path = "claude" | "chatgpt" | "key";
+type Path = "claude" | "chatgpt";
 type SetupStep = Parameters<typeof window.ai.runSetup>[0];
 
-const KEY_SITES = [
-    { id: "anthropic", label: "Claude", url: "https://platform.claude.com/settings/keys" },
-    { id: "openai", label: "OpenAI", url: "https://platform.openai.com/api-keys" },
-    { id: "gemini", label: "Gemini", url: "https://aistudio.google.com/apikey" },
-    { id: "deepseek", label: "DeepSeek", url: "https://platform.deepseek.com/api_keys" },
-    { id: "grok", label: "Grok (xAI)", url: "https://console.x.ai" },
-];
-
-export function AiSetupGuide({ providers, onRecheck, onJumpToKeys, onStart, checking }: {
+export function AiSetupGuide({ providers, onRecheck, onStart, checking }: {
     providers: AiProviderInfo[];
     onRecheck: () => void;
-    /** Scrolls to the key fields further down the section. */
-    onJumpToKeys: () => void;
     /** Shown once something is ready: opens the AI view. */
     onStart?: () => void;
     checking: boolean;
@@ -39,10 +29,9 @@ export function AiSetupGuide({ providers, onRecheck, onJumpToKeys, onStart, chec
     const [path, setPath] = useState<Path>(() =>
         codex?.available && !claude?.available ? "chatgpt" : "claude");
 
-    const tabs: Array<{ id: Path; label: string; hint: string; logo?: string | null; tint?: string }> = [
+    const tabs: Array<{ id: Path; label: string; hint: string; logo: string | null; tint?: string }> = [
         { id: "claude", label: "Claude plan", hint: "Pro or Max", logo: providerLogo("claude-code") },
         { id: "chatgpt", label: "ChatGPT plan", hint: "Plus or Pro", logo: providerLogo("codex"), tint: providerLogoTint("codex") },
-        { id: "key", label: "API key", hint: "Pay per use" },
     ];
 
     return (
@@ -63,7 +52,7 @@ export function AiSetupGuide({ providers, onRecheck, onJumpToKeys, onStart, chec
                 </button>
             </div>
 
-            <div role="tablist" className="grid grid-cols-3 gap-1 p-0.5 rounded-lg bg-fill-030 border border-line-050">
+            <div role="tablist" className="grid grid-cols-2 gap-1 p-0.5 rounded-lg bg-fill-030 border border-line-050">
                 {tabs.map(tab => (
                     <button
                         key={tab.id}
@@ -74,9 +63,7 @@ export function AiSetupGuide({ providers, onRecheck, onJumpToKeys, onStart, chec
                             path === tab.id ? "bg-fill-090 text-tone-850" : "text-tone-400 hover:text-tone-700 hover:bg-fill-050"
                         }`}
                     >
-                        {tab.logo
-                            ? <img src={tab.logo} alt="" className={`w-3.5 h-3.5 object-contain ${tab.tint ?? ""}`} />
-                            : <KeyRound size={12} />}
+                        {tab.logo && <img src={tab.logo} alt="" className={`w-3.5 h-3.5 object-contain ${tab.tint ?? ""}`} />}
                         <span className="text-11.5">{tab.label}</span>
                         <span className="text-9.5 text-tone-250">{tab.hint}</span>
                     </button>
@@ -129,36 +116,6 @@ export function AiSetupGuide({ providers, onRecheck, onJumpToKeys, onStart, chec
                         done: Boolean(codex && isReady(codex)),
                     },
                 ]} />
-            )}
-
-            {path === "key" && (
-                <div className="flex flex-col gap-2.5">
-                    <p className="text-11 text-tone-450 leading-relaxed">
-                        Create a key on the provider's site, then paste it into its card under <span className="text-tone-650">API keys</span> below.
-                        You're billed per use by that provider. Keys are encrypted with your Windows account and never leave this computer except to that provider.
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                        {KEY_SITES.map(site => {
-                            const logo = providerLogo(site.id);
-                            return (
-                                <button
-                                    key={site.id}
-                                    onClick={() => window.electron.openExternal(site.url)}
-                                    className="flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-fill-040 border border-line-070 text-11 text-tone-650 hover:bg-fill-080 hover:text-tone-850 transition-colors cursor-pointer"
-                                >
-                                    {logo && <img src={logo} alt="" className={`w-3.5 h-3.5 object-contain ${providerLogoTint(site.id)}`} />}
-                                    Get a {site.label} key <ExternalLink size={10} className="text-tone-300" />
-                                </button>
-                            );
-                        })}
-                    </div>
-                    <button
-                        onClick={onJumpToKeys}
-                        className="self-start flex items-center gap-1.5 text-11 text-sky-300/80 hover:text-sky-300 transition-colors cursor-pointer"
-                    >
-                        Paste your key <ArrowRight size={11} />
-                    </button>
-                </div>
             )}
 
             {onStart && (

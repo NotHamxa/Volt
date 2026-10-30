@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Eye, EyeOff, KeyRound, ShieldAlert, Trash2, RefreshCw, FolderOpen, ChevronRight, Info } from "lucide-react";
+import { ShieldAlert, RefreshCw, FolderOpen, ChevronRight, Info } from "lucide-react";
 import { useNavigate } from "react-router";
-import { Spinner } from "@/components/ui/spinner.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -13,17 +12,10 @@ import { isReady, needsSignIn } from "@/ai/readiness.ts";
 import { AiSetupGuide } from "@/components/aiSetupGuide.tsx";
 
 /**
- * Setup for the AI view: which backends are usable, keys for the ones that need
- * them, and what the prompt bar opens with.
- *
- * Keys are written through the main process into the OS keychain and are never
- * read back here, the bridge reports only whether one exists.
+ * Setup for the AI view: which CLIs are installed and signed in, and what the
+ * prompt bar opens with. Volt holds no keys of its own; each CLI signs in
+ * through its own tool.
  */
-/** needsKey is the honest split: sign in with a tool you have, or paste a key. */
-const GROUPS = [
-    { title: "CLIs & local", hint: "signed in through the tool itself", needsKey: false },
-    { title: "API keys", hint: "billed per token", needsKey: true },
-];
 
 /**
  * `arrivedForSetup`: the AI view sent you here because nothing could answer
@@ -34,19 +26,15 @@ export default function AiSection({ arrivedForSetup = false }: { arrivedForSetup
     const [providers, setProviders] = useState<AiProviderInfo[]>([]);
     const [checking, setChecking] = useState(false);
     const [guideOpen, setGuideOpen] = useState(false);
-    const keysRef = useRef<HTMLDivElement>(null);
     const [loading, setLoading] = useState(true);
-    const [keys, setKeys] = useState<Record<string, boolean>>({});
-    const [canEncrypt, setCanEncrypt] = useState(true);
     const [prefs, setPrefsState] = useState<AiPrefs>({
         providerId: null, model: null, settings: {}, workspace: null, customModels: {}, claudeSkipPermissions: false, keepOpen: true,
     });
     const [workspace, setWorkspace] = useState<{ path: string; isDefault: boolean; defaultPath: string } | null>(null);
 
     const fetchAll = useCallback(async () => {
-        const [list, status, saved, space] = await Promise.all([
+        const [list, saved, space] = await Promise.all([
             window.ai.listProviders(),
-            window.ai.keyStatus(),
             window.ai.getPrefs(),
             window.ai.workspace(),
         ]);
@@ -58,19 +46,17 @@ export default function AiSection({ arrivedForSetup = false }: { arrivedForSetup
             const models = await window.ai.providerModels(active.id);
             active.models = models;
         }
-        return [list, status, saved, space] as const;
+        return [list, saved, space] as const;
     }, []);
 
-    const apply = useCallback(([list, status, saved, space]: Awaited<ReturnType<typeof fetchAll>>) => {
+    const apply = useCallback(([list, saved, space]: Awaited<ReturnType<typeof fetchAll>>) => {
         setProviders(list);
-        setKeys(status.keys);
-        setCanEncrypt(status.encryptionAvailable);
         setPrefsState(saved);
         setWorkspace(space);
         setLoading(false);
     }, []);
 
-    /** Re-read everything, used by the refresh button and after a key changes. */
+    /** Re-read everything, used by the refresh buttons. */
     const load = useCallback(async () => {
         setChecking(true);
         try {
@@ -147,15 +133,6 @@ export default function AiSection({ arrivedForSetup = false }: { arrivedForSetup
                         </p>
                     </div>
                 )}
-                {!canEncrypt && (
-                    <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-400/[0.07] border border-amber-400/20">
-                        <ShieldAlert size={13} className="mt-px shrink-0 text-amber-300/70" />
-                        <p className="text-11 text-amber-200/70 leading-relaxed">
-                            Your system can't encrypt stored secrets, so API keys can't be saved.
-                            Providers that sign in through their own CLI still work.
-                        </p>
-                    </div>
-                )}
             </div>
 
             {showGuide ? (
@@ -163,7 +140,6 @@ export default function AiSection({ arrivedForSetup = false }: { arrivedForSetup
                     providers={providers}
                     checking={checking}
                     onRecheck={load}
-                    onJumpToKeys={() => keysRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
                     onStart={anyReady ? () => navigate("/ai") : undefined}
                 />
             ) : (
@@ -190,29 +166,7 @@ export default function AiSection({ arrivedForSetup = false }: { arrivedForSetup
                     <p className="text-11.5 text-tone-300">No providers are registered.</p>
                 )}
 
-                {/* Split by how you authenticate: sign in through a tool you
-                    already have, or paste a key. */}
-                {GROUPS.map(group => {
-                    const members = providers.filter(p => p.needsKey === group.needsKey);
-                    if (members.length === 0) return null;
-                    return (
-                        <div key={group.title} ref={group.needsKey ? keysRef : undefined} className="flex flex-col gap-2 scroll-mt-4">
-                            <div className="flex items-baseline gap-2 mt-1">
-                                <span className="text-11 font-medium text-tone-450">{group.title}</span>
-                                <span className="text-10 text-tone-200">{group.hint}</span>
-                            </div>
-                            {members.map(p => (
-                                <ProviderCard
-                                    key={p.id}
-                                    provider={p}
-                                    hasKey={Boolean(keys[p.id])}
-                                    canEncrypt={canEncrypt}
-                                    onChanged={load}
-                                />
-                            ))}
-                        </div>
-                    );
-                })}
+                {providers.map(p => <ProviderCard key={p.id} provider={p} />)}
             </div>
 
             <div className="flex flex-col gap-3">
@@ -323,41 +277,8 @@ export default function AiSection({ arrivedForSetup = false }: { arrivedForSetup
     );
 }
 
-function ProviderCard({ provider, hasKey, canEncrypt, onChanged }: {
-    provider: AiProviderInfo;
-    hasKey: boolean;
-    canEncrypt: boolean;
-    onChanged: () => void;
-}) {
-    const [draft, setDraft] = useState("");
-    const [reveal, setReveal] = useState(false);
-    const [busy, setBusy] = useState(false);
-    const [problem, setProblem] = useState<string | null>(null);
-
-    const save = async () => {
-        setBusy(true);
-        setProblem(null);
-        const result = await window.ai.setKey(provider.id, draft);
-        setBusy(false);
-        if (!result.ok) {
-            setProblem(result.detail ?? "Could not save the key.");
-            return;
-        }
-        setDraft("");
-        setReveal(false);
-        onChanged();
-    };
-
-    const remove = async () => {
-        setBusy(true);
-        await window.ai.clearKey(provider.id);
-        setBusy(false);
-        onChanged();
-    };
-
-    // A key-based provider is only really usable once a key is stored, whatever
-    // its own reachability check says.
-    const ready = provider.needsKey ? hasKey : isReady(provider);
+function ProviderCard({ provider }: { provider: AiProviderInfo }) {
+    const ready = isReady(provider);
     const logo = providerLogo(provider.id);
 
     return (
@@ -370,92 +291,43 @@ function ProviderCard({ provider, hasKey, canEncrypt, onChanged }: {
                         <h3 className="text-12.5 font-medium text-tone-800 tracking-tight">{provider.label}</h3>
                         {/* For a CLI, what matters is which wallet it draws on,
                             a plan you already pay for, or per-token billing. */}
-                        {provider.needsKey ? (
-                            <Badge tone="neutral">API key</Badge>
-                        ) : needsSignIn(provider) ? (
+                        {needsSignIn(provider) ? (
                             <Badge tone="warn">Not signed in</Badge>
                         ) : provider.billing?.mode === "subscription" ? (
                             <Badge tone="good">{provider.billing.label}</Badge>
                         ) : provider.billing?.mode === "api-key" ? (
                             <Badge tone="warn">{provider.billing.label}</Badge>
                         ) : (
-                            <Badge tone="neutral">Local / CLI</Badge>
+                            <Badge tone="neutral">CLI</Badge>
                         )}
                     </div>
                     <p className="text-11 text-tone-350 leading-relaxed mt-1 break-all">
-                        {provider.needsKey
-                            ? (hasKey ? "Key stored in your system keychain." : "Add a key to enable this provider.")
-                            : needsSignIn(provider)
-                                ? "Installed, but not signed in yet. The setup guide above walks you through it."
-                                : (provider.detail ?? (ready ? "Ready." : "Not detected."))}
+                        {needsSignIn(provider)
+                            ? "Installed, but not signed in yet. The setup guide above walks you through it."
+                            : (provider.detail ?? (ready ? "Ready." : "Not detected."))}
                     </p>
-                    {!provider.needsKey && provider.billing?.mode === "api-key" && (
+                    {provider.billing?.mode === "api-key" && (
                         <p className="text-10.5 text-amber-300/55 leading-relaxed mt-1">
                             This CLI is signed in with an API key, so turns are billed per token
                             rather than drawn from a plan.
                         </p>
                     )}
                 </div>
-                {provider.needsKey && hasKey && (
-                    <button
-                        onClick={remove}
-                        disabled={busy}
-                        className="shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-md text-10.5 text-tone-300 hover:text-red-300/80 hover:bg-red-400/[0.07] transition-colors cursor-pointer disabled:opacity-40"
-                    >
-                        <Trash2 size={11} /> Remove
-                    </button>
-                )}
             </div>
-
-            {provider.needsKey && !hasKey && (
-                <div className="mt-2.5 flex items-center gap-1.5">
-                    <div className="relative flex-1">
-                        <KeyRound size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-tone-250" />
-                        <input
-                            type={reveal ? "text" : "password"}
-                            value={draft}
-                            onChange={(e) => setDraft(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === "Enter" && draft.trim()) save(); }}
-                            disabled={!canEncrypt || busy}
-                            placeholder={`${provider.label} API key`}
-                            spellCheck={false}
-                            autoComplete="off"
-                            className="w-full h-7 pl-7 pr-7 rounded-md bg-fill-030 border border-line-070 text-11.5 text-tone-800 placeholder:text-tone-200 outline-none focus:border-ink/[0.16] transition-colors disabled:opacity-40"
-                        />
-                        <button
-                            onClick={() => setReveal(r => !r)}
-                            aria-label={reveal ? "Hide key" : "Show key"}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-tone-250 hover:text-tone-600 transition-colors cursor-pointer"
-                        >
-                            {reveal ? <EyeOff size={12} /> : <Eye size={12} />}
-                        </button>
-                    </div>
-                    <button
-                        onClick={save}
-                        disabled={!canEncrypt || busy || !draft.trim()}
-                        className="flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-fill-070 border border-line-080 text-11 text-tone-700 hover:bg-fill-110 hover:text-tone-900 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-default"
-                    >
-                        {busy ? <Spinner className="size-3" /> : <Check size={12} />} Save
-                    </button>
-                </div>
-            )}
-
-            {problem && <p className="mt-2 text-10.5 text-red-300/80">{problem}</p>}
         </div>
     );
 }
 
 /**
  * Shaped like the section it stands in for, so nothing jumps when the real
- * thing arrives. The provider counts mirror the adapters registered in
- * electron/universal/ai, three that sign in through a CLI, five that take a
- * key, which is what makes the swap seamless rather than merely busy.
+ * thing arrives. The provider count mirrors the adapters registered in
+ * electron/universal/ai, which is what makes the swap seamless rather than
+ * merely busy.
  *
  * Worth having because this section is genuinely slow to load: it spawns the
  * Claude CLI and the Codex app-server to read their model catalogues.
  */
-const CLI_PROVIDERS = 3;
-const KEY_PROVIDERS = 5;
+const CLI_PROVIDERS = 2;
 
 function ProviderCardSkeleton() {
     return (
@@ -496,12 +368,9 @@ function AiSectionSkeleton() {
                     <Skeleton className="h-2.5 w-14" />
                 </div>
 
-                {[CLI_PROVIDERS, KEY_PROVIDERS].map((count, group) => (
-                    <div key={group} className="flex flex-col gap-2">
-                        <Skeleton className="h-3 w-24 mt-1" />
-                        {Array.from({ length: count }, (_, i) => <ProviderCardSkeleton key={i} />)}
-                    </div>
-                ))}
+                <div className="flex flex-col gap-2">
+                    {Array.from({ length: CLI_PROVIDERS }, (_, i) => <ProviderCardSkeleton key={i} />)}
+                </div>
             </div>
 
             <div className="flex flex-col gap-3">

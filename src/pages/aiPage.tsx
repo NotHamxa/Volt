@@ -26,8 +26,9 @@ import { CopyButton } from "@/ai/copyButton.tsx";
 import { SentImage, PendingImage } from "@/ai/attachmentPreview.tsx";
 import logo from "@/assets/icon.png";
 import { providerLogo, providerLogoTint } from "@/ai/providerLogos.ts";
-import { TurnTrace, TurnStats } from "@/ai/turnTrace.tsx";
+import { TurnTrace, TurnStats, LiveTurnStats } from "@/ai/turnTrace.tsx";
 import { buildTimeline } from "@/ai/timeline.ts";
+import { AgentView } from "@/ai/agentView.tsx";
 import { matchesCombo } from "@/data/keybindings.ts";
 import { getBinding } from "@/hooks/useKeybindings.ts";
 
@@ -115,7 +116,7 @@ export default function AiPage() {
     const [prompt, setPrompt] = useState("");
     const {
         chat, streaming, stopping, partial, error,
-        thoughts, steps, plan, stats, permissions,
+        thoughts, steps, plan, agentText, stats, startedAt, liveOutputTokens, permissions,
         send, rerun, cancel, openChat, newChat, respondPermission,
     } = useChat();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -198,6 +199,12 @@ export default function AiPage() {
     // foot of the component threw on every render of this view.
     const messages = chat?.messages ?? [];
     const empty = messages.length === 0;
+
+    // A subagent opened on its own, over the chat. Tied to the chat it came
+    // from, so switching conversations closes it without an effect.
+    const [agentView, setAgentView] = useState<{ chatId: string; index: number; id: string } | null>(null);
+    const openAgent = agentView && agentView.chatId === chat?.id && messages[agentView.index] ? agentView : null;
+    const closeAgent = useCallback(() => setAgentView(null), []);
 
     /**
      * Models for one provider, fetched on demand and merged in.
@@ -690,6 +697,9 @@ export default function AiPage() {
                 {live && !body && !showTrail ? (
                     <span className="flex items-center gap-1.5 text-11.5 text-tone-350">
                         <Spinner className="size-3" /> Thinking…
+                        {startedAt !== null && (
+                            <LiveTurnStats startedAt={startedAt} inputTokens={stats.inputTokens} outputTokens={liveOutputTokens} />
+                        )}
                     </span>
                 ) : (
                     <div className="min-w-0 flex-1">
@@ -703,6 +713,7 @@ export default function AiPage() {
                                         childSteps={children}
                                         hiddenSteps={!live && p === firstTrace ? m.hiddenSteps : 0}
                                         plan={p === planAt ? trailPlan : null}
+                                        onOpenAgent={chat ? (id) => setAgentView({ chatId: chat.id, index: i, id }) : undefined}
                                         // Only the stretch the turn is in now;
                                         // once text follows it, it is done.
                                         running={live && isTail}
@@ -718,6 +729,12 @@ export default function AiPage() {
                         })}
                         {live && (
                             <span className="inline-block w-1.75 h-3.25 -mt-0.5 rounded-[1px] bg-ink/40 animate-pulse" />
+                        )}
+                        {/* Where the figures land once it's done. */}
+                        {live && startedAt !== null && (
+                            <div className="flex mt-1">
+                                <LiveTurnStats startedAt={startedAt} inputTokens={stats.inputTokens} outputTokens={liveOutputTokens} />
+                            </div>
                         )}
                         {/* Saved with the answer, so a failed
                             turn reopens as one rather than
@@ -839,7 +856,8 @@ export default function AiPage() {
                         )}
                     </div>
                 ) : (
-                    <ScrollArea ref={scrollRef} className="flex-1 min-h-0 w-full px-4">
+                    // Kept mounted under an open agent, so its place is kept too.
+                    <ScrollArea ref={scrollRef} className={`flex-1 min-h-0 w-full px-4 ${openAgent ? "invisible" : ""}`}>
                         {/* Bottom padding clears the floating prompt box, so the
                             last message can still be read, and earlier ones
                             slide under the glass rather than stopping at it. */}
@@ -910,7 +928,29 @@ export default function AiPage() {
                     the way while this view is open. */}
                 {/* Offered while the reader has scrolled away, so following can
                     be resumed without hunting for the bottom by hand. */}
-                {!empty && !following && (
+                {openAgent && (() => {
+                    const m = messages[openAgent.index];
+                    const live = openAgent.index === messages.length - 1 && streaming;
+                    return (
+                        <AgentView
+                            key={openAgent.id}
+                            agentId={openAgent.id}
+                            steps={live ? steps : stepsOf(m)}
+                            agentText={live ? agentText : m.agentText ?? {}}
+                            live={live}
+                            bottomInset={composerHeight}
+                            onOpen={(id) => setAgentView({ ...openAgent, id })}
+                            onBack={() => {
+                                // A nested agent goes back to the one that started it.
+                                const parentId = (live ? steps : stepsOf(m)).find(s => s.id === openAgent.id)?.parentId;
+                                if (parentId) setAgentView({ ...openAgent, id: parentId });
+                                else closeAgent();
+                            }}
+                        />
+                    );
+                })()}
+
+                {!empty && !following && !openAgent && (
                     <button
                         onClick={jumpToLatest}
                         style={{ bottom: composerHeight + 8 }}

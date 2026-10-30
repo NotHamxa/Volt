@@ -59,6 +59,11 @@ declare global {
         at?: number;
         /** Orders steps and thoughts that share an `at`. */
         seq?: number;
+        /** A subagent's: its own steps dropped from the front of a long run. */
+        hiddenSteps?: number;
+        /** A subagent's running tally of tokens and tool calls. */
+        tokens?: number;
+        toolUses?: number;
     };
 
     /** One stretch of thinking, placed in the answer like a step. */
@@ -100,6 +105,8 @@ declare global {
         | { requestId: string; type: "thought"; thought: Omit<AiThought, "text"> & { text?: string } }
         | { requestId: string; type: "step"; step: AiStep }
         | { requestId: string; type: "plan"; items: AiPlanItem[] | null }
+        /** A subagent's own words, keyed by the call that started it. */
+        | { requestId: string; type: "agent-text"; agentId: string; text: string }
         /** The turn's figures so far, merged, each one replaces the last. */
         | { requestId: string; type: "stats"; stats: AiTurnStats }
         | { requestId: string; type: "error"; message: string }
@@ -163,6 +170,8 @@ declare global {
         hiddenSteps?: number;
         plan?: AiPlanItem[];
         stats?: AiTurnStats;
+        /** What each subagent wrote, by the step that started it. */
+        agentText?: Record<string, string>;
         /** Names the raw log of the turn that produced this answer. */
         traceId?: string;
         /** Why the turn failed, when it did, kept so it reopens as a failure. */
@@ -293,6 +302,9 @@ declare global {
                 hiddenSteps: number;
                 plan: AiPlanItem[] | null;
                 stats: AiTurnStats;
+                agentText: Record<string, string>;
+                /** When the turn began, so a reopened view's clock runs from then. */
+                startedAt: number;
                 /** Approvals still waiting on an answer. */
                 permissions: AiPermissionRequest[];
             } | null>;

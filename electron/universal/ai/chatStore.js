@@ -119,7 +119,7 @@ const MAX_STORED_REASONING = 20_000;
  * `sessionId` null clears the stored id; undefined leaves it alone.
  */
 /** Fields describing how an answer was reached, replaced wholesale per turn. */
-const TRACE_FIELDS = ["reasoning", "thoughts", "activities", "steps", "hiddenSteps", "plan", "stats", "traceId", "error"];
+const TRACE_FIELDS = ["reasoning", "thoughts", "activities", "steps", "hiddenSteps", "plan", "stats", "agentText", "traceId", "error"];
 
 /** Thinking entries trimmed to a shared budget, so a turn's thinking stays bounded however it's split. */
 function boundThoughts(thoughts) {
@@ -135,7 +135,7 @@ function boundThoughts(thoughts) {
     return kept;
 }
 
-export function finishAssistantMessage(id, { content, sessionId, providerId, reasoning, thoughts, activities, steps, hiddenSteps, plan, stats, traceId, error }) {
+export function finishAssistantMessage(id, { content, sessionId, providerId, reasoning, thoughts, activities, steps, hiddenSteps, plan, stats, agentText, traceId, error }) {
     const chat = readChat(id);
     if (!chat) return null;
 
@@ -158,6 +158,11 @@ export function finishAssistantMessage(id, { content, sessionId, providerId, rea
     if (hiddenSteps > 0) trace.hiddenSteps = hiddenSteps;
     if (Array.isArray(plan) && plan.length) trace.plan = plan;
     if (stats && typeof stats === "object" && Object.keys(stats).length) trace.stats = stats;
+    // Each subagent's own words, so opening one shows what it said, not just what it ran.
+    if (agentText && typeof agentText === "object") {
+        const kept = Object.fromEntries(Object.entries(agentText).filter(([, text]) => typeof text === "string" && text.trim()));
+        if (Object.keys(kept).length) trace.agentText = kept;
+    }
     if (typeof traceId === "string") trace.traceId = traceId;
     // Kept so a failed turn reopens as the failure it was, not a blank answer.
     if (typeof error === "string" && error.trim()) trace.error = error.slice(0, 2000);

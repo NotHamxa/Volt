@@ -142,6 +142,9 @@ export function describeCodexInput(item = {}) {
 export const PLANNING_TOOLS = new Set(["TodoWrite", "TaskCreate", "TaskGet", "TaskList", "TaskUpdate"]);
 export const QUIET_TOOLS = new Set([...PLANNING_TOOLS, "ToolSearch"]);
 
+/** Calls that hand work to a subagent, whose own steps then sit under them. */
+export const AGENT_TOOLS = new Set(["Agent", "Task"]);
+
 /** Present-tense verb plus target, for the tools the Claude CLI exposes. */
 export function describeTool(name, input) {
     input = input ?? {};

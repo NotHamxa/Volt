@@ -6,6 +6,8 @@ import {
 import { Spinner } from "@/components/ui/spinner.tsx";
 import type { TraceItem } from "@/ai/timeline.ts";
 import { ImageViewer } from "@/ai/attachmentPreview.tsx";
+import { formatDuration, formatElapsed, tokenFlow } from "@/ai/format.ts";
+import { agentActivity, agentFigures } from "@/ai/agentInfo.ts";
 
 /**
  * How an answer was reached: the steps a CLI took, the plan it kept, and what
@@ -56,25 +58,6 @@ const PAST: Record<string, string> = {
 /** Steps shown under the header while a turn runs and the trace is folded. */
 const LIVE_TAIL = 3;
 
-function formatDuration(ms: number | undefined): string {
-    if (ms === undefined || !Number.isFinite(ms) || ms < 0) return "";
-    if (ms < 1000) return `${Math.round(ms)}ms`;
-    const seconds = ms / 1000;
-    if (seconds < 10) return `${seconds.toFixed(1)}s`;
-    if (seconds < 60) return `${Math.round(seconds)}s`;
-    const m = Math.floor(seconds / 60);
-    const s = Math.round(seconds % 60);
-    return `${m}m ${String(s).padStart(2, "0")}s`;
-}
-
-function formatTokens(n: number | undefined): string {
-    if (!n) return "0";
-    if (n < 1000) return String(n);
-    if (n < 10_000) return `${(n / 1000).toFixed(1)}k`;
-    if (n < 1_000_000) return `${Math.round(n / 1000)}k`;
-    return `${(n / 1_000_000).toFixed(1)}M`;
-}
-
 const WINDOW_LABEL: Record<string, string> = {
     five_hour: "5-hour",
     seven_day: "weekly",
@@ -100,22 +83,36 @@ function useNow(active: boolean) {
  * have a step going, Claude runs some in parallel, and shows it as busy
  * until that settles.
  */
-export function TurnTrace({ items, childSteps, hiddenSteps = 0, plan, running }: {
+export function TurnTrace({ items: allItems, childSteps, hiddenSteps = 0, plan, running, onOpenAgent }: {
     items: TraceItem[];
     childSteps: Map<string, AiStep[]>;
     hiddenSteps?: number;
     plan?: AiPlanItem[] | null;
     running: boolean;
+    /** Opens a subagent's own view. Without it, agents fold in like any step. */
+    onOpenAgent?: (id: string) => void;
 }) {
     const [open, setOpen] = useState(false);
 
+    // Subagents are drawn apart, as cards that open into their own view,
+    // rather than as one more line with all their work folded under it.
+    const { items, agents } = useMemo(() => {
+        if (!onOpenAgent) return { items: allItems, agents: [] as AiStep[] };
+        const isAgent = (item: TraceItem) => item.kind === "step" && item.step.kind === "agent";
+        return {
+            items: allItems.filter(item => !isAgent(item)),
+            agents: allItems.flatMap(item => item.kind === "step" && isAgent(item) ? [item.step] : []),
+        };
+    }, [allItems, onOpenAgent]);
     const steps = useMemo(() => items.flatMap(item =>
         item.kind === "step" ? [item.step, ...(childSteps.get(item.step.id) ?? [])] : []), [items, childSteps]);
     const thinking = running && items.at(-1)?.kind === "thought";
-    const now = useNow(thinking || steps.some(s => s.status === "running"));
+    const now = useNow(thinking || steps.some(s => s.status === "running") || agents.some(a => a.status === "running"));
 
     const planItems = plan ?? [];
-    if (items.length === 0 && planItems.length === 0) return null;
+    if (items.length === 0 && planItems.length === 0) {
+        return agents.length > 0 ? <AgentCards agents={agents} childSteps={childSteps} now={now} onOpen={onOpenAgent!} /> : null;
+    }
 
     const failed = steps.filter(s => s.status === "failed").length;
     const total = steps.length + hiddenSteps;
@@ -213,6 +210,56 @@ export function TurnTrace({ items, childSteps, hiddenSteps = 0, plan, running }:
                     )}
                 </div>
             )}
+            {agents.length > 0 && <AgentCards agents={agents} childSteps={childSteps} now={now} onOpen={onOpenAgent!} className="mt-1" />}
+        </div>
+    );
+}
+
+/** An agent's state as an icon: working, done, failed, or cut off. */
+export function AgentStatus({ status, className = "" }: { status: AiStep["status"]; className?: string }) {
+    if (status === "running") return <Spinner className={`size-3 shrink-0 ${className}`} />;
+    if (status === "failed") return <X size={12} className={`shrink-0 text-red-300/80 ${className}`} />;
+    if (status === "stopped") return <Circle size={10} className={`shrink-0 text-tone-250 ${className}`} />;
+    return <Check size={12} className={`shrink-0 text-tone-300 ${className}`} />;
+}
+
+/**
+ * The subagents a stretch of work started, one card each. A card says what
+ * the agent was sent to do and what it is doing now; clicking it opens the
+ * agent's own view, with its steps and what it wrote.
+ */
+function AgentCards({ agents, childSteps, now, onOpen, className = "" }: {
+    agents: AiStep[];
+    childSteps: Map<string, AiStep[]>;
+    now: number;
+    onOpen: (id: string) => void;
+    className?: string;
+}) {
+    return (
+        <div className={`flex flex-col gap-1 w-full min-w-0 ${className}`}>
+            {agents.map(agent => {
+                const children = childSteps.get(agent.id);
+                const activity = agent.status === "running" ? agentActivity(children) : "";
+                return (
+                    <button
+                        key={agent.id}
+                        onClick={() => onOpen(agent.id)}
+                        title="Open this agent"
+                        className="group/agent flex items-center gap-2 w-full min-w-0 px-2.5 py-1.5 rounded-lg border border-line-070 bg-fill-030 hover:bg-fill-060 hover:border-line-100 text-left transition-colors cursor-pointer"
+                    >
+                        <Bot size={13} strokeWidth={1.8} className="shrink-0 text-tone-350" />
+                        <span className="flex flex-col min-w-0 flex-1">
+                            <span className="truncate text-11.5 text-tone-700 group-hover/agent:text-tone-900">{agent.detail || "Agent"}</span>
+                            {agent.status === "running" && (
+                                <span className="truncate text-10 text-tone-300">{activity || "Working"}</span>
+                            )}
+                        </span>
+                        <span className="shrink-0 text-10 tabular-nums text-tone-250">{agentFigures(agent, children, now)}</span>
+                        <AgentStatus status={agent.status} />
+                        <ChevronRight size={12} className="shrink-0 text-tone-250 group-hover/agent:text-tone-500" />
+                    </button>
+                );
+            })}
         </div>
     );
 }
@@ -311,7 +358,7 @@ function StepRow({ step, now, bare = false }: { step: AiStep; now: number; bare?
 }
 
 /** A block of a step's text; a diff colours its added and removed lines. */
-function StepText({ label, text, diff = false }: { label?: string; text: string; diff?: boolean }) {
+export function StepText({ label, text, diff = false }: { label?: string; text: string; diff?: boolean }) {
     return (
         <div className="flex flex-col gap-0.5 min-w-0">
             {label && <span className="text-9.5 uppercase tracking-wide text-tone-250">{label}</span>}
@@ -409,9 +456,8 @@ export function TurnStats({ stats, showCost }: { stats: AiTurnStats; showCost: b
     if (stats.model) parts.push(stats.model.replace(/-\d{8}$/, ""));
     const duration = formatDuration(stats.durationMs);
     if (duration) parts.push(duration);
-    if (stats.inputTokens || stats.outputTokens) {
-        parts.push(`${formatTokens(stats.inputTokens)} in · ${formatTokens(stats.outputTokens)} out`);
-    }
+    const tokens = tokenFlow(stats.inputTokens, stats.outputTokens);
+    if (tokens) parts.push(tokens);
     if (showCost && typeof stats.costUsd === "number" && stats.costUsd > 0) {
         parts.push(`$${stats.costUsd < 0.01 ? stats.costUsd.toFixed(4) : stats.costUsd.toFixed(2)}`);
     }
@@ -423,6 +469,25 @@ export function TurnStats({ stats, showCost }: { stats: AiTurnStats; showCost: b
     return (
         <span className="text-10 text-tone-250 tabular-nums truncate" title={parts.join(" · ")}>
             {parts.join(" · ")}
+        </span>
+    );
+}
+
+/**
+ * The same figures while the answer is still coming: how long it has been
+ * going, and the tokens so far. Ticks on its own, so a turn that sits on one
+ * long step still shows it is alive.
+ */
+export function LiveTurnStats({ startedAt, inputTokens, outputTokens }: {
+    startedAt: number;
+    inputTokens?: number;
+    outputTokens?: number;
+}) {
+    const now = useNow(true);
+    const tokens = tokenFlow(inputTokens, outputTokens);
+    return (
+        <span className="text-10 text-tone-250 tabular-nums whitespace-nowrap">
+            ({formatElapsed(now - startedAt)}{tokens && ` · ${tokens}`})
         </span>
     );
 }

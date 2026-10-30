@@ -5,7 +5,7 @@ import { spawn } from "child_process";
 import { registerProvider, withResumeFallback } from "./provider.js";
 import { claudeAuthMode } from "./cliAuth.js";
 import { workspaceDir } from "./workspace.js";
-import { describeTool, describeToolInput, clipOutput, clipHead, toolResultText, PLANNING_TOOLS, QUIET_TOOLS } from "./trace.js";
+import { describeTool, describeToolInput, clipOutput, clipHead, toolResultText, AGENT_TOOLS, PLANNING_TOOLS, QUIET_TOOLS } from "./trace.js";
 import { resultImages } from "./stepImages.js";
 import { resolveCli, killTree, track } from "./cliProcess.js";
 import { expandAttachments } from "./attachments.js";
@@ -503,6 +503,24 @@ async function* runTurn({ query, cli, prompt, attachments, sessionId, model, set
     // The retry step in progress, settled by whatever arrives next.
     let retrying = null;
     const plan = planTracker();
+    // Tokens so far, so the view can count up while the turn runs: calls
+    // already finished, plus the one streaming now. Each result's totals
+    // replace these as it arrives.
+    let spent = { inputTokens: 0, outputTokens: 0 };
+    let call = { inputTokens: 0, outputTokens: 0 };
+    // A turn that waits on background agents gets a result every time it
+    // wakes up to read one. Each covers only its own stretch, so they add up.
+    const settled = { inputTokens: 0, outputTokens: 0, turns: 0 };
+    // Text after a wake-up is a new paragraph, not the end of the last one.
+    let newParagraph = false;
+    const paragraph = (text) => {
+        if (!newParagraph) return text;
+        newParagraph = false;
+        return /^\s*\n/.test(text) ? text : `\n\n${text}`;
+    };
+    // Agents sent to work in the background, by the call that started them.
+    // Their call returns at once; they're done when a notification says so.
+    const backgroundAgents = new Set();
     try {
         for await (const message of query({ prompt: promptInput(prompt, attachments), options })) {
             if (message?.session_id && !resolvedSession) {
@@ -522,6 +540,25 @@ async function* runTurn({ query, cli, prompt, attachments, sessionId, model, set
                 // answer; its tool calls still show, under the call that
                 // started it.
                 const sub = Boolean(message.parent_tool_use_id);
+                // Each model call opens with what it read and closes with
+                // what it wrote. A subagent's calls are left out, as they are
+                // from the result's totals, so the count never jumps back.
+                if (!sub && event?.type === "message_start") {
+                    spent.inputTokens += call.inputTokens;
+                    spent.outputTokens += call.outputTokens;
+                    const usage = event.message?.usage ?? {};
+                    call = {
+                        inputTokens: (usage.input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0),
+                        outputTokens: usage.output_tokens ?? 0,
+                    };
+                    yield { type: "stats", stats: { inputTokens: spent.inputTokens + call.inputTokens, outputTokens: spent.outputTokens + call.outputTokens } };
+                    continue;
+                }
+                if (!sub && event?.type === "message_delta" && typeof event.usage?.output_tokens === "number") {
+                    call.outputTokens = event.usage.output_tokens;
+                    yield { type: "stats", stats: { inputTokens: spent.inputTokens + call.inputTokens, outputTokens: spent.outputTokens + call.outputTokens } };
+                    continue;
+                }
                 // Extended thinking arrives on the same channel as the
                 // answer, just under a different delta type. It is reported
                 // rather than dropped so a long pause has something behind
@@ -536,7 +573,7 @@ async function* runTurn({ query, cli, prompt, attachments, sessionId, model, set
                     const text = event.delta.text;
                     if (text) {
                         streamedSinceMessage = true;
-                        yield { type: "text", text };
+                        yield { type: "text", text: paragraph(text) };
                     }
                     continue;
                 }
@@ -598,6 +635,29 @@ async function* runTurn({ query, cli, prompt, attachments, sessionId, model, set
                 continue;
             }
 
+            // A subagent's running tally, so its card can say how far along it is.
+            if (message?.type === "system" && message.subtype === "task_progress" && AGENT_TOOLS.has(tools.get(message.tool_use_id))) {
+                const usage = message.usage ?? {};
+                yield {
+                    type: "step",
+                    step: {
+                        id: message.tool_use_id,
+                        ...(typeof usage.total_tokens === "number" ? { tokens: usage.total_tokens } : {}),
+                        ...(typeof usage.tool_uses === "number" ? { toolUses: usage.tool_uses } : {}),
+                    },
+                };
+                continue;
+            }
+
+            // A background agent finishing. Until this arrives its call has
+            // only said it started, and the agent is still at work.
+            if (message?.type === "system" && message.subtype === "task_notification" && backgroundAgents.has(message.tool_use_id)) {
+                backgroundAgents.delete(message.tool_use_id);
+                const status = message.status === "completed" ? "done" : message.status === "failed" ? "failed" : "stopped";
+                yield { type: "step", step: { id: message.tool_use_id, status } };
+                continue;
+            }
+
             // How much of the plan's rolling window is spent, the number a
             // subscription user actually runs out of.
             if (message?.type === "rate_limit_event") {
@@ -629,13 +689,19 @@ async function* runTurn({ query, cli, prompt, attachments, sessionId, model, set
                     };
                 }
                 if (message.parent_tool_use_id) {
-                    // A subagent's text is never the answer.
+                    // A subagent's text is never the answer; it is the
+                    // agent's own account, shown when you open it.
+                    for (const block of message.message?.content ?? []) {
+                        if (block?.type === "text" && block.text?.trim()) {
+                            yield { type: "agent-text", agentId: message.parent_tool_use_id, text: block.text };
+                        }
+                    }
                 } else if (streamedSinceMessage) {
                     streamedSinceMessage = false;
                 } else {
                     for (const block of message.message?.content ?? []) {
                         if (block?.type === "text" && block.text) {
-                            yield { type: "text", text: block.text };
+                            yield { type: "text", text: paragraph(block.text) };
                         }
                     }
                 }
@@ -658,6 +724,12 @@ async function* runTurn({ query, cli, prompt, attachments, sessionId, model, set
                     // A picture it read is shown as the picture, not "[image]".
                     const images = resultImages(block.content);
                     const text = toolResultText(block.content, { imagePlaceholder: !images.length });
+                    // A background agent's call returns as soon as it starts.
+                    // That receipt isn't its result, and it isn't done.
+                    if (AGENT_TOOLS.has(name) && !block.is_error && /^Async agent launched/.test(text)) {
+                        backgroundAgents.add(block.tool_use_id);
+                        continue;
+                    }
                     yield {
                         type: "step",
                         step: {
@@ -674,15 +746,22 @@ async function* runTurn({ query, cli, prompt, attachments, sessionId, model, set
 
             if (message?.type === "result") {
                 const usage = message.usage ?? {};
+                // Everything the model read, cached or not, the cache only
+                // changes what it cost.
+                settled.inputTokens += (usage.input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0);
+                settled.outputTokens += usage.output_tokens ?? 0;
+                settled.turns += message.num_turns ?? 0;
+                spent = { inputTokens: settled.inputTokens, outputTokens: settled.outputTokens };
+                call = { inputTokens: 0, outputTokens: 0 };
+                newParagraph = true;
                 yield {
                     type: "stats",
                     stats: {
                         // No duration: ai.ipc times every provider the same way.
-                        turns: message.num_turns,
-                        // Everything the model read, cached or not, the
-                        // cache only changes what it cost.
-                        inputTokens: (usage.input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0),
-                        outputTokens: usage.output_tokens,
+                        turns: settled.turns,
+                        inputTokens: settled.inputTokens,
+                        outputTokens: settled.outputTokens,
+                        // Already a running total across wake-ups.
                         costUsd: message.total_cost_usd,
                     },
                 };

@@ -54,6 +54,15 @@ const DECISIONS = new Set(["allow", "allow-chat", "deny"]);
 const MAX_STEPS = 200;
 
 /**
+ * Steps kept per subagent, on a budget of their own. Seven agents working in
+ * parallel used to share the turn's, and pushed its own steps off the front.
+ */
+const MAX_AGENT_STEPS = 150;
+
+/** What a subagent writes in its own words; the report it ends on comes last. */
+const MAX_AGENT_TEXT = 60_000;
+
+/**
  * AI channels are deliberately narrow and named, matching the rest of the
  * preload surface, a prompt goes out, chunks come back. Credentials never
  * cross into the renderer; the main process attaches them.
@@ -137,6 +146,8 @@ export function registerAiIpc({ mainWindow, appStates }) {
             hiddenSteps: 0,
             plan: null,
             stats: {},
+            // Each subagent's own words, by the call that started it.
+            agentText: {},
             startedAt: Date.now(),
             error: "",
             // Approvals waiting on the user, by permission id.
@@ -150,6 +161,30 @@ export function registerAiIpc({ mainWindow, appStates }) {
             attachments: attachments.map(a => ({ name: a.name, path: a.path, kind: a.kind, size: a.size })),
         });
 
+        /**
+         * Drops the oldest step once a list outgrows its budget: the turn's
+         * own, or one agent's. A dropped agent takes its steps with it, and
+         * the count of what went is kept with whoever lost it.
+         */
+        const trimSteps = (parentId) => {
+            const siblings = turn.steps.filter(s => s.parentId === parentId);
+            if (siblings.length <= (parentId ? MAX_AGENT_STEPS : MAX_STEPS)) return;
+            const gone = new Set([siblings[0].id]);
+            for (const s of turn.steps) if (s.parentId && gone.has(s.parentId)) gone.add(s.id);
+            turn.steps = turn.steps.filter(s => !gone.has(s.id));
+            for (const id of gone) {
+                turn.stepIndex.delete(id);
+                delete turn.agentText[id];
+            }
+            const parent = parentId && turn.stepIndex.get(parentId);
+            if (parent) {
+                parent.hiddenSteps = (parent.hiddenSteps ?? 0) + 1;
+                post({ type: "step", step: parent });
+            } else {
+                turn.hiddenSteps++;
+            }
+        };
+
         /** Adds a step or folds an update into the one it belongs to. */
         const upsertStep = (patch) => {
             const now = Date.now();
@@ -161,16 +196,15 @@ export function registerAiIpc({ mainWindow, appStates }) {
                 // `at` is how much of the answer had been written when the
                 // step began: the view draws it there, between the text
                 // before and after it, instead of above the whole answer.
-                step = { status: "running", startedAt: now, at: turn.text.length, seq: ++turn.seq, ...fields };
+                // A subagent's step is placed in the agent's own text.
+                const at = fields.parentId ? (turn.agentText[fields.parentId]?.length ?? 0) : turn.text.length;
+                step = { status: "running", startedAt: now, at, seq: ++turn.seq, ...fields };
                 // A subagent's calls sit under their parent and don't
                 // interrupt the answer.
                 if (!step.parentId) noteKind("step");
                 turn.stepIndex.set(step.id, step);
                 turn.steps.push(step);
-                if (turn.steps.length > MAX_STEPS) {
-                    turn.stepIndex.delete(turn.steps.shift().id);
-                    turn.hiddenSteps++;
-                }
+                trimSteps(step.parentId);
             } else {
                 Object.assign(step, fields);
             }
@@ -292,6 +326,7 @@ export function registerAiIpc({ mainWindow, appStates }) {
                 hiddenSteps: turn.hiddenSteps,
                 plan: turn.plan,
                 stats: turn.stats,
+                agentText: turn.agentText,
                 traceId: requestId,
                 error: turn.error || undefined,
             });
@@ -365,6 +400,16 @@ export function registerAiIpc({ mainWindow, appStates }) {
                         if (chunk.text) addReasoning(chunk.text);
                         continue;
                     }
+                    if (chunk.type === "agent-text") {
+                        // One block per message the agent writes, each its own paragraph.
+                        const before = turn.agentText[chunk.agentId] ?? "";
+                        if (chunk.text && before.length < MAX_AGENT_TEXT) {
+                            const text = before ? `\n\n${chunk.text}` : chunk.text;
+                            turn.agentText[chunk.agentId] = before + text;
+                            post({ type: "agent-text", agentId: chunk.agentId, text });
+                        }
+                        continue;
+                    }
                     if (chunk.type === "error") noteError(chunk.message);
                     // The view gets the merged step, not the adapter's patch.
                     if (chunk.type === "step" && chunk.step?.id) {
@@ -427,6 +472,8 @@ export function registerAiIpc({ mainWindow, appStates }) {
                     hiddenSteps: turn.hiddenSteps,
                     plan: turn.plan,
                     stats: turn.stats,
+                    agentText: turn.agentText,
+                    startedAt: turn.startedAt,
                     // Still waiting on an answer from whoever left the view.
                     permissions: [...turn.permissions.values()].map(p => ({
                         permissionId: p.permissionId,

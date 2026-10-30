@@ -29,7 +29,15 @@ export function useChat() {
     const [thoughts, setThoughts] = useState<AiThought[]>([]);
     const [steps, setSteps] = useState<AiStep[]>([]);
     const [plan, setPlan] = useState<AiPlanItem[] | null>(null);
+    // What each subagent has written so far, by the step that started it.
+    const [agentText, setAgentText] = useState<Record<string, string>>({});
     const [stats, setStats] = useState<AiTurnStats>({});
+    // When the turn in flight began, for the clock beside it.
+    const [startedAt, setStartedAt] = useState<number | null>(null);
+    // How much text and thinking had arrived when the provider last reported
+    // its output count. Whatever came after is estimated on top of it, so the
+    // count climbs as the answer streams rather than only between calls.
+    const [countedChars, setCountedChars] = useState(0);
     // Between asking a turn to stop and it actually ending. The provider
     // takes a moment to notice, and without this the view carried on as if
     // nothing had happened.
@@ -57,6 +65,13 @@ export function useChat() {
     const thoughtsRef = useRef<AiThought[]>([]);
     const thoughtsDirtyRef = useRef(false);
     const frameRef = useRef<number | null>(null);
+    const outputTokensRef = useRef<number | undefined>(undefined);
+
+    /** Answer and thinking received so far, including what awaits a frame. */
+    const streamedChars = useCallback(() => (
+        partialRef.current.length + bufferRef.current.length
+        + thoughtsRef.current.reduce((n, t) => n + t.text.length, 0)
+    ), []);
 
     const flush = useCallback(() => {
         frameRef.current = null;
@@ -144,7 +159,16 @@ export function useChat() {
                 setPlan(chunk.items);
                 return;
             }
+            if (chunk.type === "agent-text") {
+                // A whole message at a time, so no need to batch it per frame.
+                setAgentText(prev => ({ ...prev, [chunk.agentId]: (prev[chunk.agentId] ?? "") + chunk.text }));
+                return;
+            }
             if (chunk.type === "stats") {
+                if (chunk.stats.outputTokens !== outputTokensRef.current) {
+                    outputTokensRef.current = chunk.stats.outputTokens;
+                    setCountedChars(streamedChars());
+                }
                 setStats(chunk.stats);
                 return;
             }
@@ -194,7 +218,7 @@ export function useChat() {
             }
         });
         return detach;
-    }, [flush, resetStream]);
+    }, [flush, resetStream, streamedChars]);
 
     /**
      * Returns the loaded chat so the caller can restore its provider setup.
@@ -216,7 +240,12 @@ export function useChat() {
         resetStream(active?.text ?? "", active?.thoughts ?? []);
         setSteps(active?.steps ?? []);
         setPlan(active?.plan ?? null);
+        setAgentText(active?.agentText ?? {});
         setStats(active?.stats ?? {});
+        setStartedAt(active?.startedAt ?? null);
+        // What already arrived is covered by the count, if there is one yet.
+        outputTokensRef.current = active?.stats.outputTokens;
+        setCountedChars(active?.stats.outputTokens ? streamedChars() : 0);
         setPermissions(active?.permissions ?? []);
         if (active) {
             // Disk holds the question but no answer yet; give the stream a turn
@@ -235,7 +264,7 @@ export function useChat() {
 
         setChat({ ...loaded });
         return loaded;
-    }, [resetStream]);
+    }, [resetStream, streamedChars]);
 
     /**
      * Starts a blank conversation, detaching from any turn being watched.
@@ -252,7 +281,11 @@ export function useChat() {
         resetStream();
         setSteps([]);
         setPlan(null);
+        setAgentText({});
         setStats({});
+        setStartedAt(null);
+        outputTokensRef.current = undefined;
+        setCountedChars(0);
         setPermissions([]);
         requestIdRef.current = null;
         setStreaming(false);
@@ -270,7 +303,11 @@ export function useChat() {
         resetStream();
         setSteps([]);
         setPlan(null);
+        setAgentText({});
         setStats({});
+        setStartedAt(Date.now());
+        outputTokensRef.current = undefined;
+        setCountedChars(0);
         setPermissions([]);
         setStreaming(true);
 
@@ -375,9 +412,14 @@ export function useChat() {
         if (id) await window.ai.respondPermission(id, permissionId, decision);
     }, []);
 
+    // The provider's own output count, plus roughly four characters a token
+    // for whatever has streamed in since it last reported.
+    const sinceCounted = partial.length + thoughts.reduce((n, t) => n + t.text.length, 0) - countedChars;
+    const liveOutputTokens = (stats.outputTokens ?? 0) + Math.max(0, Math.round(sinceCounted / 4));
+
     return {
         chat, streaming, stopping, partial, error,
-        thoughts, steps, plan, stats, permissions,
+        thoughts, steps, plan, agentText, stats, startedAt, liveOutputTokens, permissions,
         send, rerun, cancel, openChat, newChat, respondPermission,
     };
 }

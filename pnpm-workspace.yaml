@@ -17,25 +17,43 @@ minimumReleaseAgeExclude:
   - '@anthropic-ai/claude-agent-sdk-win32-x64@0.3.306'
   - '@anthropic-ai/claude-agent-sdk@0.3.306'
   - vite@6.4.5
+  - katex@0.18.2
+  - electron@44.5.0
+  - ip-address@10.7.4
+  - zod@4.6.6
+  - electron@44.9.1
+  - body-parser@2.4.0
+  - undici@7.30.1
+  - fast-uri@3.1.9
+  - '@hono/node-server@2.1.3'
+  - qs@6.16.1
 
 # Force patched versions of transitive deps whose parents still pin
 # vulnerable releases. Scoped per major so parents keep a compatible API.
 overrides:
   '@babel/core@7': ^7.29.7
+  '@hono/node-server@>=1.19.10 <2.1.3': ^2.1.3
   '@modelcontextprotocol/sdk@1': ^1.32.1
   '@xmldom/xmldom@0.8': ^0.8.15
   '@xmldom/xmldom@0.9': ^0.9.12
   baseline-browser-mapping@2: ^2.11.0
+  body-parser@>=2.0.0 <2.4.0: ^2.4.0
   brace-expansion@1: ^1.1.21
   brace-expansion@2: ^2.1.7
   brace-expansion@5: ^5.0.12
   browserslist@4: ^4.28.7
+  electron@>=44.0.0-alpha.1 <44.5.0: ^44.5.0
+  electron@>=44.0.0-alpha.1 <44.9.1: ^44.9.1
   fast-uri@3: ^3.1.6
+  fast-uri@>=3.0.0 <3.1.9: ^3.1.9
+  fast-uri@>=3.1.3 <3.1.9: ^3.1.9
   form-data@4: ^4.0.6
   hono@4: ^4.13.13
   http-cache-semantics@4: ^4.3.0
+  ip-address@<=10.7.3: ^10.7.4
   js-yaml@3: ^3.15.2
   js-yaml@4: ^4.3.2
+  katex@>=0.11.0 <0.18.2: ^0.18.2
   lodash@4: ^4.18.1
   minimatch@3: ^3.1.5
   minimatch@7: ^7.4.9
@@ -43,9 +61,14 @@ overrides:
   picomatch@2: ^2.3.2
   postcss@8: ^8.5.25
   qs@6: ^6.16.0
+  qs@>=6.7.0 <=6.16.0: ^6.16.1
   rollup@4: ^4.62.4
   source-map-js@1: ^1.2.2
   tar@7: ^7.5.22
   tmp@0.2: ^0.2.7
   undici@6: ^6.29.1
+  undici@>=7.0.0 <7.30.1: ^7.30.1
+  undici@>=7.15.0 <7.30.1: ^7.30.1
+  undici@>=7.18.0 <7.30.1: ^7.30.1
   yaml@1: ^1.10.3
+  zod@<4.6.6: ^4.6.6
